@@ -1,0 +1,64 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "planning_entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "factory", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "planning_entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "factory", "order": "ASCENDING" },
+        { "fieldPath": "machine", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "production_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "factory", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "production_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "factory", "order": "ASCENDING" },
+        { "fieldPath": "machine", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "production_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "factory", "order": "ASCENDING" },
+        { "fieldPath": "source", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "agent_logs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "factory", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "agent_logs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

@@ -1,0 +1,116 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helpers ───────────────────────────────────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+
+    function isAdmin() {
+      return hasRole('admin');
+    }
+
+    function isPlanner() {
+      return hasRole('planner') || isAdmin();
+    }
+
+    function isViewer() {
+      return isAuthenticated(); // all authenticated users can view
+    }
+
+    function validFactory() {
+      return request.resource.data.factory in ['doptex', 'corradi'];
+    }
+
+    function validPlanningEntry() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['factory', 'machine', 'product', 'productName', 'date', 'planned', 'quality', 'side'])
+        && d.factory is string
+        && d.machine is string
+        && d.product is string
+        && d.productName is string
+        && d.planned is number
+        && d.planned >= 0
+        && d.quality in ['A', 'B']
+        && d.side in ['Lado A', 'Lado B', 'Único']
+        && validFactory();
+    }
+
+    function validProductionRecord() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['factory', 'machine', 'product', 'productName', 'date', 'actual', 'planned'])
+        && d.factory is string
+        && d.machine is string
+        && d.actual is number
+        && d.actual >= 0
+        && d.planned is number
+        && d.planned >= 0
+        && validFactory();
+    }
+
+    // ─── Users ─────────────────────────────────────────────────────────────────
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow write: if isAdmin();
+      // Allow user to update their own non-sensitive fields
+      allow update: if isOwner(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'factory']);
+    }
+
+    // ─── Planning Entries ───────────────────────────────────────────────────────
+
+    match /planning_entries/{entryId} {
+      allow read: if isViewer();
+      allow create: if isPlanner() && validPlanningEntry();
+      allow update: if isPlanner() && validPlanningEntry();
+      allow delete: if isPlanner();
+    }
+
+    // ─── Production Records ─────────────────────────────────────────────────────
+
+    match /production_records/{recordId} {
+      allow read: if isViewer();
+      // Manual records can be created by planners
+      allow create: if isPlanner() && validProductionRecord();
+      // Agent-imported records: only Cloud Functions (service account) can write
+      // Frontend planners can also update manual records
+      allow update: if isPlanner() && resource.data.source == 'manual' && validProductionRecord();
+      allow delete: if isAdmin();
+    }
+
+    // ─── Agent Logs ─────────────────────────────────────────────────────────────
+
+    match /agent_logs/{logId} {
+      allow read: if isAdmin();
+      // Logs are written only by Cloud Functions (service account) — deny client writes
+      allow write: if false;
+    }
+
+    // ─── Machines (reference data) ───────────────────────────────────────────────
+
+    match /machines/{machineId} {
+      allow read: if isViewer();
+      allow write: if isAdmin();
+    }
+
+    // ─── Products (reference data) ───────────────────────────────────────────────
+
+    match /products/{productId} {
+      allow read: if isViewer();
+      allow write: if isAdmin();
+    }
+  }
+}

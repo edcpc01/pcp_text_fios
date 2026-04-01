@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /
+
+# Corradi Production Planner — Internal enterprise app
+# No public indexing intended
