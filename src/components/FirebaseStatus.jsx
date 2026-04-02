@@ -1,77 +1,71 @@
 import { useState, useEffect } from 'react';
 import { AlertTriangle, CheckCircle, X, RefreshCw } from 'lucide-react';
 import { db, auth } from '../services/firebase';
-import { collection, addDoc, getDocs, query, limit, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, Timestamp } from 'firebase/firestore';
 
 export default function FirebaseStatus() {
-  const [status, setStatus] = useState('idle'); // idle | checking | ok | error
+  const [status, setStatus] = useState('checking');
   const [message, setMessage] = useState('');
   const [dismissed, setDismissed] = useState(false);
 
-  const checkConnection = async () => {
+  const check = async () => {
     setStatus('checking');
     try {
-      // Test: escreve e lê um doc de teste
-      const testRef = collection(db, '_connection_test');
-      await addDoc(testRef, { ts: Timestamp.now(), uid: auth.currentUser?.uid || 'anon' });
-      const snap = await getDocs(query(testRef, limit(1)));
-      if (snap.size > 0) {
-        setStatus('ok');
-        setMessage('Firestore conectado — dados serão persistidos!');
-        setTimeout(() => setDismissed(true), 3000);
+      // Tenta escrever no próprio documento do usuário (sempre permitido pelas regras)
+      const uid = auth.currentUser?.uid;
+      if (!uid) {
+        setStatus('error');
+        setMessage('Usuário não autenticado.');
+        return;
       }
+      await setDoc(doc(db, 'users', uid), {
+        lastSeen: Timestamp.now(),
+        email: auth.currentUser?.email || '',
+      }, { merge: true });
+      setStatus('ok');
+      setMessage('Conectado! Dados serão salvos.');
+      setTimeout(() => setDismissed(true), 3000);
     } catch (err) {
       setStatus('error');
-      setMessage(`Erro: ${err.code || err.message}`);
+      setMessage(`${err.code}: ${err.message}`);
     }
   };
 
   useEffect(() => {
-    const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
-    if (!apiKey || apiKey === 'your_api_key_here') {
-      setStatus('error');
-      setMessage('Variáveis VITE_FIREBASE_* não configuradas na Vercel.');
-      return;
-    }
-    // Auto-check after 2s (let auth initialize)
-    const t = setTimeout(checkConnection, 2000);
+    const t = setTimeout(check, 2500);
     return () => clearTimeout(t);
   }, []);
 
-  if (dismissed || status === 'idle') return null;
+  if (dismissed) return null;
 
-  const colors = {
-    checking: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-300', icon: <RefreshCw size={15} className="text-blue-400 animate-spin" /> },
-    ok:       { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-300', icon: <CheckCircle size={15} className="text-emerald-400" /> },
-    error:    { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-300', icon: <AlertTriangle size={15} className="text-red-400" /> },
+  const styles = {
+    checking: { bg: 'bg-blue-500/10 border-blue-500/30', text: 'text-blue-300', icon: <RefreshCw size={14} className="text-blue-400 animate-spin shrink-0" /> },
+    ok:       { bg: 'bg-emerald-500/10 border-emerald-500/30', text: 'text-emerald-300', icon: <CheckCircle size={14} className="text-emerald-400 shrink-0" /> },
+    error:    { bg: 'bg-red-500/10 border-red-500/30', text: 'text-red-300', icon: <AlertTriangle size={14} className="text-red-400 shrink-0" /> },
   };
-  const c = colors[status] || colors.checking;
+  const s = styles[status];
 
   return (
-    <div className="fixed bottom-4 right-4 z-[200] max-w-sm animate-slide-up">
-      <div className={`${c.bg} border ${c.border} rounded-xl px-4 py-3 shadow-2xl backdrop-blur-sm flex items-start gap-3`}>
-        <div className="shrink-0 mt-0.5">{c.icon}</div>
+    <div className="fixed bottom-4 right-4 z-[200] w-72 animate-slide-up">
+      <div className={`border rounded-xl px-3.5 py-3 shadow-2xl backdrop-blur-sm flex items-start gap-2.5 ${s.bg}`}>
+        {s.icon}
         <div className="flex-1 min-w-0">
-          <p className={`text-xs font-semibold ${c.text}`}>
-            {status === 'checking' ? 'Verificando conexão Firebase...' :
-             status === 'ok'       ? 'Firebase OK' : 'Firebase com problema'}
+          <p className={`text-xs font-semibold ${s.text}`}>
+            {status === 'checking' ? 'Verificando Firebase...' : status === 'ok' ? 'Firebase OK' : 'Firebase: erro'}
           </p>
-          {message && <p className="text-xs text-brand-muted mt-0.5 leading-relaxed">{message}</p>}
+          {message && <p className="text-[11px] text-brand-muted mt-0.5 break-all">{message}</p>}
           {status === 'error' && (
-            <div className="mt-2 space-y-1">
-              <p className="text-[10px] text-brand-muted">Verifique no Firestore Console:</p>
-              <p className="text-[10px] text-brand-muted">1. Regras publicadas (aba Regras)</p>
-              <p className="text-[10px] text-brand-muted">2. Índices ativos (aba Índices)</p>
-              <button onClick={checkConnection}
-                className="mt-1.5 text-[10px] text-red-300 hover:text-red-200 underline underline-offset-2">
+            <>
+              <p className="text-[10px] text-brand-muted mt-1.5 leading-relaxed">
+                Abra o Firebase Console → Firestore → Regras e cole a regra simplificada do arquivo <code className="font-mono">firestore.rules</code>.
+              </p>
+              <button onClick={check} className="text-[11px] text-red-300 hover:text-red-200 underline underline-offset-2 mt-1.5">
                 Tentar novamente
               </button>
-            </div>
+            </>
           )}
         </div>
-        <button onClick={() => setDismissed(true)} className="text-brand-muted hover:text-white p-0.5 transition-colors shrink-0">
-          <X size={12} />
-        </button>
+        <button onClick={() => setDismissed(true)} className="text-brand-muted hover:text-white p-0.5 shrink-0"><X size={12} /></button>
       </div>
     </div>
   );
