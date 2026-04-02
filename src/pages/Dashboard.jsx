@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { TrendingUp, TrendingDown, Minus, Activity, Package, Cpu } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Activity, Package, Cpu, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppStore, usePlanningStore, useProductionStore, useAdminStore } from '../hooks/useStore';
 import { subscribeProductionRecords, subscribePlanningEntries } from '../services/firebase';
 import { seedDemoData } from '../utils/seedData';
@@ -28,7 +28,7 @@ function KpiCard({ label, value, unit, sub, trend, accentColor }) {
 }
 
 export default function Dashboard() {
-  const { factory, month, getYearMonth } = useAppStore();
+  const { factory, month, getYearMonth, changeMonth } = useAppStore();
   const { entriesMap, setEntriesFromArray } = usePlanningStore();
   const { records, setRecords } = useProductionStore();
   const { machines: adminMachines } = useAdminStore();
@@ -73,9 +73,22 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-xl font-bold text-white">Dashboard</h1>
-        <p className="text-sm text-brand-muted mt-0.5 capitalize">{monthLabel}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-white">Dashboard</h1>
+          <p className="text-sm text-brand-muted mt-0.5 capitalize">{monthLabel}</p>
+        </div>
+
+        {/* Seleção de Mês */}
+        <div className="flex items-center bg-brand-surface border border-brand-border rounded-lg p-1 self-start sm:self-auto">
+          <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-brand-card rounded text-brand-muted hover:text-white transition-colors">
+            <ChevronLeft size={18} />
+          </button>
+          <span className="text-sm font-medium text-white px-3 capitalize min-w-[120px] text-center">{monthLabel}</span>
+          <button onClick={() => changeMonth(1)} className="p-1 hover:bg-brand-card rounded text-brand-muted hover:text-white transition-colors">
+            <ChevronRight size={18} />
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -125,7 +138,9 @@ export default function Dashboard() {
                 <div key={name}>
                   <div className="flex justify-between text-xs mb-1.5">
                     <span className="text-white font-medium">{name}</span>
-                    <span className="text-brand-muted font-mono">{pct}%</span>
+                    <span className="text-brand-muted font-mono whitespace-nowrap">
+                      {val >= 1000 ? `${(val/1000).toFixed(1)}k` : val} kg ({pct}%)
+                    </span>
                   </div>
                   <div className="h-1.5 bg-brand-surface rounded-full overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: '#f97316' }} />
