@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { db } from '../firebase'; // Verifique se seu arquivo de config chama 'firebase.js' ou 'firebase-config.js'
+import { db } from '../services/firebase'; // Verifique se seu arquivo de config chama 'firebase.js' ou 'firebase-config.js'
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 
 export const usePlanningStore = create((set, get) => ({

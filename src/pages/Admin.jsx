@@ -3,7 +3,7 @@ import { Plus, Pencil, Trash2, X, Save, Package, Cpu, ChevronDown, ChevronUp, Lo
 import { useAdminStore, FACTORIES } from '../hooks/useStore';
 // Importamos as funções de persistência
 import { saveProduct, subscribeProducts, saveMachineConfig } from '../services/firebase';
-import { db } from '../firebase';
+import { db } from '../services/firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 
 const TABS = [
