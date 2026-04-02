@@ -26,7 +26,7 @@ function EntryModal({ entry, machine, date, factory, products, machines, onSave,
     machine:     entry?.machine     || machine?.id    || '',
     machineName: entry?.machineName || machine?.name  || '',
     product:     entry?.product     || products[0]?.id  || '',
-    productName: entry?.productName || products[0]?.name || '',
+    productName: entry?.productName || products[0]?.nome || '',
     date:        entry?.date || date || '',
     planned:     entry?.planned ?? (machine ? Math.round(machine.capacity * 0.8) : 400),
     quality:     entry?.quality  || 'A',
@@ -39,7 +39,7 @@ function EntryModal({ entry, machine, date, factory, products, machines, onSave,
 
   const handleProduct = (id) => {
     const p = products.find((x) => x.id === id);
-    if (p) setForm((f) => ({ ...f, product: p.id, productName: p.name }));
+    if (p) setForm((f) => ({ ...f, product: p.id, productName: p.nome }));
   };
 
   const handleMachine = (id) => {
@@ -115,7 +115,7 @@ function EntryModal({ entry, machine, date, factory, products, machines, onSave,
               <label className="block text-xs font-bold text-brand-muted mb-1.5 uppercase tracking-wider">Produto</label>
               <select value={form.product} onChange={(e) => handleProduct(e.target.value)}
                 className="w-full bg-brand-surface border border-brand-border rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
-                {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {products.map((p) => <option key={p.id} value={p.id}>{p.id} — {p.nome}</option>)}
               </select>
             </div>
             <div className="grid grid-cols-3 gap-3">
