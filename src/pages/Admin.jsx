@@ -204,7 +204,7 @@ function ProductModal({ product, onSave, onClose }) {
 // ─── Machine Modal ────────────────────────────────────────────────────────────
 function MachineModal({ machine, factory, onSave, onClose }) {
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState(machine ?? { id: '', name: '', spindles: 240, efficiency: 95, capacity: 400 });
+  const [form, setForm] = useState(machine ?? { id: '', name: '', spindles: 240, efficiency: 95 });
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const handleSubmit = async () => {
@@ -232,10 +232,9 @@ function MachineModal({ machine, factory, onSave, onClose }) {
             <div><Label>ID</Label><TextInput value={form.id} onChange={(v) => set('id', v)} placeholder="ex: M12" mono /></div>
             <div><Label>Nome</Label><TextInput value={form.name} onChange={(v) => set('name', v)} placeholder="ex: Máquina 12" /></div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div><Label>Qtde Fusos</Label><NumberInput value={form.spindles} onChange={(v) => set('spindles', v)} /></div>
             <div><Label>Eficiência (%)</Label><NumberInput value={form.efficiency} onChange={(v) => set('efficiency', v)} /></div>
-            <div><Label>Capacidade (kg/dia)</Label><NumberInput value={form.capacity} onChange={(v) => set('capacity', v)} /></div>
           </div>
         </div>
         <div className="flex justify-end gap-2 px-5 pb-5">
@@ -414,7 +413,7 @@ export default function Admin() {
             </div>
             <table className="w-full">
               <thead><tr className="border-b border-brand-border bg-brand-surface/50">
-                {['ID', 'Nome', 'Fusos', 'Eficiência', 'Capacidade', ''].map((h) => (
+                {['ID', 'Nome', 'Fusos', 'Eficiência', ''].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-[10px] font-bold text-brand-muted uppercase tracking-wider">{h}</th>
                 ))}
               </tr></thead>
@@ -425,7 +424,6 @@ export default function Admin() {
                     <td className="px-4 py-3 text-sm font-medium text-white">{m.name}</td>
                     <td className="px-4 py-3 text-sm text-brand-muted">{m.spindles}</td>
                     <td className="px-4 py-3 text-sm text-brand-muted">{m.efficiency}%</td>
-                    <td className="px-4 py-3 text-sm font-mono text-brand-muted">{m.capacity} kg</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">
                         <button onClick={() => setModal({ type: 'machine', data: m, factory: selectedFactory })} className="p-1.5 text-brand-muted hover:text-brand-cyan hover:bg-brand-cyan/10 rounded-lg transition-all"><Pencil size={13} /></button>

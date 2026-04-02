@@ -36,8 +36,6 @@ function EntryModal({ entry, machine, date, factory, products, machines, onSave,
     productName: entry?.productName || defaultProduct?.nome || '',
     date:        entry?.date || date || '',
     planned:     initialPlanned,
-    quality:     entry?.quality  || 'A',
-    side:        entry?.side     || 'Lado A',
     cellType:    entry?.cellType || 'producao',
   });
 
@@ -137,27 +135,11 @@ function EntryModal({ entry, machine, date, factory, products, machines, onSave,
                 {products.map((p) => <option key={p.id} value={p.id}>{p.id} — {p.nome}</option>)}
               </select>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-brand-muted mb-1.5 uppercase tracking-wider">Kg/dia</label>
-                <input type="number" value={form.planned} min={0} max={9999}
-                  onChange={(e) => setForm((f) => ({ ...f, planned: Number(e.target.value) }))}
-                  className="w-full bg-brand-surface border border-brand-border rounded-xl px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-brand-cyan/50 transition-all" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-brand-muted mb-1.5 uppercase tracking-wider">Lado</label>
-                <select value={form.side} onChange={(e) => setForm((f) => ({ ...f, side: e.target.value }))}
-                  className="w-full bg-brand-surface border border-brand-border rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
-                  <option>Lado A</option><option>Lado B</option><option>Único</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-brand-muted mb-1.5 uppercase tracking-wider">Qual.</label>
-                <select value={form.quality} onChange={(e) => setForm((f) => ({ ...f, quality: e.target.value }))}
-                  className="w-full bg-brand-surface border border-brand-border rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
-                  <option>A</option><option>B</option>
-                </select>
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-brand-muted mb-1.5 uppercase tracking-wider">Kg/dia</label>
+              <input type="number" value={form.planned} min={0} max={9999}
+                onChange={(e) => setForm((f) => ({ ...f, planned: Number(e.target.value) }))}
+                className="w-full bg-brand-surface border border-brand-border rounded-xl px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-brand-cyan/50 transition-all" />
             </div>
           </>)}
 
@@ -188,11 +170,20 @@ function EntryModal({ entry, machine, date, factory, products, machines, onSave,
 }
 
 // ─── Matrix Cell ──────────────────────────────────────────────────────────────
-function MatrixCell({ entry, date, machine, isCurrentDay, onClick }) {
+function MatrixCell({ entry, date, machine, isCurrentDay, onClick, onDragStart, onDrop }) {
   const ct = entry?.cellType ? CELL_TYPES[entry.cellType] : null;
+  const tooltipText = entry 
+    ? (entry.cellType === 'producao' ? `Produto: ${entry.productName || 'Sem produto'}\nKg: ${entry.planned}` : entry.cellType)
+    : 'Planejar dia';
+
   return (
     <td
       onClick={() => onClick(entry || null, machine, date)}
+      title={tooltipText}
+      draggable={!!entry}
+      onDragStart={(e) => onDragStart && onDragStart(e, entry)}
+      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+      onDrop={(e) => onDrop && onDrop(e, machine, date)}
       className="border border-brand-border/40 min-w-[56px] w-[56px] cursor-pointer transition-all duration-100 hover:brightness-125"
       style={ct
         ? { background: ct.bg, borderColor: ct.border }
@@ -273,6 +264,30 @@ export default function Planning() {
     try { await deletePlanningEntry(id); }
     catch (err) { console.error('Delete failed', err); }
   }, [deleteEntry]);
+
+  const handleDragStart = useCallback((e, entry) => {
+    e.dataTransfer.setData('application/json', JSON.stringify(entry));
+  }, []);
+
+  const handleDrop = useCallback(async (e, destMachine, destDate) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const dataStr = e.dataTransfer.getData('application/json');
+    if (!dataStr) return;
+    try {
+      const sourceEntry = JSON.parse(dataStr);
+      const newEntry = {
+        ...sourceEntry,
+        id: makeEntryId(factory, destMachine.id, destDate),
+        machine: destMachine.id,
+        machineName: destMachine.name,
+        date: destDate
+      };
+      await handleSave(newEntry);
+    } catch(err) {
+      console.error('Drop error', err);
+    }
+  }, [factory, handleSave]);
 
   return (
     <div className="flex flex-col bg-brand-bg" style={{ height: 'calc(100vh - 56px)' }}>
@@ -365,6 +380,8 @@ export default function Planning() {
                       machine={machine}
                       isCurrentDay={isToday(date)}
                       onClick={(e, m, d) => setModal({ entry: e, machine: m, date: d })}
+                      onDragStart={handleDragStart}
+                      onDrop={handleDrop}
                     />
                   );
                 })}
