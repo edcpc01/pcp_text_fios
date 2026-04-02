@@ -11,12 +11,12 @@ import {
 import { makeEntryId } from '../hooks/useStore';
 
 const firebaseConfig = {
-  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 const app = initializeApp(firebaseConfig);
@@ -30,8 +30,8 @@ export const db = initializeFirestore(app, {
 export const auth = getAuth(app);
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
-export const signIn       = (email, pw) => signInWithEmailAndPassword(auth, email, pw);
-export const signOut      = () => firebaseSignOut(auth);
+export const signIn = (email, pw) => signInWithEmailAndPassword(auth, email, pw);
+export const signOut = () => firebaseSignOut(auth);
 export const onAuthChange = (cb) => onAuthStateChanged(auth, cb);
 
 export async function getUserRole(uid) {
@@ -51,7 +51,7 @@ export async function getUserRole(uid) {
 export function subscribePlanningEntries(factory, yearMonth, callback) {
   const [year, month] = yearMonth.split('-').map(Number);
   const start = Timestamp.fromDate(new Date(year, month - 1, 1));
-  const end   = Timestamp.fromDate(new Date(year, month, 0, 23, 59, 59));
+  const end = Timestamp.fromDate(new Date(year, month, 0, 23, 59, 59));
   const q = query(
     collection(db, 'planning_entries'),
     where('factory', '==', factory),
@@ -64,7 +64,7 @@ export function subscribePlanningEntries(factory, yearMonth, callback) {
     (snap) => {
       const data = snap.docs.map((d) => ({
         ...d.data(),
-        id:   d.id,
+        id: d.id,
         date: d.data().date?.toDate?.()?.toISOString?.()?.split('T')[0],
       }));
       console.log(`[Firestore] planning_entries snapshot: ${data.length} docs`);
@@ -79,18 +79,18 @@ export function subscribePlanningEntries(factory, yearMonth, callback) {
 export async function savePlanningEntry(entry) {
   const stableId = makeEntryId(entry.factory, entry.machine, entry.date);
   const data = {
-    factory:     entry.factory,
-    machine:     entry.machine,
+    factory: entry.factory,
+    machine: entry.machine,
     machineName: entry.machineName || entry.machine,
-    product:     entry.product     || '',
+    product: entry.product || '',
     productName: entry.productName || '',
-    date:        Timestamp.fromDate(new Date(entry.date + 'T12:00:00')),
-    planned:     Number(entry.planned) || 0,
-    quality:     entry.quality     || 'A',
-    side:        entry.side        || 'Lado A',
-    cellType:    entry.cellType    || 'producao',
-    updatedAt:   Timestamp.now(),
-    createdAt:   Timestamp.now(),
+    date: Timestamp.fromDate(new Date(entry.date + 'T12:00:00')),
+    planned: Number(entry.planned) || 0,
+    quality: entry.quality || 'A',
+    side: entry.side || 'Lado A',
+    cellType: entry.cellType || 'producao',
+    updatedAt: Timestamp.now(),
+    createdAt: Timestamp.now(),
   };
   console.log('[Firestore] savePlanningEntry ->', stableId, data.cellType, data.planned);
   await setDoc(doc(db, 'planning_entries', stableId), data, { merge: true });
@@ -106,7 +106,7 @@ export async function deletePlanningEntry(id) {
 export function subscribeProductionRecords(factory, yearMonth, callback) {
   const [year, month] = yearMonth.split('-').map(Number);
   const start = Timestamp.fromDate(new Date(year, month - 1, 1));
-  const end   = Timestamp.fromDate(new Date(year, month, 0, 23, 59, 59));
+  const end = Timestamp.fromDate(new Date(year, month, 0, 23, 59, 59));
   const q = query(
     collection(db, 'production_records'),
     where('factory', '==', factory),
@@ -127,3 +127,32 @@ export async function saveAgentLog(log) {
 }
 
 export default app;
+// --- CADASTRO DE PRODUTOS (DOPTEX) ---
+
+/**
+ * Salva ou atualiza um produto no Firestore
+ * @param {Object} product - Objeto com nome, cor, etc.
+ */
+export const saveProduct = async (product) => {
+  // Criamos um ID amigável (ex: "Liocel 40" vira "liocel-40")
+  const productId = product.id || product.nome.toLowerCase().trim().replace(/\s+/g, '-');
+  const docRef = doc(db, "products", productId);
+
+  return await setDoc(docRef, {
+    ...product,
+    id: productId,
+    updatedAt: new Date().toISOString()
+  }, { merge: true });
+};
+
+/**
+ * Escuta mudanças na coleção de produtos em tempo real
+ * @param {Function} callback - Função que recebe a lista de produtos
+ */
+export const subscribeProducts = (callback) => {
+  const q = query(collection(db, "products"), orderBy("nome", "asc"));
+  return onSnapshot(q, (snapshot) => {
+    const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    callback(products);
+  });
+};
