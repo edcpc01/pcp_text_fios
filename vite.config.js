@@ -7,18 +7,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      devOptions: {
-        enabled: true, // Habilita SW em desenvolvimento para testar offline
-      },
-      includeAssets: [
-        'favicon.svg',
-        'favicon-32.png',
-        'apple-touch-icon.png',
-        'robots.txt',
-        'icons/icon-192.png',
-        'icons/icon-512.png',
-        'icons/icon-maskable-512.png',
-      ],
+      devOptions: { enabled: true },
+      includeAssets: ['favicon.svg', 'favicon-32.png', 'apple-touch-icon.png', 'robots.txt'],
       manifest: {
         name: 'Corradi — Planejamento de Produção',
         short_name: 'Corradi',
@@ -31,45 +21,18 @@ export default defineConfig({
         scope: '/',
         start_url: '/',
         lang: 'pt-BR',
-        categories: ['productivity', 'business'],
         icons: [
-          {
-            src: '/icons/icon-192.png',
-            sizes: '192x192',
-            type: 'image/png',
-          },
-          {
-            src: '/icons/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-          },
-          {
-            src: '/icons/icon-maskable-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
         shortcuts: [
-          {
-            name: 'Planejamento',
-            short_name: 'Planejar',
-            description: 'Abrir planejamento de produção',
-            url: '/planning',
-            icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }],
-          },
-          {
-            name: 'Realizado',
-            short_name: 'Realizado',
-            description: 'Ver produção realizada',
-            url: '/production',
-            icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }],
-          },
+          { name: 'Planejamento', url: '/planning', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
+          { name: 'Realizado', url: '/production', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
         ],
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        // Cache Firestore com NetworkFirst (dados sempre frescos, mas funciona offline)
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/firestore\.googleapis\.com\/.*/i,
@@ -77,43 +40,20 @@ export default defineConfig({
             options: {
               cacheName: 'firestore-cache',
               networkTimeoutSeconds: 5,
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60, // 1 hora
-              },
+              expiration: { maxEntries: 100, maxAgeSeconds: 3600 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },
-          // Cache Cloud Functions com NetworkFirst
-          {
-            urlPattern: /^https:\/\/southamerica-east1-.+\.cloudfunctions\.net\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'functions-cache',
-              networkTimeoutSeconds: 10,
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 5 * 60, // 5 minutos
-              },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          // Cache Google Fonts com CacheFirst (estático)
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'google-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 ano
-              },
+              expiration: { maxEntries: 10, maxAgeSeconds: 31536000 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },
         ],
-        // Não fazer cache de rotas de autenticação Firebase
-        navigateFallbackDenylist: [/^\/(__\/auth)\//],
       },
     }),
   ],

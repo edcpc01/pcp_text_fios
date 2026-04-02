@@ -7,21 +7,19 @@ on:
       - 'functions/**'
       - 'firestore.rules'
       - 'firestore.indexes.json'
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Install Functions deps
+      - name: Install Functions dependencies
         run: cd functions && npm ci
-
-      - name: Deploy to Firebase
+      - name: Deploy Firebase
         uses: w9jds/firebase-action@master
         with:
           args: deploy --only functions,firestore:rules,firestore:indexes
