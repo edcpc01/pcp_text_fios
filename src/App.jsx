@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './hooks/useStore';
-import { onAuthChange } from './services/firebase';
+import { onAuthChange, getUserRole } from './services/firebase';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Planning from './pages/Planning';
@@ -14,9 +14,19 @@ export default function App() {
 
   useEffect(() => {
     setLoading(true);
-    const unsub = onAuthChange((fu) => {
-      if (fu) setUser({ uid: fu.uid, email: fu.email, name: fu.displayName || fu.email.split('@')[0], role: fu.role || 'planner' });
-      else setUser(null);
+    const unsub = onAuthChange(async (fu) => {
+      if (fu) {
+        // Busca role do Firestore (não do token)
+        const role = await getUserRole(fu.uid);
+        setUser({
+          uid: fu.uid,
+          email: fu.email,
+          name: fu.displayName || fu.email.split('@')[0],
+          role: role || 'planner',
+        });
+      } else {
+        setUser(null);
+      }
     });
     return () => unsub();
   }, []);
