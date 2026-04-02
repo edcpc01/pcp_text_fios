@@ -330,18 +330,7 @@ export default function Admin() {
   const [modal, setModal] = useState(null);
 
   // Pegamos as funções e o estado do Zustand
-  const { products, machines, setProducts, setMachines } = useAdminStore();
-
-  // Escutar o Firestore em tempo real
-  useEffect(() => {
-    // Sincroniza produtos
-    const unsubProducts = subscribeProducts((data) => {
-      setProducts(data);
-    });
-
-    // Aqui poderíamos ter um subscribeMachines também, mas vamos focar nos produtos primeiro
-    return () => unsubProducts();
-  }, [setProducts]);
+  const { products, machines, setMachines } = useAdminStore();
 
   const handleSaveProduct = async (form) => {
     await saveProduct(form); // Persiste no Firebase

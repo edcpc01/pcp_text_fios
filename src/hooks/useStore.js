@@ -130,6 +130,8 @@ export const useProductionStore = create((set, get) => ({
 export const useAdminStore = create((set) => ({
   products: [...PRODUCTS],
   machines: JSON.parse(JSON.stringify(MACHINES)),
+  setProducts:   (data)         => set({ products: data }),
+  setMachines:   (data)         => set({ machines: data }),
   addProduct:    (p)            => set((s) => ({ products: [...s.products, p] })),
   updateProduct: (id, upd)      => set((s) => ({ products: s.products.map((p) => p.id === id ? { ...p, ...upd } : p) })),
   deleteProduct: (id)           => set((s) => ({ products: s.products.filter((p) => p.id !== id) })),
