@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, Minus, Activity, Package, Cpu, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppStore, usePlanningStore, useProductionStore, useAdminStore } from '../hooks/useStore';
@@ -50,24 +50,33 @@ export default function Dashboard() {
     return () => { unsubP(); unsubR(); };
   }, [factory, yearMonth]);
 
+  const [selectedDay, setSelectedDay] = useState(null);
+  useEffect(() => { 
+    setSelectedDay(null); 
+  }, [yearMonth]);
+
   const allEntries = Object.values(entriesMap);
-  const planningEntries = allEntries.filter((e) => e.cellType === 'producao' || !e.cellType);
-  const totalPlanned = planningEntries.reduce((s, e) => s + (e.planned || 0), 0);
-  const totalActual  = records.reduce((s, r) => s + (r.actual || 0), 0);
+  const basePlanningEntries = allEntries.filter((e) => e.cellType === 'producao' || !e.cellType);
+  
+  const activePlanning = selectedDay ? basePlanningEntries.filter((e) => e.date === selectedDay) : basePlanningEntries;
+  const activeRecords  = selectedDay ? records.filter((r) => r.date === selectedDay) : records;
+
+  const totalPlanned = activePlanning.reduce((s, e) => s + (e.planned || 0), 0);
+  const totalActual  = activeRecords.reduce((s, r) => s + (r.actual || 0), 0);
   const adherence    = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : 0;
   const pastDays     = days.filter((d) => isPast(d) || isToday(d));
 
   const chartData = useMemo(() => pastDays.slice(-15).map((date) => ({
     day:     parseInt(date.split('-')[2]),
-    planned: planningEntries.filter((e) => e.date === date).reduce((s, e) => s + (e.planned || 0), 0),
+    planned: basePlanningEntries.filter((e) => e.date === date).reduce((s, e) => s + (e.planned || 0), 0),
     actual:  records.filter((r) => r.date === date).reduce((s, r) => s + (r.actual || 0), 0),
-  })), [planningEntries, records, pastDays]);
+  })), [basePlanningEntries, records, pastDays]);
 
   const productMix = useMemo(() => {
     const map = {};
-    planningEntries.forEach((e) => { if (!map[e.productName]) map[e.productName] = 0; map[e.productName] += e.planned || 0; });
+    activePlanning.forEach((e) => { if (!map[e.productName]) map[e.productName] = 0; map[e.productName] += e.planned || 0; });
     return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  }, [planningEntries]);
+  }, [activePlanning]);
 
   const adColor = adherence >= 90 ? '#10b981' : adherence >= 80 ? '#f59e0b' : '#ef4444';
 
@@ -79,22 +88,44 @@ export default function Dashboard() {
           <p className="text-sm text-brand-muted mt-0.5 capitalize">{monthLabel}</p>
         </div>
 
-        {/* Seleção de Mês */}
-        <div className="flex items-center bg-brand-surface border border-brand-border rounded-lg p-1 self-start sm:self-auto">
-          <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-brand-card rounded text-brand-muted hover:text-white transition-colors">
-            <ChevronLeft size={18} />
-          </button>
-          <span className="text-sm font-medium text-white px-3 capitalize min-w-[120px] text-center">{monthLabel}</span>
-          <button onClick={() => changeMonth(1)} className="p-1 hover:bg-brand-card rounded text-brand-muted hover:text-white transition-colors">
-            <ChevronRight size={18} />
-          </button>
+        {/* Filtros */}
+        <div className="flex bg-brand-surface border border-brand-border rounded-lg p-1 self-start sm:self-auto mt-2 sm:mt-0">
+          {/* Mês */}
+          <div className="flex items-center space-x-1">
+            <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-brand-card rounded text-brand-muted hover:text-white transition-colors">
+              <ChevronLeft size={18} />
+            </button>
+            <span className="text-sm font-medium text-white px-1 capitalize min-w-[100px] text-center">{monthLabel}</span>
+            <button onClick={() => changeMonth(1)} className="p-1 hover:bg-brand-card rounded text-brand-muted hover:text-white transition-colors">
+              <ChevronRight size={18} />
+            </button>
+          </div>
+          
+          <div className="w-px bg-brand-border mx-2 my-1"></div>
+          
+          {/* Dia */}
+          <div className="flex items-center pr-2">
+            <select 
+              className="bg-transparent text-sm font-medium text-white outline-none cursor-pointer appearance-none rounded focus:ring-0"
+              value={selectedDay || ''}
+              onChange={(e) => setSelectedDay(e.target.value || null)}
+              style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none', textAlign: 'center' }}
+            >
+              <option value="" className="bg-brand-card text-white">Mês Inteiro</option>
+              {days.map(d => (
+                <option key={d} value={d} className="bg-brand-card text-white">
+                  Dia {d.split('-')[2]}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Total Planejado" value={totalPlanned >= 1000 ? `${(totalPlanned/1000).toFixed(0)}k` : totalPlanned} unit="kg" accentColor="#22d3ee" trend={0} sub={`${days.length} dias no mês`} />
-        <KpiCard label="Total Realizado" value={totalActual >= 1000 ? `${(totalActual/1000).toFixed(0)}k` : totalActual} unit="kg" accentColor="#10b981" trend={totalActual >= totalPlanned * 0.9 ? 1 : -1} sub={`${pastDays.length} dias apurados`} />
+        <KpiCard label="Total Planejado" value={totalPlanned >= 1000 ? `${(totalPlanned/1000).toFixed(0)}k` : totalPlanned} unit="kg" accentColor="#22d3ee" trend={0} sub={selectedDay ? '1 dia' : `${days.length} dias no mês`} />
+        <KpiCard label="Total Realizado" value={totalActual >= 1000 ? `${(totalActual/1000).toFixed(0)}k` : totalActual} unit="kg" accentColor="#10b981" trend={totalActual >= totalPlanned * 0.9 ? 1 : -1} sub={selectedDay ? '1 dia' : `${pastDays.length} dias apurados`} />
         <KpiCard label="Aderência" value={`${adherence}%`} accentColor={adColor} trend={adherence >= 90 ? 1 : -1} sub="planejado vs realizado" />
         <KpiCard label="Máquinas" value={machines.length} accentColor="#f97316" trend={0} sub={factory === 'matriz' ? 'Corradi Matriz' : 'Corradi Filial'} />
       </div>
@@ -155,13 +186,13 @@ export default function Dashboard() {
       {/* Machine status grid */}
       <div className="bg-brand-card border border-brand-border rounded-2xl p-5">
         <h3 className="text-xs font-bold text-brand-muted uppercase tracking-widest mb-4 flex items-center gap-2">
-          <Cpu size={13} className="text-brand-cyan" /> Status das Máquinas — Hoje
+          <Cpu size={13} className="text-brand-cyan" /> Status das Máquinas — {selectedDay ? `Dia ${selectedDay.split('-')[2]}` : 'Hoje'}
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
           {machines.map((machine) => {
-            const today = new Date().toISOString().split('T')[0];
-            const planned = planningEntries.filter((e) => e.machine === machine.id && e.date === today).reduce((s, e) => s + (e.planned || 0), 0);
-            const actual  = records.filter((r) => r.machine === machine.id && r.date === today).reduce((s, r) => s + (r.actual || 0), 0);
+            const targetDate = selectedDay || new Date().toISOString().split('T')[0];
+            const planned = basePlanningEntries.filter((e) => e.machine === machine.id && e.date === targetDate).reduce((s, e) => s + (e.planned || 0), 0);
+            const actual  = records.filter((r) => r.machine === machine.id && r.date === targetDate).reduce((s, r) => s + (r.actual || 0), 0);
             const pct = planned > 0 ? Math.round((actual / planned) * 100) : null;
             const color = pct === null ? '#1e3058' : pct >= 95 ? '#10b981' : pct >= 80 ? '#22d3ee' : pct >= 65 ? '#f59e0b' : '#ef4444';
             return (
