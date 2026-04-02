@@ -90,73 +90,70 @@ export default function Dashboard() {
   return (
     <div className="p-6 space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative">
-        <div 
-          className="cursor-pointer group flex items-center gap-2" 
-          onClick={() => setShowDatePicker(!showDatePicker)}
-        >
-          <div>
-            <h1 className="text-xl font-bold text-white group-hover:text-brand-cyan transition-colors">Dashboard</h1>
-            <p className="text-sm text-brand-muted mt-0.5 capitalize flex items-center gap-1.5">
-              {monthLabel} <Calendar size={12} className="opacity-70" />
-            </p>
-          </div>
+        <div>
+          <h1 className="text-xl font-bold text-white">Dashboard</h1>
+          <p className="text-sm text-brand-muted mt-0.5 capitalize">{monthLabel}</p>
         </div>
 
-        {/* Date Picker Popover */}
-        {showDatePicker && (
-          <div className="absolute top-[4.5rem] sm:top-14 left-0 z-50 bg-brand-card border border-brand-border rounded-xl p-4 shadow-xl flex flex-col gap-3 animate-fade-in shadow-black/50">
-            <div className="flex items-center gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-brand-muted uppercase font-bold tracking-widest">Data Inicial</label>
-                <input 
-                  type="date" 
-                  className="bg-brand-surface text-white text-sm rounded border border-brand-border p-2 focus:outline-none focus:border-brand-cyan"
-                  value={dateRange.start}
-                  onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-brand-muted uppercase font-bold tracking-widest">Data Final</label>
-                <input 
-                  type="date" 
-                  className="bg-brand-surface text-white text-sm rounded border border-brand-border p-2 focus:outline-none focus:border-brand-cyan"
-                  value={dateRange.end}
-                  min={dateRange.start}
-                  onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-2">
-              <button 
-                onClick={() => { setDateRange({start:'', end:''}); setShowDatePicker(false); }}
-                className="text-xs text-brand-muted hover:text-white px-3 py-1.5 rounded transition-colors"
-                title="Mostrar mês inteiro"
-              >
-                Limpar
-              </button>
-              <button 
-                onClick={() => setShowDatePicker(false)}
-                className="text-xs bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/20 font-bold rounded px-4 py-1.5 hover:bg-brand-cyan/20 transition-colors"
-              >
-                Aplicar
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Filtros */}
-        <div className="flex bg-brand-surface border border-brand-border rounded-lg p-1 self-start sm:self-auto mt-2 sm:mt-0">
+        <div className="flex bg-brand-surface border border-brand-border rounded-lg p-1 self-start sm:self-auto mt-2 sm:mt-0 relative">
           <div className="flex items-center space-x-1">
             <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-brand-card rounded text-brand-muted hover:text-white transition-colors">
               <ChevronLeft size={18} />
             </button>
-            <span className="text-sm font-medium text-white px-3 capitalize min-w-[120px] text-center">
+            <span 
+              className="text-sm font-medium text-white px-3 capitalize min-w-[120px] text-center cursor-pointer select-none hover:text-brand-cyan transition-colors"
+              onDoubleClick={() => setShowDatePicker(true)}
+              title="Duplo clique para filtrar o período"
+            >
               {hasRange ? `${parseInt(dateRange.start.slice(-2))} a ${parseInt(dateRange.end.slice(-2))}` : monthLabel}
             </span>
             <button onClick={() => changeMonth(1)} className="p-1 hover:bg-brand-card rounded text-brand-muted hover:text-white transition-colors">
               <ChevronRight size={18} />
             </button>
           </div>
+
+          {/* Date Picker Popover */}
+          {showDatePicker && (
+            <div className="absolute top-[calc(100%+0.5rem)] sm:right-0 sm:left-auto left-0 z-50 bg-brand-card border border-brand-border rounded-xl p-4 shadow-xl flex flex-col gap-3 animate-fade-in shadow-black/50">
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <div className="flex flex-col gap-1 w-full sm:w-auto">
+                  <label className="text-[10px] text-brand-muted uppercase font-bold tracking-widest">Data Inicial</label>
+                  <input 
+                    type="date" 
+                    className="bg-brand-surface text-white text-sm rounded border border-brand-border p-2 focus:outline-none focus:border-brand-cyan w-full"
+                    value={dateRange.start}
+                    onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                  />
+                </div>
+                <div className="flex flex-col gap-1 w-full sm:w-auto">
+                  <label className="text-[10px] text-brand-muted uppercase font-bold tracking-widest">Data Final</label>
+                  <input 
+                    type="date" 
+                    className="bg-brand-surface text-white text-sm rounded border border-brand-border p-2 focus:outline-none focus:border-brand-cyan w-full"
+                    value={dateRange.end}
+                    min={dateRange.start}
+                    onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-2">
+                <button 
+                  onClick={() => { setDateRange({start:'', end:''}); setShowDatePicker(false); }}
+                  className="text-xs text-brand-muted hover:text-white px-3 py-1.5 rounded transition-colors"
+                  title="Mostrar mês inteiro"
+                >
+                  Limpar
+                </button>
+                <button 
+                  onClick={() => setShowDatePicker(false)}
+                  className="text-xs bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/20 font-bold rounded px-4 py-1.5 hover:bg-brand-cyan/20 transition-colors"
+                >
+                  Aplicar
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
