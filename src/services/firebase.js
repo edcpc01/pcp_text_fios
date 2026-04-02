@@ -156,3 +156,11 @@ export const subscribeProducts = (callback) => {
     callback(products);
   });
 };
+
+/**
+ * Salva a configuração de uma máquina
+ */
+export async function saveMachineConfig(factory, machineId, config) {
+  const docRef = doc(db, 'machines_config', `${factory}__${machineId}`);
+  await setDoc(docRef, { ...config, factory, updatedAt: new Date().toISOString() }, { merge: true });
+}

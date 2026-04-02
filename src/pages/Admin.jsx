@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, X, Save, Package, Cpu, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { useAdminStore, FACTORIES } from '../hooks/useStore';
 // Importamos as funções de persistência
-import { saveProduct, subscribeProducts, saveMachineConfig } from '../services/firestore';
+import { saveProduct, subscribeProducts, saveMachineConfig } from '../services/firebase';
 import { db } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 
