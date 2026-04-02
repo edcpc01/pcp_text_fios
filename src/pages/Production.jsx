@@ -36,28 +36,28 @@ function ProductRow({ item, rank }) {
   const barWidth = Math.min(pct, 120); // cap visual em 120%
 
   return (
-    <tr className="group hover:bg-white/[0.025] transition-colors border-b border-white/[0.04]">
+    <tr className="group hover:bg-white/[0.025] transition-colors border-b border-brand-border">
       {/* Rank */}
       <td className="pl-6 pr-2 py-4 w-8">
-        <span className="text-xs font-mono text-slate-600">{rank}</span>
+        <span className="text-xs font-mono text-brand-muted/60">{rank}</span>
       </td>
 
       {/* Produto */}
       <td className="px-4 py-4">
         <div>
-          <span className="text-sm font-semibold text-slate-200">{item.name}</span>
+          <span className="text-sm font-semibold text-white">{item.name}</span>
           {item.machine && (
-            <span className="ml-2 text-[10px] text-slate-600">{item.machine}</span>
+            <span className="ml-2 text-[10px] text-brand-muted/60">{item.machine}</span>
           )}
         </div>
       </td>
 
       {/* Planejado */}
       <td className="px-4 py-4 text-right">
-        <span className="text-sm font-mono text-slate-300">
+        <span className="text-sm font-mono text-white">
           {item.planned.toLocaleString('pt-BR')}
         </span>
-        <span className="text-[10px] text-slate-600 ml-1">kg</span>
+        <span className="text-[10px] text-brand-muted/60 ml-1">kg</span>
       </td>
 
       {/* Realizado */}
@@ -65,7 +65,7 @@ function ProductRow({ item, rank }) {
         <span className={`text-sm font-mono font-semibold ${colors.text}`}>
           {item.actual.toLocaleString('pt-BR')}
         </span>
-        <span className="text-[10px] text-slate-600 ml-1">kg</span>
+        <span className="text-[10px] text-brand-muted/60 ml-1">kg</span>
       </td>
 
       {/* Barra de aderência */}
@@ -80,7 +80,7 @@ function ProductRow({ item, rank }) {
               {badge.label}
             </span>
           </div>
-          <div className="h-1.5 bg-brand-slate/80 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-brand-surface/80 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-700 ${colors.bar}`}
               style={{ width: `${barWidth}%` }}
@@ -218,21 +218,21 @@ export default function Production() {
     <div className="flex flex-col h-full min-h-0">
 
       {/* ─── Header ────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border shrink-0">
         <div>
-          <h1 className="text-lg font-bold text-slate-100">Realizado</h1>
-          <p className="text-xs text-slate-500 mt-0.5 capitalize">{monthLabel}</p>
+          <h1 className="text-lg font-bold text-white">Realizado</h1>
+          <p className="text-xs text-brand-muted mt-0.5 capitalize">{monthLabel}</p>
         </div>
         <div className="flex items-center gap-2">
           {/* Navegação de mês */}
-          <div className="flex items-center gap-1 bg-brand-slate/50 rounded-xl p-1 border border-white/[0.06]">
-            <button onClick={() => changeMonth(-1)} className="p-1.5 hover:bg-white/[0.06] rounded-lg transition-colors text-slate-400 hover:text-slate-200">
+          <div className="flex items-center gap-1 bg-brand-surface/50 rounded-xl p-1 border border-brand-border">
+            <button onClick={() => changeMonth(-1)} className="p-1.5 hover:bg-white/[0.06] rounded-lg transition-colors text-brand-muted hover:text-white">
               <ChevronLeft size={14} />
             </button>
-            <span className="text-xs font-medium text-slate-300 px-2 min-w-[80px] text-center capitalize">
+            <span className="text-xs font-medium text-white px-2 min-w-[80px] text-center capitalize">
               {new Date(month.year, month.month).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })}
             </span>
-            <button onClick={() => changeMonth(1)} className="p-1.5 hover:bg-white/[0.06] rounded-lg transition-colors text-slate-400 hover:text-slate-200">
+            <button onClick={() => changeMonth(1)} className="p-1.5 hover:bg-white/[0.06] rounded-lg transition-colors text-brand-muted hover:text-white">
               <ChevronRight size={14} />
             </button>
           </div>
@@ -240,7 +240,7 @@ export default function Production() {
           <button
             onClick={() => setSyncing(true)}
             disabled={syncing}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-brand-slate/60 hover:bg-brand-slate border border-white/[0.06] text-slate-300 text-xs font-medium rounded-xl transition-all disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-brand-surface/60 hover:bg-brand-surface border border-brand-border text-white text-xs font-medium rounded-xl transition-all disabled:opacity-50"
           >
             <RefreshCw size={13} className={syncing ? 'animate-spin' : ''} />
             Sincronizar
@@ -249,60 +249,60 @@ export default function Production() {
       </div>
 
       {/* ─── KPI Cards ─────────────────────────────────────────────────── */}
-      <div className="px-6 py-4 grid grid-cols-2 lg:grid-cols-4 gap-3 border-b border-white/[0.04] shrink-0">
+      <div className="px-6 py-4 grid grid-cols-2 lg:grid-cols-4 gap-3 border-b border-brand-border shrink-0">
         {/* Aderência global */}
-        <div className={`rounded-xl p-3.5 border ${globalColors.bg} border-white/[0.06]`}>
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Aderência Geral</p>
+        <div className={`rounded-xl p-3.5 border ${globalColors.bg} border-brand-border`}>
+          <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-1">Aderência Geral</p>
           <div className="flex items-end gap-1">
             <span className={`text-2xl font-mono font-bold ${globalColors.text}`}>{globalPct}%</span>
           </div>
-          <div className="mt-2 h-1 bg-brand-dark/40 rounded-full overflow-hidden">
+          <div className="mt-2 h-1 bg-brand-bg/40 rounded-full overflow-hidden">
             <div className={`h-full rounded-full ${globalColors.bar}`} style={{ width: `${Math.min(globalPct, 100)}%` }} />
           </div>
         </div>
 
         {/* Total realizado */}
-        <div className="rounded-xl p-3.5 border border-white/[0.06] bg-white/[0.02]">
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Total Realizado</p>
-          <p className="text-2xl font-mono font-bold text-slate-100">
+        <div className="rounded-xl p-3.5 border border-brand-border bg-white/[0.02]">
+          <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-1">Total Realizado</p>
+          <p className="text-2xl font-mono font-bold text-white">
             {totalActual >= 1000000
               ? `${(totalActual / 1000000).toFixed(1)}M`
               : totalActual >= 1000
               ? `${(totalActual / 1000).toFixed(0)}k`
               : totalActual.toLocaleString('pt-BR')}
-            <span className="text-xs font-normal text-slate-500 ml-1">kg</span>
+            <span className="text-xs font-normal text-brand-muted ml-1">kg</span>
           </p>
-          <p className="text-[10px] text-slate-600 mt-1">
+          <p className="text-[10px] text-brand-muted/60 mt-1">
             de {totalPlanned.toLocaleString('pt-BR')} kg planejados
           </p>
         </div>
 
         {/* Críticos */}
-        <div className={`rounded-xl p-3.5 border ${criticalCount > 0 ? 'border-red-500/20 bg-red-500/[0.05]' : 'border-white/[0.06] bg-white/[0.02]'}`}>
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Críticos</p>
+        <div className={`rounded-xl p-3.5 border ${criticalCount > 0 ? 'border-red-500/20 bg-red-500/[0.05]' : 'border-brand-border bg-white/[0.02]'}`}>
+          <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-1">Críticos</p>
           <div className="flex items-center gap-2">
             {criticalCount > 0 && <AlertTriangle size={14} className="text-red-400" />}
-            <span className={`text-2xl font-mono font-bold ${criticalCount > 0 ? 'text-red-400' : 'text-slate-400'}`}>
+            <span className={`text-2xl font-mono font-bold ${criticalCount > 0 ? 'text-red-400' : 'text-brand-muted'}`}>
               {criticalCount}
             </span>
           </div>
-          <p className="text-[10px] text-slate-600 mt-1">abaixo de 70%</p>
+          <p className="text-[10px] text-brand-muted/60 mt-1">abaixo de 70%</p>
         </div>
 
         {/* Atenção */}
-        <div className={`rounded-xl p-3.5 border ${attentionCount > 0 ? 'border-amber-500/20 bg-amber-500/[0.05]' : 'border-white/[0.06] bg-white/[0.02]'}`}>
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Atenção</p>
-          <span className={`text-2xl font-mono font-bold ${attentionCount > 0 ? 'text-amber-400' : 'text-slate-400'}`}>
+        <div className={`rounded-xl p-3.5 border ${attentionCount > 0 ? 'border-amber-500/20 bg-amber-500/[0.05]' : 'border-brand-border bg-white/[0.02]'}`}>
+          <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-1">Atenção</p>
+          <span className={`text-2xl font-mono font-bold ${attentionCount > 0 ? 'text-amber-400' : 'text-brand-muted'}`}>
             {attentionCount}
           </span>
-          <p className="text-[10px] text-slate-600 mt-1">entre 70% e 85%</p>
+          <p className="text-[10px] text-brand-muted/60 mt-1">entre 70% e 85%</p>
         </div>
       </div>
 
       {/* ─── Toolbar ───────────────────────────────────────────────────── */}
-      <div className="px-6 py-3 flex items-center gap-3 border-b border-white/[0.04] shrink-0 flex-wrap">
+      <div className="px-6 py-3 flex items-center gap-3 border-b border-brand-border shrink-0 flex-wrap">
         {/* View mode */}
-        <div className="flex gap-1 bg-brand-slate/40 rounded-xl p-1 border border-white/[0.06]">
+        <div className="flex gap-1 bg-brand-surface/40 rounded-xl p-1 border border-brand-border">
           {[
             { id: 'product', label: 'Por Produto' },
             { id: 'machine', label: 'Por Máquina' },
@@ -313,8 +313,8 @@ export default function Production() {
               onClick={() => setViewMode(v.id)}
               className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
                 viewMode === v.id
-                  ? 'bg-brand-slate text-slate-100 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-300'
+                  ? 'bg-brand-surface text-white shadow-sm'
+                  : 'text-brand-muted hover:text-white'
               }`}
             >
               {v.label}
@@ -335,8 +335,8 @@ export default function Production() {
               onClick={() => setFilterStatus(f.id)}
               className={`px-2.5 py-1.5 text-[11px] font-medium rounded-lg transition-all border ${
                 filterStatus === f.id
-                  ? 'bg-brand-doptex/20 border-brand-doptex/40 text-sky-300'
-                  : 'border-transparent text-slate-500 hover:text-slate-300'
+                  ? 'bg-brand-cyan/20 border-brand-cyan/40 text-sky-300'
+                  : 'border-transparent text-brand-muted hover:text-white'
               }`}
             >
               {f.label}
@@ -349,7 +349,7 @@ export default function Production() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="bg-brand-slate/40 border border-white/[0.06] rounded-xl px-3 py-1.5 text-xs text-slate-400 focus:outline-none focus:border-brand-doptex/40 transition-all"
+            className="bg-brand-surface/40 border border-brand-border rounded-xl px-3 py-1.5 text-xs text-brand-muted focus:outline-none focus:border-brand-cyan/40 transition-all"
           >
             <option value="planned">Ordenar: Planejado</option>
             <option value="actual">Ordenar: Realizado</option>
@@ -363,41 +363,41 @@ export default function Production() {
       <div className="flex-1 overflow-auto">
         {sortedData.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-16">
-            <div className="w-12 h-12 rounded-full bg-brand-slate/40 flex items-center justify-center mb-3">
-              <TrendingUp size={20} className="text-slate-600" />
+            <div className="w-12 h-12 rounded-full bg-brand-surface/40 flex items-center justify-center mb-3">
+              <TrendingUp size={20} className="text-brand-muted/60" />
             </div>
-            <p className="text-sm text-slate-500">Nenhum registro de produção encontrado</p>
-            <p className="text-xs text-slate-600 mt-1">Sincronize com o Microdata ou aguarde dados do agente</p>
+            <p className="text-sm text-brand-muted">Nenhum registro de produção encontrado</p>
+            <p className="text-xs text-brand-muted/60 mt-1">Sincronize com o Microdata ou aguarde dados do agente</p>
           </div>
         ) : (
           <table className="w-full border-collapse">
             <thead>
-              <tr className="sticky top-0 z-10 bg-brand-dark/95 backdrop-blur-sm border-b border-white/[0.06]">
+              <tr className="sticky top-0 z-10 bg-brand-bg/95 backdrop-blur-sm border-b border-brand-border">
                 <th className="pl-6 pr-2 py-3 text-left w-8">
-                  <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">#</span>
+                  <span className="text-[10px] font-semibold text-brand-muted uppercase tracking-wider">#</span>
                 </th>
                 <th className="px-4 py-3 text-left">
-                  <button onClick={() => setSortBy('name')} className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider hover:text-slate-300 transition-colors">
+                  <button onClick={() => setSortBy('name')} className="text-[10px] font-semibold text-brand-muted uppercase tracking-wider hover:text-white transition-colors">
                     {viewMode === 'product' ? 'Produto' : viewMode === 'machine' ? 'Máquina' : 'Data'}
                   </button>
                 </th>
                 <th className="px-4 py-3 text-right">
-                  <button onClick={() => setSortBy('planned')} className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider hover:text-slate-300 transition-colors">
+                  <button onClick={() => setSortBy('planned')} className="text-[10px] font-semibold text-brand-muted uppercase tracking-wider hover:text-white transition-colors">
                     Planejado
                   </button>
                 </th>
                 <th className="px-4 py-3 text-right">
-                  <button onClick={() => setSortBy('actual')} className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider hover:text-slate-300 transition-colors">
+                  <button onClick={() => setSortBy('actual')} className="text-[10px] font-semibold text-brand-muted uppercase tracking-wider hover:text-white transition-colors">
                     Realizado
                   </button>
                 </th>
                 <th className="px-4 py-3 min-w-[180px]">
-                  <button onClick={() => setSortBy('pct')} className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider hover:text-slate-300 transition-colors">
+                  <button onClick={() => setSortBy('pct')} className="text-[10px] font-semibold text-brand-muted uppercase tracking-wider hover:text-white transition-colors">
                     Aderência
                   </button>
                 </th>
                 <th className="px-4 py-3 text-right pr-6">
-                  <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Desvio</span>
+                  <span className="text-[10px] font-semibold text-brand-muted uppercase tracking-wider">Desvio</span>
                 </th>
               </tr>
             </thead>
@@ -409,22 +409,22 @@ export default function Production() {
 
             {/* Footer de totais */}
             <tfoot>
-              <tr className="border-t-2 border-white/[0.08] bg-brand-navy/60">
+              <tr className="border-t-2 border-white/[0.08] bg-brand-card/60">
                 <td colSpan={2} className="pl-6 py-4">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  <span className="text-xs font-bold text-brand-muted uppercase tracking-wider">
                     Total — {sortedData.length} {viewMode === 'product' ? 'produtos' : viewMode === 'machine' ? 'máquinas' : 'dias'}
                   </span>
                 </td>
                 <td className="px-4 py-4 text-right">
-                  <span className="text-sm font-mono font-bold text-slate-300">
+                  <span className="text-sm font-mono font-bold text-white">
                     {sortedData.reduce((s, i) => s + i.planned, 0).toLocaleString('pt-BR')}
-                    <span className="text-xs font-normal text-slate-500 ml-1">kg</span>
+                    <span className="text-xs font-normal text-brand-muted ml-1">kg</span>
                   </span>
                 </td>
                 <td className="px-4 py-4 text-right">
                   <span className={`text-sm font-mono font-bold ${globalColors.text}`}>
                     {sortedData.reduce((s, i) => s + i.actual, 0).toLocaleString('pt-BR')}
-                    <span className="text-xs font-normal text-slate-500 ml-1">kg</span>
+                    <span className="text-xs font-normal text-brand-muted ml-1">kg</span>
                   </span>
                 </td>
                 <td className="px-4 py-4">

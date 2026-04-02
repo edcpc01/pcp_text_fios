@@ -31,18 +31,18 @@ function Message({ msg }) {
   return (
     <div className={`flex gap-2.5 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
       <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5
-        ${isUser ? 'bg-brand-doptex/20' : 'bg-purple-500/20'}`}>
-        {isUser ? <User size={13} className="text-brand-doptex" /> : <Bot size={13} className="text-purple-400" />}
+        ${isUser ? 'bg-brand-cyan/20' : 'bg-purple-500/20'}`}>
+        {isUser ? <User size={13} className="text-brand-cyan" /> : <Bot size={13} className="text-purple-400" />}
       </div>
       <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed
         ${isUser
-          ? 'bg-brand-doptex/20 text-slate-200 rounded-tr-sm'
-          : 'bg-brand-slate/60 text-slate-300 rounded-tl-sm border border-white/[0.06]'}`}>
+          ? 'bg-brand-cyan/20 text-white rounded-tr-sm'
+          : 'bg-brand-surface/60 text-white rounded-tl-sm border border-brand-border'}`}>
         {msg.content.split('\n').map((line, i) => {
           const bold = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
           return <p key={i} className={i > 0 ? 'mt-1' : ''} dangerouslySetInnerHTML={{ __html: bold }} />;
         })}
-        <p className="text-[10px] text-slate-600 mt-1.5">{msg.time}</p>
+        <p className="text-[10px] text-white mt-1.5">{msg.time}</p>
       </div>
     </div>
   );
@@ -87,36 +87,36 @@ export default function AgentPanel() {
   };
 
   return (
-    <aside className="w-80 border-l border-white/[0.06] glass flex flex-col shrink-0 animate-slide-right z-20
+    <aside className="w-80 border-l border-brand-border glass flex flex-col shrink-0 animate-slide-right z-20
       fixed inset-y-0 right-0 md:relative">
 
       {/* Header */}
-      <div className="flex items-center gap-2.5 px-4 h-16 border-b border-white/[0.06] shrink-0">
+      <div className="flex items-center gap-2.5 px-4 h-16 border-b border-brand-border shrink-0">
         <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
           <Bot size={15} className="text-purple-400" />
         </div>
         <div className="flex-1">
-          <p className="text-sm font-semibold text-slate-200">Agente Microdata</p>
+          <p className="text-sm font-semibold text-white">Agente Microdata</p>
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-            <span className="text-[10px] text-slate-500">Modo simulado</span>
+            <span className="text-[10px] text-white">Modo simulado</span>
           </div>
         </div>
-        <button onClick={closeAgent} className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-white/[0.05] rounded-lg transition-all">
+        <button onClick={closeAgent} className="p-1.5 text-white hover:text-white hover:bg-white/[0.05] rounded-lg transition-all">
           <X size={14} />
         </button>
       </div>
 
       {/* Quick actions */}
-      <div className="px-3 py-2.5 border-b border-white/[0.04] shrink-0">
-        <p className="text-[10px] text-slate-600 uppercase tracking-wider mb-2">Ações rápidas</p>
+      <div className="px-3 py-2.5 border-b border-brand-border shrink-0">
+        <p className="text-[10px] text-white uppercase tracking-wider mb-2">Ações rápidas</p>
         <div className="flex flex-wrap gap-1.5">
           {QUICK_ACTIONS.map((a) => (
             <button
               key={a.label}
               onClick={() => send(a.query)}
               disabled={loading}
-              className="text-[11px] px-2.5 py-1 rounded-lg bg-brand-slate/50 border border-white/[0.06] text-slate-400 hover:text-slate-200 hover:border-white/[0.12] transition-all disabled:opacity-40"
+              className="text-[11px] px-2.5 py-1 rounded-lg bg-brand-surface/50 border border-brand-border text-white hover:text-white hover:border-brand-border transition-all disabled:opacity-40"
             >
               {a.label}
             </button>
@@ -132,7 +132,7 @@ export default function AgentPanel() {
             <div className="w-7 h-7 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0">
               <Bot size={13} className="text-purple-400" />
             </div>
-            <div className="bg-brand-slate/60 border border-white/[0.06] rounded-2xl rounded-tl-sm px-3.5 py-3">
+            <div className="bg-brand-surface/60 border border-brand-border rounded-2xl rounded-tl-sm px-3.5 py-3">
               <div className="flex gap-1">
                 {[0, 1, 2].map((i) => (
                   <div key={i} className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce"
@@ -146,7 +146,7 @@ export default function AgentPanel() {
       </div>
 
       {/* Input */}
-      <div className="px-3 pb-4 pt-2 border-t border-white/[0.06] shrink-0">
+      <div className="px-3 pb-4 pt-2 border-t border-brand-border shrink-0">
         <div className="flex gap-2">
           <input
             value={input}
@@ -154,7 +154,7 @@ export default function AgentPanel() {
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && send()}
             placeholder="Pergunte algo..."
             disabled={loading}
-            className="flex-1 bg-brand-slate/60 border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-purple-500/40 transition-all disabled:opacity-50"
+            className="flex-1 bg-brand-surface/60 border border-brand-border rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white focus:outline-none focus:border-purple-500/40 transition-all disabled:opacity-50"
           />
           <button
             onClick={() => send()}
