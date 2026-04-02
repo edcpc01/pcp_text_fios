@@ -22,13 +22,20 @@ function Legend() {
 function EntryModal({ entry, machine, date, factory, products, machines, onSave, onDelete, onClose }) {
   const isEdit = !!entry;
 
+  const defaultProduct = products[0];
+  const initialPlanned = entry?.planned ?? (
+    (machine && defaultProduct && machine.spindles) 
+      ? Math.round(machine.spindles * defaultProduct.prodDiaPosicao * (machine.efficiency / 100))
+      : (machine?.capacity ? Math.round(machine.capacity * 0.8) : 400)
+  );
+
   const [form, setForm] = useState({
     machine:     entry?.machine     || machine?.id    || '',
     machineName: entry?.machineName || machine?.name  || '',
-    product:     entry?.product     || products[0]?.id  || '',
-    productName: entry?.productName || products[0]?.nome || '',
+    product:     entry?.product     || defaultProduct?.id  || '',
+    productName: entry?.productName || defaultProduct?.nome || '',
     date:        entry?.date || date || '',
-    planned:     entry?.planned ?? (machine ? Math.round(machine.capacity * 0.8) : 400),
+    planned:     initialPlanned,
     quality:     entry?.quality  || 'A',
     side:        entry?.side     || 'Lado A',
     cellType:    entry?.cellType || 'producao',
@@ -39,12 +46,24 @@ function EntryModal({ entry, machine, date, factory, products, machines, onSave,
 
   const handleProduct = (id) => {
     const p = products.find((x) => x.id === id);
-    if (p) setForm((f) => ({ ...f, product: p.id, productName: p.nome }));
+    const m = machines?.find((x) => x.id === form.machine);
+    let newPlanned = form.planned;
+    if (m?.spindles && m?.efficiency && p?.prodDiaPosicao) {
+       newPlanned = Math.round(m.spindles * p.prodDiaPosicao * (m.efficiency / 100));
+    }
+    if (p) setForm((f) => ({ ...f, product: p.id, productName: p.nome, planned: newPlanned }));
   };
 
   const handleMachine = (id) => {
     const m = machines?.find((x) => x.id === id);
-    if (m) setForm((f) => ({ ...f, machine: m.id, machineName: m.name, planned: Math.round(m.capacity * 0.8) }));
+    const p = products.find((x) => x.id === form.product);
+    let newPlanned = form.planned;
+    if (m?.spindles && m?.efficiency && p?.prodDiaPosicao) {
+       newPlanned = Math.round(m.spindles * p.prodDiaPosicao * (m.efficiency / 100));
+    } else if (m) {
+       newPlanned = Math.round(m.capacity * 0.8);
+    }
+    if (m) setForm((f) => ({ ...f, machine: m.id, machineName: m.name, planned: newPlanned }));
   };
 
   const isProducao = form.cellType === 'producao';
