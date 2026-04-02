@@ -31,17 +31,37 @@ export const MACHINES = {
   ],
 };
 
+// Produto com estrutura completa do ficha técnica
 export const PRODUCTS = [
-  { id: 'P001', name: 'DTY 150/48', dtex: 150, filaments: 48, type: 'DTY' },
-  { id: 'P002', name: 'DTY 100/36', dtex: 100, filaments: 36, type: 'DTY' },
-  { id: 'P003', name: 'DTY 75/36',  dtex: 75,  filaments: 36, type: 'DTY' },
-  { id: 'P004', name: 'DTY 150/144',dtex: 150, filaments: 144,type: 'DTY' },
-  { id: 'P005', name: 'DTY 300/96', dtex: 300, filaments: 96, type: 'DTY' },
-  { id: 'P006', name: 'ATY 200/48', dtex: 200, filaments: 48, type: 'ATY' },
-  { id: 'P007', name: 'FDY 150/48', dtex: 150, filaments: 48, type: 'FDY' },
-  { id: 'P008', name: 'DTY 100/48', dtex: 100, filaments: 48, type: 'DTY' },
-  { id: 'P009', name: 'DTY 200/96', dtex: 200, filaments: 96, type: 'DTY' },
-  { id: 'P010', name: 'DTY 50/24',  dtex: 50,  filaments: 24, type: 'DTY' },
+  {
+    id: 'P001',
+    cliente: 'Corradi',
+    nome: 'DTY 150/48',
+    prodDiaPosicao: 16.24,
+    // Seção A — Matéria Prima
+    alma: {
+      descricao: 'PES POY 1x150/48',
+      codigoMicrodata: '100001',
+      tituloDtex: 150,
+      nFilamentos: 48,
+      composicaoPct: 100,
+    },
+    efeito: {
+      descricao: '',
+      codigoMicrodata: '',
+      tituloDtex: 0,
+      nFilamentos: 0,
+      composicaoPct: 0,
+    },
+    // Seção B — Dados do Produto
+    descricao: '150/48 PES CRU TEXTURIZADO DTY',
+    codigoMicrodata: '109001',
+    tituloComercial: '150DTEX',
+    tituloDtex: 150,
+    composicao: '100% PES',
+    comprimentoEnrolamento: 250,
+    diametroMaxBobina: 230,
+  },
 ];
 
 export const CELL_TYPES = {
@@ -51,12 +71,11 @@ export const CELL_TYPES = {
   manutencao: { id: 'manutencao', label: 'Manutenção Preventiva', color: '#22d3ee', bg: 'rgba(34,211,238,0.12)',  border: 'rgba(34,211,238,0.35)',  text: '#67e8f9' },
 };
 
-// Gera ID estável e previsível para cada slot máquina+data
 export function makeEntryId(factory, machine, date) {
   return `${factory}__${machine}__${date}`;
 }
 
-// Auth Store
+// ─── Auth ─────────────────────────────────────────────────────────────────────
 export const useAuthStore = create((set) => ({
   user: null, loading: true, error: null,
   setUser:    (user)    => set({ user, loading: false }),
@@ -65,89 +84,56 @@ export const useAuthStore = create((set) => ({
   logout:     ()        => set({ user: null }),
 }));
 
-// App Store
+// ─── App ──────────────────────────────────────────────────────────────────────
 export const useAppStore = create((set, get) => ({
   factory: 'matriz',
-  setFactory: (factory) => set({ factory }),
+  setFactory: (f) => set({ factory: f }),
   getFactoryData: () => FACTORIES.find((f) => f.id === get().factory),
-
   month: { year: new Date().getFullYear(), month: new Date().getMonth() },
   changeMonth: (dir) => set((s) => {
     let m = s.month.month + dir, y = s.month.year;
-    if (m < 0) { m = 11; y--; }
-    if (m > 11) { m = 0; y++; }
+    if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; }
     return { month: { year: y, month: m } };
   }),
   getYearMonth: () => {
     const { year, month: m } = get().month;
     return `${year}-${String(m + 1).padStart(2, '0')}`;
   },
-
   agentOpen: false,
   toggleAgent: () => set((s) => ({ agentOpen: !s.agentOpen })),
   closeAgent:  () => set({ agentOpen: false }),
 }));
 
-// Planning Store — keyed by stable ID
+// ─── Planning ─────────────────────────────────────────────────────────────────
 export const usePlanningStore = create((set, get) => ({
-  // entriesMap: { [stableId]: entry }  — O(1) lookup, no duplicates possible
   entriesMap: {},
   loading: false,
-
   setLoading: (loading) => set({ loading }),
-
-  // Replace entire map (called on Firestore snapshot)
   setEntriesFromArray: (arr) => {
     const map = {};
-    arr.forEach((e) => {
-      const id = e.id || makeEntryId(e.factory, e.machine, e.date);
-      map[id] = { ...e, id };
-    });
+    arr.forEach((e) => { const id = e.id || makeEntryId(e.factory, e.machine, e.date); map[id] = { ...e, id }; });
     set({ entriesMap: map, loading: false });
   },
-
-  // Upsert a single entry by its stable ID
-  upsertEntry: (entry) => set((s) => ({
-    entriesMap: { ...s.entriesMap, [entry.id]: entry },
-  })),
-
-  // Delete by ID
-  deleteEntry: (id) => set((s) => {
-    const next = { ...s.entriesMap };
-    delete next[id];
-    return { entriesMap: next };
-  }),
-
-  // Derived: flat array
+  upsertEntry: (entry) => set((s) => ({ entriesMap: { ...s.entriesMap, [entry.id]: entry } })),
+  deleteEntry: (id) => set((s) => { const n = { ...s.entriesMap }; delete n[id]; return { entriesMap: n }; }),
   getEntries: () => Object.values(get().entriesMap),
 }));
 
-// Production Store
+// ─── Production ───────────────────────────────────────────────────────────────
 export const useProductionStore = create((set, get) => ({
   records: [], loading: false,
   setRecords:  (records) => set({ records, loading: false }),
   setLoading:  (loading) => set({ loading }),
-  getRecordsByProduct: () => {
-    const map = {};
-    get().records.forEach((r) => {
-      if (!map[r.productName]) map[r.productName] = { planned: 0, actual: 0 };
-      map[r.productName].actual  += r.actual  || 0;
-      map[r.productName].planned += r.planned || 0;
-    });
-    return Object.entries(map)
-      .map(([name, v]) => ({ name, ...v, pct: v.planned > 0 ? Math.round((v.actual / v.planned) * 100) : 0 }))
-      .sort((a, b) => b.planned - a.planned);
-  },
 }));
 
-// Admin Store
-export const useAdminStore = create((set, get) => ({
+// ─── Admin ────────────────────────────────────────────────────────────────────
+export const useAdminStore = create((set) => ({
   products: [...PRODUCTS],
   machines: JSON.parse(JSON.stringify(MACHINES)),
-  addProduct:    (p)             => set((s) => ({ products: [...s.products, p] })),
-  updateProduct: (id, upd)       => set((s) => ({ products: s.products.map((p) => p.id === id ? { ...p, ...upd } : p) })),
-  deleteProduct: (id)            => set((s) => ({ products: s.products.filter((p) => p.id !== id) })),
-  addMachine:    (fac, m)        => set((s) => ({ machines: { ...s.machines, [fac]: [...(s.machines[fac] || []), m] } })),
-  updateMachine: (fac, id, upd)  => set((s) => ({ machines: { ...s.machines, [fac]: s.machines[fac].map((m) => m.id === id ? { ...m, ...upd } : m) } })),
-  deleteMachine: (fac, id)       => set((s) => ({ machines: { ...s.machines, [fac]: s.machines[fac].filter((m) => m.id !== id) } })),
+  addProduct:    (p)            => set((s) => ({ products: [...s.products, p] })),
+  updateProduct: (id, upd)      => set((s) => ({ products: s.products.map((p) => p.id === id ? { ...p, ...upd } : p) })),
+  deleteProduct: (id)           => set((s) => ({ products: s.products.filter((p) => p.id !== id) })),
+  addMachine:    (fac, m)       => set((s) => ({ machines: { ...s.machines, [fac]: [...(s.machines[fac] || []), m] } })),
+  updateMachine: (fac, id, upd) => set((s) => ({ machines: { ...s.machines, [fac]: s.machines[fac].map((m) => m.id === id ? { ...m, ...upd } : m) } })),
+  deleteMachine: (fac, id)      => set((s) => ({ machines: { ...s.machines, [fac]: s.machines[fac].filter((m) => m.id !== id) } })),
 }));

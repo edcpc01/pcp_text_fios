@@ -5,6 +5,7 @@ import { useAuthStore, useAppStore, FACTORIES } from '../hooks/useStore';
 import { signOut } from '../services/firebase';
 import AgentPanel from './AgentPanel';
 import PWAPrompt from './PWAPrompt';
+import FirebaseStatus from './FirebaseStatus';
 
 export default function Layout({ children }) {
   const navigate = useNavigate();
@@ -120,6 +121,7 @@ export default function Layout({ children }) {
       </main>
 
       <PWAPrompt />
+      <FirebaseStatus />
     </div>
   );
 }
