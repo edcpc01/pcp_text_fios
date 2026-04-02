@@ -1,8 +1,9 @@
 import { initializeApp } from 'firebase/app';
 import {
-  getFirestore, collection, doc, getDoc, setDoc,
-  deleteDoc, query, where, orderBy, onSnapshot, Timestamp,
-  enableIndexedDbPersistence,
+  getFirestore,
+  collection, doc, getDoc, setDoc, deleteDoc,
+  query, where, orderBy, onSnapshot, Timestamp,
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
 } from 'firebase/firestore';
 import {
   getAuth, signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged,
@@ -18,14 +19,15 @@ const firebaseConfig = {
   appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const app  = initializeApp(firebaseConfig);
-export const db   = getFirestore(app);
-export const auth = getAuth(app);
+const app = initializeApp(firebaseConfig);
 
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === 'failed-precondition') console.warn('Firestore persistence: multiple tabs');
-  else if (err.code === 'unimplemented')  console.warn('Firestore persistence: unsupported');
+// Firebase 10 — usa initializeFirestore com persistentLocalCache
+// em vez do deprecated enableIndexedDbPersistence
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
 });
+
+export const auth = getAuth(app);
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const signIn       = (email, pw) => signInWithEmailAndPassword(auth, email, pw);
@@ -35,8 +37,14 @@ export const onAuthChange = (cb) => onAuthStateChanged(auth, cb);
 export async function getUserRole(uid) {
   try {
     const snap = await getDoc(doc(db, 'users', uid));
-    return snap.exists() ? (snap.data().role || 'planner') : 'planner';
-  } catch { return 'planner'; }
+    if (snap.exists()) return snap.data().role || 'planner';
+    // Documento não existe — cria automaticamente como planner
+    await setDoc(doc(db, 'users', uid), { role: 'planner', createdAt: Timestamp.now() }, { merge: true });
+    return 'planner';
+  } catch (err) {
+    console.warn('[Firebase] getUserRole falhou:', err.message);
+    return 'planner';
+  }
 }
 
 // ─── Planning ─────────────────────────────────────────────────────────────────
@@ -51,17 +59,23 @@ export function subscribePlanningEntries(factory, yearMonth, callback) {
     where('date', '<=', end),
     orderBy('date', 'asc'),
   );
-  return onSnapshot(q, (snap) => {
-    callback(snap.docs.map((d) => ({
-      ...d.data(),
-      id:   d.id,
-      date: d.data().date?.toDate?.()?.toISOString?.()?.split('T')[0],
-    })));
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const data = snap.docs.map((d) => ({
+        ...d.data(),
+        id:   d.id,
+        date: d.data().date?.toDate?.()?.toISOString?.()?.split('T')[0],
+      }));
+      console.log(`[Firestore] planning_entries snapshot: ${data.length} docs`);
+      callback(data);
+    },
+    (err) => {
+      console.error('[Firestore] subscribePlanningEntries error:', err.code, err.message);
+    }
+  );
 }
 
-// Save uses stable ID = factory__machine__date
-// setDoc with merge:true → always upsert, never creates duplicate
 export async function savePlanningEntry(entry) {
   const stableId = makeEntryId(entry.factory, entry.machine, entry.date);
   const data = {
@@ -71,13 +85,16 @@ export async function savePlanningEntry(entry) {
     product:     entry.product     || '',
     productName: entry.productName || '',
     date:        Timestamp.fromDate(new Date(entry.date + 'T12:00:00')),
-    planned:     entry.planned     || 0,
+    planned:     Number(entry.planned) || 0,
     quality:     entry.quality     || 'A',
     side:        entry.side        || 'Lado A',
     cellType:    entry.cellType    || 'producao',
     updatedAt:   Timestamp.now(),
+    createdAt:   Timestamp.now(),
   };
+  console.log('[Firestore] savePlanningEntry ->', stableId, data.cellType, data.planned);
   await setDoc(doc(db, 'planning_entries', stableId), data, { merge: true });
+  console.log('[Firestore] save OK:', stableId);
   return stableId;
 }
 
@@ -99,11 +116,10 @@ export function subscribeProductionRecords(factory, yearMonth, callback) {
   );
   return onSnapshot(q, (snap) => {
     callback(snap.docs.map((d) => ({
-      ...d.data(),
-      id:   d.id,
+      ...d.data(), id: d.id,
       date: d.data().date?.toDate?.()?.toISOString?.()?.split('T')[0],
     })));
-  });
+  }, (err) => console.error('[Firestore] subscribeProductionRecords error:', err.code));
 }
 
 export async function saveAgentLog(log) {
