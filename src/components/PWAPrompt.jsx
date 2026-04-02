@@ -1,3 +1,4 @@
+import PWAPrompt from './PWAPrompt';
 /**
  * PWAPrompt — Componente que exibe:
  *  1. Banner de instalação (A2HS) quando o app pode ser instalado
@@ -89,6 +90,7 @@ export default function PWAPrompt() {
               Instalar agora
             </button>
           </div>
+          <PWAPrompt />
         </div>
       )}
     </>
