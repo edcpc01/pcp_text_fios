@@ -1,6 +1,10 @@
-import { useState } from 'react';
-import { Plus, Pencil, Trash2, X, Save, Package, Cpu, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Pencil, Trash2, X, Save, Package, Cpu, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { useAdminStore, FACTORIES } from '../hooks/useStore';
+// Importamos as funções de persistência
+import { saveProduct, subscribeProducts, saveMachineConfig } from '../services/firestore';
+import { db } from '../firebase';
+import { doc, deleteDoc } from 'firebase/firestore';
 
 const TABS = [
   { id: 'products', label: 'Produtos', icon: Package },
@@ -90,6 +94,7 @@ function MPRow({ label, data, onChange, accent }) {
 
 // ─── Product Modal ────────────────────────────────────────────────────────────
 function ProductModal({ product, onSave, onClose }) {
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(
     product
       ? { ...EMPTY_PRODUCT, ...product, mp1: { ...EMPTY_MP, ...product.mp1 }, mp2: { ...EMPTY_MP, ...product.mp2 }, mp3: { ...EMPTY_MP, ...product.mp3 } }
@@ -97,17 +102,30 @@ function ProductModal({ product, onSave, onClose }) {
   );
 
   const setMP = (key, field, val) => setForm((f) => ({ ...f, [key]: { ...f[key], [field]: val } }));
-  const set   = (field, val)      => setForm((f) => ({ ...f, [field]: val }));
+  const set = (field, val) => setForm((f) => ({ ...f, [field]: val }));
 
   const MP_ACCENTS = ['#22d3ee', '#f97316', '#a78bfa'];
-  const MP_LABELS  = ['Matéria Prima 1', 'Matéria Prima 2', 'Matéria Prima 3'];
+  const MP_LABELS = ['Matéria Prima 1', 'Matéria Prima 2', 'Matéria Prima 3'];
+
+  const handleSubmit = async () => {
+    if (form.nome && form.id) {
+      setLoading(true);
+      try {
+        await onSave(form);
+        onClose();
+      } catch (error) {
+        alert("Erro ao salvar produto no banco de dados.");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-auto">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-2xl bg-brand-card border border-brand-border rounded-2xl shadow-2xl animate-fade-in my-4">
 
-        {/* Cabeçalho */}
         <div className="px-6 pt-5 pb-4 border-b border-brand-border">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-white">{product ? 'Editar Produto' : 'Novo Produto'}</h3>
@@ -116,7 +134,7 @@ function ProductModal({ product, onSave, onClose }) {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <Label>Cliente</Label>
-              <TextInput value={form.cliente} onChange={(v) => set('cliente', v)} placeholder="ex: Tecelagem São João" />
+              <TextInput value={form.cliente} onChange={(v) => set('cliente', v)} placeholder="ex: Tecelagem" />
             </div>
             <div>
               <Label>Produto / Referência</Label>
@@ -130,8 +148,6 @@ function ProductModal({ product, onSave, onClose }) {
         </div>
 
         <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
-
-          {/* Seção A */}
           <SectionTitle label="A — Dados da Matéria Prima" color="#f97316" />
           <div className="space-y-3">
             {['mp1', 'mp2', 'mp3'].map((key, i) => (
@@ -145,12 +161,11 @@ function ProductModal({ product, onSave, onClose }) {
             ))}
           </div>
 
-          {/* Seção B */}
           <SectionTitle label="B — Dados do Produto" color="#22d3ee" />
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>B1 — Descrição</Label>
-              <TextInput value={form.descricao} onChange={(v) => set('descricao', v)} placeholder="ex: 150/48 PES CRU TEXTURIZADO DTY" />
+              <TextInput value={form.descricao} onChange={(v) => set('descricao', v)} placeholder="ex: 150/48 PES CRU" />
             </div>
             <div>
               <Label>B2 — Código Microdata</Label>
@@ -166,25 +181,19 @@ function ProductModal({ product, onSave, onClose }) {
             </div>
             <div className="col-span-2">
               <Label>B5 — Composição</Label>
-              <TextInput value={form.composicao} onChange={(v) => set('composicao', v)} placeholder="ex: 56%PA 44%PES" />
-            </div>
-          </div>
-
-          {/* ID */}
-          <div className="pt-2 border-t border-brand-border/50">
-            <div className="max-w-xs">
-              <Label>ID interno</Label>
-              <TextInput value={form.id} onChange={(v) => set('id', v)} placeholder="ex: P001" mono />
+              <TextInput value={form.composicao} onChange={(v) => set('composicao', v)} placeholder="ex: 100% PES" />
             </div>
           </div>
         </div>
 
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-brand-border">
-          <button onClick={onClose} className="px-4 py-2 text-xs text-brand-muted hover:text-white rounded-xl transition-colors">Cancelar</button>
-          <button onClick={() => { if (form.nome && form.id) { onSave(form); onClose(); } }}
-            disabled={!form.nome || !form.id}
+          <button onClick={onClose} className="px-4 py-2 text-xs text-brand-muted hover:text-white rounded-xl">Cancelar</button>
+          <button
+            onClick={handleSubmit}
+            disabled={!form.nome || !form.id || loading}
             className="flex items-center gap-1.5 px-5 py-2 bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan text-xs font-semibold rounded-xl hover:bg-brand-cyan/20 transition-all disabled:opacity-40">
-            <Save size={12} /> Salvar produto
+            {loading ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+            Salvar produto
           </button>
         </div>
       </div>
@@ -194,8 +203,22 @@ function ProductModal({ product, onSave, onClose }) {
 
 // ─── Machine Modal ────────────────────────────────────────────────────────────
 function MachineModal({ machine, factory, onSave, onClose }) {
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(machine ?? { id: '', name: '', sides: 2, capacity: 400 });
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    try {
+      await onSave(factory, form);
+      onClose();
+    } catch (e) {
+      alert("Erro ao salvar máquina.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
@@ -220,9 +243,10 @@ function MachineModal({ machine, factory, onSave, onClose }) {
         </div>
         <div className="flex justify-end gap-2 px-5 pb-5">
           <button onClick={onClose} className="px-4 py-2 text-xs text-brand-muted hover:text-white rounded-xl">Cancelar</button>
-          <button onClick={() => { onSave(factory, form); onClose(); }} disabled={!form.id || !form.name}
+          <button onClick={handleSubmit} disabled={!form.id || !form.name || loading}
             className="flex items-center gap-1.5 px-4 py-2 bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan text-xs font-semibold rounded-xl hover:bg-brand-cyan/20 transition-all disabled:opacity-40">
-            <Save size={12} /> Salvar
+            {loading ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+            Salvar
           </button>
         </div>
       </div>
@@ -268,7 +292,6 @@ function ProductCard({ product, onEdit, onDelete }) {
             <div><span className="text-brand-muted text-[10px] uppercase tracking-wider block">Produto</span><span className="text-white font-medium">{product.nome}</span></div>
             <div><span className="text-brand-muted text-[10px] uppercase tracking-wider block">Prod./dia/pos.</span><span className="text-brand-cyan font-mono font-bold">{product.prodDiaPosicao} kg</span></div>
           </div>
-          {/* MPs */}
           <div className="space-y-2">
             <p className="text-[10px] font-bold text-brand-orange uppercase tracking-widest">A — Matéria Prima</p>
             {MPs.map(({ key, label, color }) => {
@@ -286,7 +309,6 @@ function ProductCard({ product, onEdit, onDelete }) {
               );
             })}
           </div>
-          {/* Seção B */}
           <div>
             <p className="text-[10px] font-bold text-brand-cyan uppercase tracking-widest mb-2">B — Dados do Produto</p>
             <div className="bg-brand-bg/50 rounded-lg p-3 grid grid-cols-2 gap-x-6 gap-y-1.5">
@@ -306,22 +328,54 @@ export default function Admin() {
   const [tab, setTab] = useState('products');
   const [selectedFactory, setSelectedFactory] = useState('matriz');
   const [modal, setModal] = useState(null);
-  const { products, machines, addProduct, updateProduct, deleteProduct, addMachine, updateMachine, deleteMachine } = useAdminStore();
 
-  const handleSaveProduct = (form) => {
-    if (products.find((p) => p.id === form.id)) updateProduct(form.id, form);
-    else addProduct(form);
+  // Pegamos as funções e o estado do Zustand
+  const { products, machines, setProducts, setMachines } = useAdminStore();
+
+  // Escutar o Firestore em tempo real
+  useEffect(() => {
+    // Sincroniza produtos
+    const unsubProducts = subscribeProducts((data) => {
+      setProducts(data);
+    });
+
+    // Aqui poderíamos ter um subscribeMachines também, mas vamos focar nos produtos primeiro
+    return () => unsubProducts();
+  }, [setProducts]);
+
+  const handleSaveProduct = async (form) => {
+    await saveProduct(form); // Persiste no Firebase
   };
-  const handleSaveMachine = (factory, form) => {
-    if (machines[factory]?.find((m) => m.id === form.id)) updateMachine(factory, form.id, form);
-    else addMachine(factory, form);
+
+  const handleSaveMachine = async (factory, form) => {
+    await saveMachineConfig(factory, form.id, form); // Persiste no Firebase
+    // Atualização manual simples do store local para máquinas (já que não fizemos o subscriber)
+    const updatedFactoryMachines = [...(machines[factory] || [])];
+    const idx = updatedFactoryMachines.findIndex(m => m.id === form.id);
+    if (idx >= 0) updatedFactoryMachines[idx] = form;
+    else updatedFactoryMachines.push(form);
+    setMachines({ ...machines, [factory]: updatedFactoryMachines });
+  };
+
+  const handleDeleteProduct = async (id) => {
+    if (window.confirm("Deseja realmente excluir este produto?")) {
+      await deleteDoc(doc(db, "products", id));
+    }
+  };
+
+  const handleDeleteMachine = async (factory, id) => {
+    if (window.confirm("Deseja excluir esta máquina?")) {
+      await deleteDoc(doc(db, "machines_config", `${factory}__${id}`));
+      const filtered = machines[factory].filter(m => m.id !== id);
+      setMachines({ ...machines, [factory]: filtered });
+    }
   };
 
   return (
     <div className="p-6 max-w-4xl mx-auto animate-fade-in">
       <div className="mb-6">
         <h1 className="text-xl font-bold text-white">Cadastros</h1>
-        <p className="text-sm text-brand-muted mt-0.5">Acesso restrito a administradores</p>
+        <p className="text-sm text-brand-muted mt-0.5">Configurações de base da produção</p>
       </div>
 
       <div className="flex gap-1 bg-brand-card border border-brand-border rounded-xl p-1 w-fit mb-6">
@@ -337,15 +391,15 @@ export default function Admin() {
       {tab === 'products' && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-brand-muted">{products.length} produto{products.length !== 1 ? 's' : ''}</p>
+            <p className="text-sm text-brand-muted">{products.length} produtos cadastrados</p>
             <button onClick={() => setModal({ type: 'product', data: null })}
               className="flex items-center gap-1.5 px-3.5 py-2 bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan text-xs font-semibold rounded-xl hover:bg-brand-cyan/20 transition-all">
               <Plus size={12} /> Novo produto
             </button>
           </div>
           {products.length === 0
-            ? <div className="text-center py-12 text-brand-muted text-sm">Nenhum produto cadastrado</div>
-            : products.map((p) => <ProductCard key={p.id} product={p} onEdit={(prod) => setModal({ type: 'product', data: prod })} onDelete={deleteProduct} />)
+            ? <div className="text-center py-12 text-brand-muted text-sm">Nenhum produto no banco de dados</div>
+            : products.map((p) => <ProductCard key={p.id} product={p} onEdit={(prod) => setModal({ type: 'product', data: prod })} onDelete={handleDeleteProduct} />)
           }
         </div>
       )}
@@ -374,7 +428,7 @@ export default function Admin() {
             </div>
             <table className="w-full">
               <thead><tr className="border-b border-brand-border bg-brand-surface/50">
-                {['ID', 'Nome', 'Lados', 'Capacidade (kg/dia)', ''].map((h) => (
+                {['ID', 'Nome', 'Lados', 'Capacidade', ''].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-[10px] font-bold text-brand-muted uppercase tracking-wider">{h}</th>
                 ))}
               </tr></thead>
@@ -384,11 +438,11 @@ export default function Admin() {
                     <td className="px-4 py-3 text-xs font-mono text-brand-cyan">{m.id}</td>
                     <td className="px-4 py-3 text-sm font-medium text-white">{m.name}</td>
                     <td className="px-4 py-3 text-sm text-brand-muted">{m.sides}</td>
-                    <td className="px-4 py-3 text-sm font-mono text-brand-muted">{m.capacity}</td>
+                    <td className="px-4 py-3 text-sm font-mono text-brand-muted">{m.capacity} kg</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">
                         <button onClick={() => setModal({ type: 'machine', data: m, factory: selectedFactory })} className="p-1.5 text-brand-muted hover:text-brand-cyan hover:bg-brand-cyan/10 rounded-lg transition-all"><Pencil size={13} /></button>
-                        <button onClick={() => deleteMachine(selectedFactory, m.id)} className="p-1.5 text-brand-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={13} /></button>
+                        <button onClick={() => handleDeleteMachine(selectedFactory, m.id)} className="p-1.5 text-brand-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={13} /></button>
                       </div>
                     </td>
                   </tr>
