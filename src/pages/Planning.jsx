@@ -269,21 +269,35 @@ export default function Planning() {
     e.dataTransfer.setData('application/json', JSON.stringify(entry));
   }, []);
 
-  const handleDrop = useCallback(async (e, destMachine, destDate) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const dataStr = e.dataTransfer.getData('application/json');
+  const handleDrop = useCallback(async (event, destMachine, destDate) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const dataStr = event.dataTransfer.getData('application/json');
     if (!dataStr) return;
     try {
       const sourceEntry = JSON.parse(dataStr);
-      const newEntry = {
-        ...sourceEntry,
-        id: makeEntryId(factory, destMachine.id, destDate),
-        machine: destMachine.id,
-        machineName: destMachine.name,
-        date: destDate
-      };
-      await handleSave(newEntry);
+      
+      const s = sourceEntry.date < destDate ? sourceEntry.date : destDate;
+      const e = sourceEntry.date < destDate ? destDate : sourceEntry.date;
+      
+      let curr = new Date(s + 'T12:00:00Z');
+      const endD = new Date(e + 'T12:00:00Z');
+      const datesToFill = [];
+      while (curr <= endD) {
+        datesToFill.push(curr.toISOString().split('T')[0]);
+        curr.setUTCDate(curr.getUTCDate() + 1);
+      }
+
+      for (const d of datesToFill) {
+        const newEntry = {
+          ...sourceEntry,
+          id: makeEntryId(factory, destMachine.id, d),
+          machine: destMachine.id,
+          machineName: destMachine.name,
+          date: d
+        };
+        await handleSave(newEntry);
+      }
     } catch(err) {
       console.error('Drop error', err);
     }

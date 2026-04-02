@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore, useAdminStore } from './hooks/useStore';
-import { onAuthChange, getUserRole, subscribeProducts } from './services/firebase';
+import { onAuthChange, getUserRole, subscribeProducts, subscribeMachines } from './services/firebase';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Planning from './pages/Planning';
@@ -12,11 +12,15 @@ import Login from './pages/Login';
 export default function App() {
   const { user, loading, setUser, setLoading } = useAuthStore();
   const setProducts = useAdminStore((s) => s.setProducts);
+  const setMachines = useAdminStore((s) => s.setMachines);
 
   useEffect(() => {
     // Escuta produtos pra toda a aplicação (Planning, Admin, etc)
     const unsubProducts = subscribeProducts((data) => {
       setProducts(data);
+    });
+    const unsubMachines = subscribeMachines((data) => {
+      setMachines(data);
     });
     setLoading(true);
     const unsub = onAuthChange(async (fu) => {
@@ -36,6 +40,7 @@ export default function App() {
     return () => {
       unsub();
       unsubProducts();
+      unsubMachines();
     };
   }, []);
 

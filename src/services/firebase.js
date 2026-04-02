@@ -164,3 +164,29 @@ export async function saveMachineConfig(factory, machineId, config) {
   const docRef = doc(db, 'machines_config', `${factory}__${machineId}`);
   await setDoc(docRef, { ...config, factory, updatedAt: new Date().toISOString() }, { merge: true });
 }
+
+/**
+ * Escuta máquinas em tempo real. Se vazio, popula com os defaults do Zustand.
+ */
+export const subscribeMachines = (callback) => {
+  return onSnapshot(collection(db, "machines_config"), async (snapshot) => {
+    if (snapshot.empty) {
+       // Populate defaults to DB once
+       const { MACHINES } = await import('../hooks/useStore');
+       Object.entries(MACHINES).forEach(([factory, list]) => {
+         list.forEach(m => {
+            setDoc(doc(db, 'machines_config', `${factory}__${m.id}`), { ...m, factory }, { merge: true });
+         });
+       });
+       return;
+    }
+    const nextMachines = { matriz: [], filial: [] };
+    snapshot.docs.forEach(doc => {
+       const m = doc.data();
+       if (!nextMachines[m.factory]) nextMachines[m.factory] = [];
+       nextMachines[m.factory].push(m);
+    });
+    Object.keys(nextMachines).forEach(k => nextMachines[k].sort((a,b) => a.id.localeCompare(b.id)));
+    callback(nextMachines);
+  });
+};
