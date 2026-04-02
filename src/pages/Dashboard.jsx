@@ -106,7 +106,7 @@ export default function Dashboard() {
               onDoubleClick={() => setShowDatePicker(true)}
               title="Duplo clique para filtrar o período"
             >
-              {hasRange ? `${parseInt(dateRange.start.slice(-2))} a ${parseInt(dateRange.end.slice(-2))}` : monthLabel}
+              {hasRange ? `${dateRange.start.split('-').reverse().join('/')} à ${dateRange.end.split('-').reverse().join('/')}` : monthLabel}
             </span>
             <button onClick={() => changeMonth(1)} className="p-1 hover:bg-brand-card rounded text-brand-muted hover:text-white transition-colors">
               <ChevronRight size={18} />
