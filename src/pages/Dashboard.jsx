@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { TrendingUp, TrendingDown, Minus, Activity, Package, Cpu, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Activity, Package, Cpu, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { useAppStore, usePlanningStore, useProductionStore, useAdminStore } from '../hooks/useStore';
 import { subscribeProductionRecords, subscribePlanningEntries } from '../services/firebase';
 import { seedDemoData } from '../utils/seedData';
@@ -50,27 +50,34 @@ export default function Dashboard() {
     return () => { unsubP(); unsubR(); };
   }, [factory, yearMonth]);
 
-  const [selectedDay, setSelectedDay] = useState(null);
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [showDatePicker, setShowDatePicker] = useState(false);
   useEffect(() => { 
-    setSelectedDay(null); 
+    setDateRange({ start: '', end: '' }); 
+    setShowDatePicker(false);
   }, [yearMonth]);
 
   const allEntries = Object.values(entriesMap);
   const basePlanningEntries = allEntries.filter((e) => e.cellType === 'producao' || !e.cellType);
   
-  const activePlanning = selectedDay ? basePlanningEntries.filter((e) => e.date === selectedDay) : basePlanningEntries;
-  const activeRecords  = selectedDay ? records.filter((r) => r.date === selectedDay) : records;
+  const hasRange = dateRange.start && dateRange.end;
+  const activePlanning = hasRange ? basePlanningEntries.filter((e) => e.date >= dateRange.start && e.date <= dateRange.end) : basePlanningEntries;
+  const activeRecords  = hasRange ? records.filter((r) => r.date >= dateRange.start && r.date <= dateRange.end) : records;
 
   const totalPlanned = activePlanning.reduce((s, e) => s + (e.planned || 0), 0);
   const totalActual  = activeRecords.reduce((s, r) => s + (r.actual || 0), 0);
   const adherence    = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : 0;
   const pastDays     = days.filter((d) => isPast(d) || isToday(d));
 
-  const chartData = useMemo(() => pastDays.slice(-15).map((date) => ({
+  const visibleDays = hasRange 
+    ? days.filter(d => d >= dateRange.start && d <= dateRange.end)
+    : pastDays.slice(-15);
+
+  const chartData = useMemo(() => visibleDays.map((date) => ({
     day:     parseInt(date.split('-')[2]),
     planned: basePlanningEntries.filter((e) => e.date === date).reduce((s, e) => s + (e.planned || 0), 0),
     actual:  records.filter((r) => r.date === date).reduce((s, r) => s + (r.actual || 0), 0),
-  })), [basePlanningEntries, records, pastDays]);
+  })), [basePlanningEntries, records, visibleDays]);
 
   const productMix = useMemo(() => {
     const map = {};
@@ -82,50 +89,81 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-white">Dashboard</h1>
-          <p className="text-sm text-brand-muted mt-0.5 capitalize">{monthLabel}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative">
+        <div 
+          className="cursor-pointer group flex items-center gap-2" 
+          onClick={() => setShowDatePicker(!showDatePicker)}
+        >
+          <div>
+            <h1 className="text-xl font-bold text-white group-hover:text-brand-cyan transition-colors">Dashboard</h1>
+            <p className="text-sm text-brand-muted mt-0.5 capitalize flex items-center gap-1.5">
+              {monthLabel} <Calendar size={12} className="opacity-70" />
+            </p>
+          </div>
         </div>
+
+        {/* Date Picker Popover */}
+        {showDatePicker && (
+          <div className="absolute top-[4.5rem] sm:top-14 left-0 z-50 bg-brand-card border border-brand-border rounded-xl p-4 shadow-xl flex flex-col gap-3 animate-fade-in shadow-black/50">
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] text-brand-muted uppercase font-bold tracking-widest">Data Inicial</label>
+                <input 
+                  type="date" 
+                  className="bg-brand-surface text-white text-sm rounded border border-brand-border p-2 focus:outline-none focus:border-brand-cyan"
+                  value={dateRange.start}
+                  onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] text-brand-muted uppercase font-bold tracking-widest">Data Final</label>
+                <input 
+                  type="date" 
+                  className="bg-brand-surface text-white text-sm rounded border border-brand-border p-2 focus:outline-none focus:border-brand-cyan"
+                  value={dateRange.end}
+                  min={dateRange.start}
+                  onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-2">
+              <button 
+                onClick={() => { setDateRange({start:'', end:''}); setShowDatePicker(false); }}
+                className="text-xs text-brand-muted hover:text-white px-3 py-1.5 rounded transition-colors"
+                title="Mostrar mês inteiro"
+              >
+                Limpar
+              </button>
+              <button 
+                onClick={() => setShowDatePicker(false)}
+                className="text-xs bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/20 font-bold rounded px-4 py-1.5 hover:bg-brand-cyan/20 transition-colors"
+              >
+                Aplicar
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Filtros */}
         <div className="flex bg-brand-surface border border-brand-border rounded-lg p-1 self-start sm:self-auto mt-2 sm:mt-0">
-          {/* Mês */}
           <div className="flex items-center space-x-1">
             <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-brand-card rounded text-brand-muted hover:text-white transition-colors">
               <ChevronLeft size={18} />
             </button>
-            <span className="text-sm font-medium text-white px-1 capitalize min-w-[100px] text-center">{monthLabel}</span>
+            <span className="text-sm font-medium text-white px-3 capitalize min-w-[120px] text-center">
+              {hasRange ? `${parseInt(dateRange.start.slice(-2))} a ${parseInt(dateRange.end.slice(-2))}` : monthLabel}
+            </span>
             <button onClick={() => changeMonth(1)} className="p-1 hover:bg-brand-card rounded text-brand-muted hover:text-white transition-colors">
               <ChevronRight size={18} />
             </button>
-          </div>
-          
-          <div className="w-px bg-brand-border mx-2 my-1"></div>
-          
-          {/* Dia */}
-          <div className="flex items-center pr-2">
-            <select 
-              className="bg-transparent text-sm font-medium text-white outline-none cursor-pointer appearance-none rounded focus:ring-0"
-              value={selectedDay || ''}
-              onChange={(e) => setSelectedDay(e.target.value || null)}
-              style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none', textAlign: 'center' }}
-            >
-              <option value="" className="bg-brand-card text-white">Mês Inteiro</option>
-              {days.map(d => (
-                <option key={d} value={d} className="bg-brand-card text-white">
-                  Dia {d.split('-')[2]}
-                </option>
-              ))}
-            </select>
           </div>
         </div>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Total Planejado" value={totalPlanned >= 1000 ? `${(totalPlanned/1000).toFixed(0)}k` : totalPlanned} unit="kg" accentColor="#22d3ee" trend={0} sub={selectedDay ? '1 dia' : `${days.length} dias no mês`} />
-        <KpiCard label="Total Realizado" value={totalActual >= 1000 ? `${(totalActual/1000).toFixed(0)}k` : totalActual} unit="kg" accentColor="#10b981" trend={totalActual >= totalPlanned * 0.9 ? 1 : -1} sub={selectedDay ? '1 dia' : `${pastDays.length} dias apurados`} />
+        <KpiCard label="Total Planejado" value={totalPlanned >= 1000 ? `${(totalPlanned/1000).toFixed(0)}k` : totalPlanned} unit="kg" accentColor="#22d3ee" trend={0} sub={hasRange ? 'Período' : `${days.length} dias no mês`} />
+        <KpiCard label="Total Realizado" value={totalActual >= 1000 ? `${(totalActual/1000).toFixed(0)}k` : totalActual} unit="kg" accentColor="#10b981" trend={totalActual >= totalPlanned * 0.9 ? 1 : -1} sub={hasRange ? 'Período' : `${pastDays.length} dias apurados`} />
         <KpiCard label="Aderência" value={`${adherence}%`} accentColor={adColor} trend={adherence >= 90 ? 1 : -1} sub="planejado vs realizado" />
         <KpiCard label="Máquinas" value={machines.length} accentColor="#f97316" trend={0} sub={factory === 'matriz' ? 'Corradi Matriz' : 'Corradi Filial'} />
       </div>
@@ -186,13 +224,22 @@ export default function Dashboard() {
       {/* Machine status grid */}
       <div className="bg-brand-card border border-brand-border rounded-2xl p-5">
         <h3 className="text-xs font-bold text-brand-muted uppercase tracking-widest mb-4 flex items-center gap-2">
-          <Cpu size={13} className="text-brand-cyan" /> Status das Máquinas — {selectedDay ? `Dia ${selectedDay.split('-')[2]}` : 'Hoje'}
+          <Cpu size={13} className="text-brand-cyan" /> Status das Máquinas — {hasRange ? 'Período' : 'Hoje'}
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
           {machines.map((machine) => {
-            const targetDate = selectedDay || new Date().toISOString().split('T')[0];
-            const planned = basePlanningEntries.filter((e) => e.machine === machine.id && e.date === targetDate).reduce((s, e) => s + (e.planned || 0), 0);
-            const actual  = records.filter((r) => r.machine === machine.id && r.date === targetDate).reduce((s, r) => s + (r.actual || 0), 0);
+            let planned = 0;
+            let actual = 0;
+            
+            if (hasRange) {
+              planned = basePlanningEntries.filter((e) => e.machine === machine.id && e.date >= dateRange.start && e.date <= dateRange.end).reduce((s, e) => s + (e.planned || 0), 0);
+              actual  = records.filter((r) => r.machine === machine.id && r.date >= dateRange.start && r.date <= dateRange.end).reduce((s, r) => s + (r.actual || 0), 0);
+            } else {
+              const today = new Date().toISOString().split('T')[0];
+              planned = basePlanningEntries.filter((e) => e.machine === machine.id && e.date === today).reduce((s, e) => s + (e.planned || 0), 0);
+              actual  = records.filter((r) => r.machine === machine.id && r.date === today).reduce((s, r) => s + (r.actual || 0), 0);
+            }
+            
             const pct = planned > 0 ? Math.round((actual / planned) * 100) : null;
             const color = pct === null ? '#1e3058' : pct >= 95 ? '#10b981' : pct >= 80 ? '#22d3ee' : pct >= 65 ? '#f59e0b' : '#ef4444';
             return (
