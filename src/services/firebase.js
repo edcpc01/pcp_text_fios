@@ -1,12 +1,13 @@
 import { initializeApp } from 'firebase/app';
 import {
-  getFirestore, collection, doc, getDoc, setDoc, updateDoc,
-  deleteDoc, query, where, orderBy, onSnapshot, writeBatch, Timestamp,
+  getFirestore, collection, doc, getDoc, setDoc,
+  deleteDoc, query, where, orderBy, onSnapshot, Timestamp,
   enableIndexedDbPersistence,
 } from 'firebase/firestore';
 import {
   getAuth, signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged,
 } from 'firebase/auth';
+import { makeEntryId } from '../hooks/useStore';
 
 const firebaseConfig = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
@@ -17,37 +18,26 @@ const firebaseConfig = {
   appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const app = initializeApp(firebaseConfig);
-export const db  = getFirestore(app);
+const app  = initializeApp(firebaseConfig);
+export const db   = getFirestore(app);
 export const auth = getAuth(app);
 
 enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === 'failed-precondition') console.warn('Firestore persistence: multiple tabs open');
-  else if (err.code === 'unimplemented')  console.warn('Firestore persistence: not supported');
+  if (err.code === 'failed-precondition') console.warn('Firestore persistence: multiple tabs');
+  else if (err.code === 'unimplemented')  console.warn('Firestore persistence: unsupported');
 });
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
-export const signIn      = (email, password) => signInWithEmailAndPassword(auth, email, password);
-export const signOut     = () => firebaseSignOut(auth);
-export const onAuthChange = (callback) => onAuthStateChanged(auth, callback);
+export const signIn       = (email, pw) => signInWithEmailAndPassword(auth, email, pw);
+export const signOut      = () => firebaseSignOut(auth);
+export const onAuthChange = (cb) => onAuthStateChanged(auth, cb);
 
-// Busca o role do usuário no Firestore /users/{uid}
 export async function getUserRole(uid) {
   try {
     const snap = await getDoc(doc(db, 'users', uid));
-    if (snap.exists()) return snap.data().role || 'planner';
-    return 'planner';
-  } catch {
-    return 'planner';
-  }
+    return snap.exists() ? (snap.data().role || 'planner') : 'planner';
+  } catch { return 'planner'; }
 }
-
-// ─── Collections ──────────────────────────────────────────────────────────────
-const C = {
-  planning:   'planning_entries',
-  production: 'production_records',
-  agents:     'agent_logs',
-};
 
 // ─── Planning ─────────────────────────────────────────────────────────────────
 export function subscribePlanningEntries(factory, yearMonth, callback) {
@@ -55,40 +45,44 @@ export function subscribePlanningEntries(factory, yearMonth, callback) {
   const start = Timestamp.fromDate(new Date(year, month - 1, 1));
   const end   = Timestamp.fromDate(new Date(year, month, 0, 23, 59, 59));
   const q = query(
-    collection(db, C.planning),
+    collection(db, 'planning_entries'),
     where('factory', '==', factory),
     where('date', '>=', start),
     where('date', '<=', end),
-    orderBy('date', 'asc')
+    orderBy('date', 'asc'),
   );
   return onSnapshot(q, (snap) => {
     callback(snap.docs.map((d) => ({
-      id: d.id, ...d.data(),
+      ...d.data(),
+      id:   d.id,
       date: d.data().date?.toDate?.()?.toISOString?.()?.split('T')[0],
     })));
   });
 }
 
+// Save uses stable ID = factory__machine__date
+// setDoc with merge:true → always upsert, never creates duplicate
 export async function savePlanningEntry(entry) {
-  // Use deterministic ID: factory-machine-date-side to avoid duplicates
-  const stableId = entry.id && !entry.id.startsWith('local-')
-    ? entry.id
-    : `${entry.factory}-${entry.machine}-${entry.date}-${(entry.side || 'A').replace(/\s/g, '')}`;
-
-  const docRef = doc(db, C.planning, stableId);
-  const data   = {
-    ...entry,
-    date:      Timestamp.fromDate(new Date(entry.date + 'T12:00:00')),
-    updatedAt: Timestamp.now(),
+  const stableId = makeEntryId(entry.factory, entry.machine, entry.date);
+  const data = {
+    factory:     entry.factory,
+    machine:     entry.machine,
+    machineName: entry.machineName || entry.machine,
+    product:     entry.product     || '',
+    productName: entry.productName || '',
+    date:        Timestamp.fromDate(new Date(entry.date + 'T12:00:00')),
+    planned:     entry.planned     || 0,
+    quality:     entry.quality     || 'A',
+    side:        entry.side        || 'Lado A',
+    cellType:    entry.cellType    || 'producao',
+    updatedAt:   Timestamp.now(),
   };
-  delete data.id;
-  data.createdAt = data.createdAt || Timestamp.now();
-  await setDoc(docRef, data, { merge: true });
+  await setDoc(doc(db, 'planning_entries', stableId), data, { merge: true });
   return stableId;
 }
 
 export async function deletePlanningEntry(id) {
-  await deleteDoc(doc(db, C.planning, id));
+  await deleteDoc(doc(db, 'planning_entries', id));
 }
 
 // ─── Production ───────────────────────────────────────────────────────────────
@@ -97,37 +91,23 @@ export function subscribeProductionRecords(factory, yearMonth, callback) {
   const start = Timestamp.fromDate(new Date(year, month - 1, 1));
   const end   = Timestamp.fromDate(new Date(year, month, 0, 23, 59, 59));
   const q = query(
-    collection(db, C.production),
+    collection(db, 'production_records'),
     where('factory', '==', factory),
     where('date', '>=', start),
     where('date', '<=', end),
-    orderBy('date', 'asc')
+    orderBy('date', 'asc'),
   );
   return onSnapshot(q, (snap) => {
     callback(snap.docs.map((d) => ({
-      id: d.id, ...d.data(),
+      ...d.data(),
+      id:   d.id,
       date: d.data().date?.toDate?.()?.toISOString?.()?.split('T')[0],
     })));
   });
 }
 
-export async function saveProductionRecord(record) {
-  const docRef = record.id
-    ? doc(db, C.production, record.id)
-    : doc(collection(db, C.production));
-  const data = {
-    ...record,
-    date:       Timestamp.fromDate(new Date(record.date + 'T12:00:00')),
-    importedAt: Timestamp.now(),
-    source:     record.source || 'manual',
-  };
-  delete data.id;
-  await setDoc(docRef, data, { merge: true });
-  return docRef.id;
-}
-
 export async function saveAgentLog(log) {
-  await setDoc(doc(collection(db, C.agents)), { ...log, timestamp: Timestamp.now() });
+  await setDoc(doc(collection(db, 'agent_logs')), { ...log, timestamp: Timestamp.now() });
 }
 
 export default app;

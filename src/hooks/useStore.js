@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 
 export const FACTORIES = [
-  { id: 'matriz',  name: 'Corradi Matriz',  color: '#22d3ee' },
-  { id: 'filial',  name: 'Corradi Filial',  color: '#f97316' },
+  { id: 'matriz', name: 'Corradi Matriz', color: '#22d3ee' },
+  { id: 'filial', name: 'Corradi Filial', color: '#f97316' },
 ];
 
 export const MACHINES = {
@@ -44,23 +44,25 @@ export const PRODUCTS = [
   { id: 'P010', name: 'DTY 50/24',  dtex: 50,  filaments: 24, type: 'DTY' },
 ];
 
-// Tipos de célula de planejamento
 export const CELL_TYPES = {
-  producao:   { id: 'producao',   label: 'Produção',              color: '#10b981', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.35)', text: '#6ee7b7' },
-  parada_np:  { id: 'parada_np',  label: 'Parada Não Programada', color: '#ef4444', bg: 'rgba(239,68,68,0.12)',  border: 'rgba(239,68,68,0.35)',  text: '#fca5a5' },
-  parada_p:   { id: 'parada_p',   label: 'Parada Programada',     color: '#f97316', bg: 'rgba(249,115,22,0.12)', border: 'rgba(249,115,22,0.35)', text: '#fdba74' },
-  manutencao: { id: 'manutencao', label: 'Manutenção Preventiva', color: '#22d3ee', bg: 'rgba(34,211,238,0.12)', border: 'rgba(34,211,238,0.35)', text: '#67e8f9' },
+  producao:   { id: 'producao',   label: 'Produção',              color: '#10b981', bg: 'rgba(16,185,129,0.12)',  border: 'rgba(16,185,129,0.35)',  text: '#6ee7b7' },
+  parada_np:  { id: 'parada_np',  label: 'Parada Não Programada', color: '#ef4444', bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)',   text: '#fca5a5' },
+  parada_p:   { id: 'parada_p',   label: 'Parada Programada',     color: '#f97316', bg: 'rgba(249,115,22,0.12)',  border: 'rgba(249,115,22,0.35)',  text: '#fdba74' },
+  manutencao: { id: 'manutencao', label: 'Manutenção Preventiva', color: '#22d3ee', bg: 'rgba(34,211,238,0.12)',  border: 'rgba(34,211,238,0.35)',  text: '#67e8f9' },
 };
+
+// Gera ID estável e previsível para cada slot máquina+data
+export function makeEntryId(factory, machine, date) {
+  return `${factory}__${machine}__${date}`;
+}
 
 // Auth Store
 export const useAuthStore = create((set) => ({
-  user: null,
-  loading: true,
-  error: null,
-  setUser: (user) => set({ user, loading: false }),
+  user: null, loading: true, error: null,
+  setUser:    (user)    => set({ user, loading: false }),
   setLoading: (loading) => set({ loading }),
-  setError: (error) => set({ error, loading: false }),
-  logout: () => set({ user: null }),
+  setError:   (error)   => set({ error, loading: false }),
+  logout:     ()        => set({ user: null }),
 }));
 
 // App Store
@@ -68,17 +70,14 @@ export const useAppStore = create((set, get) => ({
   factory: 'matriz',
   setFactory: (factory) => set({ factory }),
   getFactoryData: () => FACTORIES.find((f) => f.id === get().factory),
-  getMachines: () => MACHINES[get().factory] || [],
 
   month: { year: new Date().getFullYear(), month: new Date().getMonth() },
-  changeMonth: (dir) =>
-    set((state) => {
-      let m = state.month.month + dir;
-      let y = state.month.year;
-      if (m < 0) { m = 11; y--; }
-      if (m > 11) { m = 0; y++; }
-      return { month: { year: y, month: m } };
-    }),
+  changeMonth: (dir) => set((s) => {
+    let m = s.month.month + dir, y = s.month.year;
+    if (m < 0) { m = 11; y--; }
+    if (m > 11) { m = 0; y++; }
+    return { month: { year: y, month: m } };
+  }),
   getYearMonth: () => {
     const { year, month: m } = get().month;
     return `${year}-${String(m + 1).padStart(2, '0')}`;
@@ -86,26 +85,48 @@ export const useAppStore = create((set, get) => ({
 
   agentOpen: false,
   toggleAgent: () => set((s) => ({ agentOpen: !s.agentOpen })),
-  closeAgent: () => set({ agentOpen: false }),
+  closeAgent:  () => set({ agentOpen: false }),
 }));
 
-// Planning Store
+// Planning Store — keyed by stable ID
 export const usePlanningStore = create((set, get) => ({
-  entries: [],
+  // entriesMap: { [stableId]: entry }  — O(1) lookup, no duplicates possible
+  entriesMap: {},
   loading: false,
-  setEntries: (entries) => set({ entries, loading: false }),
+
   setLoading: (loading) => set({ loading }),
-  addEntry:    (entry)        => set((s) => ({ entries: [...s.entries, { ...entry, id: entry.id || `local-${Date.now()}` }] })),
-  updateEntry: (id, updates)  => set((s) => ({ entries: s.entries.map((e) => e.id === id ? { ...e, ...updates } : e) })),
-  deleteEntry: (id)           => set((s) => ({ entries: s.entries.filter((e) => e.id !== id) })),
+
+  // Replace entire map (called on Firestore snapshot)
+  setEntriesFromArray: (arr) => {
+    const map = {};
+    arr.forEach((e) => {
+      const id = e.id || makeEntryId(e.factory, e.machine, e.date);
+      map[id] = { ...e, id };
+    });
+    set({ entriesMap: map, loading: false });
+  },
+
+  // Upsert a single entry by its stable ID
+  upsertEntry: (entry) => set((s) => ({
+    entriesMap: { ...s.entriesMap, [entry.id]: entry },
+  })),
+
+  // Delete by ID
+  deleteEntry: (id) => set((s) => {
+    const next = { ...s.entriesMap };
+    delete next[id];
+    return { entriesMap: next };
+  }),
+
+  // Derived: flat array
+  getEntries: () => Object.values(get().entriesMap),
 }));
 
 // Production Store
 export const useProductionStore = create((set, get) => ({
-  records: [],
-  loading: false,
-  setRecords: (records) => set({ records, loading: false }),
-  setLoading: (loading) => set({ loading }),
+  records: [], loading: false,
+  setRecords:  (records) => set({ records, loading: false }),
+  setLoading:  (loading) => set({ loading }),
   getRecordsByProduct: () => {
     const map = {};
     get().records.forEach((r) => {
@@ -119,14 +140,14 @@ export const useProductionStore = create((set, get) => ({
   },
 }));
 
-// Admin Store — produtos e máquinas editáveis
+// Admin Store
 export const useAdminStore = create((set, get) => ({
   products: [...PRODUCTS],
-  machines: { ...MACHINES },
-  addProduct:    (p)       => set((s) => ({ products: [...s.products, p] })),
-  updateProduct: (id, upd) => set((s) => ({ products: s.products.map((p) => p.id === id ? { ...p, ...upd } : p) })),
-  deleteProduct: (id)      => set((s) => ({ products: s.products.filter((p) => p.id !== id) })),
-  addMachine:    (factory, m)       => set((s) => ({ machines: { ...s.machines, [factory]: [...(s.machines[factory] || []), m] } })),
-  updateMachine: (factory, id, upd) => set((s) => ({ machines: { ...s.machines, [factory]: s.machines[factory].map((m) => m.id === id ? { ...m, ...upd } : m) } })),
-  deleteMachine: (factory, id)      => set((s) => ({ machines: { ...s.machines, [factory]: s.machines[factory].filter((m) => m.id !== id) } })),
+  machines: JSON.parse(JSON.stringify(MACHINES)),
+  addProduct:    (p)             => set((s) => ({ products: [...s.products, p] })),
+  updateProduct: (id, upd)       => set((s) => ({ products: s.products.map((p) => p.id === id ? { ...p, ...upd } : p) })),
+  deleteProduct: (id)            => set((s) => ({ products: s.products.filter((p) => p.id !== id) })),
+  addMachine:    (fac, m)        => set((s) => ({ machines: { ...s.machines, [fac]: [...(s.machines[fac] || []), m] } })),
+  updateMachine: (fac, id, upd)  => set((s) => ({ machines: { ...s.machines, [fac]: s.machines[fac].map((m) => m.id === id ? { ...m, ...upd } : m) } })),
+  deleteMachine: (fac, id)       => set((s) => ({ machines: { ...s.machines, [fac]: s.machines[fac].filter((m) => m.id !== id) } })),
 }));

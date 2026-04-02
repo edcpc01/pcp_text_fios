@@ -29,7 +29,7 @@ function KpiCard({ label, value, unit, sub, trend, accentColor }) {
 
 export default function Dashboard() {
   const { factory, month, getYearMonth } = useAppStore();
-  const { entries, setEntries } = usePlanningStore();
+  const { entriesMap, setEntriesFromArray } = usePlanningStore();
   const { records, setRecords } = useProductionStore();
   const { machines: adminMachines } = useAdminStore();
 
@@ -40,8 +40,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     const unsubP = subscribePlanningEntries(factory, yearMonth, (data) => {
-      if (data.length === 0) { const { entries: d } = seedDemoData(); setEntries(d.filter((e) => e.factory === factory && e.date?.startsWith(yearMonth))); }
-      else setEntries(data);
+      if (data.length === 0) { const { entries: d } = seedDemoData(); setEntriesFromArray(d.filter((e) => e.factory === factory && e.date?.startsWith(yearMonth))); }
+      else setEntriesFromArray(data);
     });
     const unsubR = subscribeProductionRecords(factory, yearMonth, (data) => {
       if (data.length === 0) { const { production: d } = seedDemoData(); setRecords(d.filter((r) => r.factory === factory && r.date?.startsWith(yearMonth))); }
@@ -50,7 +50,8 @@ export default function Dashboard() {
     return () => { unsubP(); unsubR(); };
   }, [factory, yearMonth]);
 
-  const planningEntries = entries.filter((e) => e.cellType === 'producao' || !e.cellType);
+  const allEntries = Object.values(entriesMap);
+  const planningEntries = allEntries.filter((e) => e.cellType === 'producao' || !e.cellType);
   const totalPlanned = planningEntries.reduce((s, e) => s + (e.planned || 0), 0);
   const totalActual  = records.reduce((s, r) => s + (r.actual || 0), 0);
   const adherence    = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : 0;
