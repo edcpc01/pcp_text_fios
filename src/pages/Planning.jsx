@@ -324,10 +324,12 @@ export default function Planning() {
             </span>
             <button onClick={() => changeMonth(1)} className="p-1.5 hover:bg-white/5 rounded-lg text-brand-muted hover:text-white transition-colors"><ChevronRight size={13} /></button>
           </div>
-          <button onClick={() => setModal({ entry: null, machine: null, date: new Date().toISOString().split('T')[0] })}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-brand-cyan/10 hover:bg-brand-cyan/15 border border-brand-cyan/30 text-brand-cyan text-xs font-semibold rounded-xl transition-all">
-            <Plus size={13} /> Nova entrada
-          </button>
+          {!isSupervisor && (
+            <button onClick={() => setModal({ entry: null, machine: null, date: new Date().toISOString().split('T')[0] })}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-brand-cyan/10 hover:bg-brand-cyan/15 border border-brand-cyan/30 text-brand-cyan text-xs font-semibold rounded-xl transition-all">
+              <Plus size={13} /> Nova entrada
+            </button>
+          )}
         </div>
       </div>
 
@@ -396,9 +398,9 @@ export default function Planning() {
                       date={date}
                       machine={machine}
                       isCurrentDay={isToday(date)}
-                      onClick={(e, m, d) => setModal({ entry: e, machine: m, date: d })}
-                      onDragStart={handleDragStart}
-                      onDrop={handleDrop}
+                      onClick={isSupervisor ? undefined : (e, m, d) => setModal({ entry: e, machine: m, date: d })}
+                      onDragStart={isSupervisor ? undefined : handleDragStart}
+                      onDrop={isSupervisor ? undefined : handleDrop}
                     />
                   );
                 })}

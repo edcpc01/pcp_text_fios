@@ -3,7 +3,7 @@ import {
   FlaskConical, Package, ChevronLeft, ChevronRight, Pencil, Check, X,
   TrendingDown, AlertTriangle, CheckCircle2, Layers, Calendar,
 } from 'lucide-react';
-import { useAppStore, useAdminStore, usePlanningStore } from '../hooks/useStore';
+import { useAppStore, useAdminStore, usePlanningStore, useAuthStore } from '../hooks/useStore';
 import {
   subscribePlanningEntries,
   subscribeRawMaterialStock, saveRawMaterialStock,
@@ -29,15 +29,15 @@ function statusInfo(estoque, necessidade) {
 
 // ─── Inline editable stock value ──────────────────────────────────────────────
 
-function InlineEdit({ value, onSave, label = 'Editar estoque' }) {
+function InlineEdit({ value, onSave, label = 'Editar estoque', editable = true }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
 
-  const startEdit = () => { setDraft(String(value ?? '')); setEditing(true); };
+  const startEdit = () => { if (editable) { setDraft(String(value ?? '')); setEditing(true); } };
   const cancel = () => setEditing(false);
   const confirm = async () => { await onSave(Number(draft) || 0); setEditing(false); };
 
-  if (editing) {
+  if (editing && editable) {
     return (
       <span className="inline-flex items-center gap-1">
         <input
@@ -56,6 +56,14 @@ function InlineEdit({ value, onSave, label = 'Editar estoque' }) {
     );
   }
 
+  if (!editable) {
+    return (
+      <span className="text-white font-mono font-bold">
+        {fmtKg(value)}
+      </span>
+    );
+  }
+
   return (
     <button
       onClick={startEdit}
@@ -70,7 +78,7 @@ function InlineEdit({ value, onSave, label = 'Editar estoque' }) {
 
 // ─── MP Card ──────────────────────────────────────────────────────────────────
 
-function MpCard({ mp, stock, onSaveStock }) {
+function MpCard({ mp, stock, onSaveStock, editable }) {
   const estoque = stock?.estoqueKg ?? 0;
   const { label, color, icon: StatusIcon, bg } = statusInfo(estoque, mp.necessidadeKg);
   const pct = mp.necessidadeKg > 0 ? Math.min(100, Math.round((estoque / mp.necessidadeKg) * 100)) : 100;
@@ -123,7 +131,8 @@ function MpCard({ mp, stock, onSaveStock }) {
           <p className="text-[9px] text-brand-muted uppercase tracking-widest mb-1">Estoque (Microdata)</p>
           <InlineEdit
             value={estoque}
-            label="Clique para editar o estoque"
+            label={editable ? "Clique para editar o estoque" : "Estoque atual"}
+            editable={editable}
             onSave={(v) => onSaveStock(mp.codigoMicrodata, { descricao: mp.descricao, estoqueKg: v })}
           />
         </div>
@@ -149,7 +158,7 @@ function MpCard({ mp, stock, onSaveStock }) {
 
 // ─── Finished Good Card ───────────────────────────────────────────────────────
 
-function PaCard({ product, stock, onSaveStock }) {
+function PaCard({ product, stock, onSaveStock, editable }) {
   const estoqueKg = stock?.estoqueKg ?? 0;
 
   return (
@@ -168,7 +177,8 @@ function PaCard({ product, stock, onSaveStock }) {
         <p className="text-[9px] text-brand-muted uppercase tracking-widest mb-1">Estoque (Microdata)</p>
         <InlineEdit
           value={estoqueKg}
-          label="Clique para editar o estoque de PA"
+          label={editable ? "Clique para editar o estoque de PA" : "Estoque atual"}
+          editable={editable}
           onSave={(v) => onSaveStock(product.id, { productName: product.nome, estoqueKg: v })}
         />
       </div>
@@ -245,9 +255,11 @@ function DateRangeFilter({ dateRange, setDateRange, showPicker, setShowPicker, m
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function Materiais() {
+  const { user } = useAuthStore();
   const { factory, month, getYearMonth } = useAppStore();
   const { products } = useAdminStore();
   const { entriesMap, setEntriesFromArray } = usePlanningStore();
+  const isSupervisor = user?.role === 'supervisor';
 
   const yearMonth = getYearMonth();
   const monthLabel = getMonthLabel(month.year, month.month);
@@ -433,6 +445,7 @@ export default function Materiais() {
                   mp={mp}
                   stock={mpStock[stockKey]}
                   onSaveStock={saveRawMaterialStock}
+                  editable={!isSupervisor}
                 />
               );
             })}
@@ -539,6 +552,7 @@ export default function Materiais() {
                 product={product}
                 stock={paStock[product.id]}
                 onSaveStock={saveFinishedGoodStock}
+                editable={!isSupervisor}
               />
             ))}
           </div>
