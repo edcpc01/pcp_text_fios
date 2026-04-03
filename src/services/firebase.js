@@ -51,23 +51,27 @@ export async function getUserRole(uid) {
 export function subscribePlanningEntries(factory, yearMonth, callback) {
   const [year, month] = yearMonth.split('-').map(Number);
   const start = Timestamp.fromDate(new Date(year, month - 1, 1));
-  const end = Timestamp.fromDate(new Date(year, month, 0, 23, 59, 59));
+  const end   = Timestamp.fromDate(new Date(year, month, 0, 23, 59, 59));
+
+  // Filtra apenas por date (usa índice de campo único auto-criado pelo Firestore).
+  // O filtro de factory é feito no cliente para evitar índice composto não implantado.
   const q = query(
     collection(db, 'planning_entries'),
-    where('factory', '==', factory),
     where('date', '>=', start),
     where('date', '<=', end),
-    orderBy('date', 'asc'),
   );
   return onSnapshot(
     q,
     (snap) => {
-      const data = snap.docs.map((d) => ({
-        ...d.data(),
-        id: d.id,
-        date: d.data().date?.toDate?.()?.toISOString?.()?.split('T')[0],
-      }));
-      console.log(`[Firestore] planning_entries snapshot: ${data.length} docs`);
+      const data = snap.docs
+        .map((d) => ({
+          ...d.data(),
+          id: d.id,
+          date: d.data().date?.toDate?.()?.toISOString?.()?.split('T')[0],
+        }))
+        .filter((e) => e.factory === factory)          // ← filtro de fábrica no cliente
+        .sort((a, b) => (a.date < b.date ? -1 : 1));   // ← ordenação no cliente
+      console.log(`[Firestore] planning_entries snapshot: ${data.length} docs (factory=${factory})`);
       callback(data);
     },
     (err) => {
@@ -106,20 +110,31 @@ export async function deletePlanningEntry(id) {
 export function subscribeProductionRecords(factory, yearMonth, callback) {
   const [year, month] = yearMonth.split('-').map(Number);
   const start = Timestamp.fromDate(new Date(year, month - 1, 1));
-  const end = Timestamp.fromDate(new Date(year, month, 0, 23, 59, 59));
+  const end   = Timestamp.fromDate(new Date(year, month, 0, 23, 59, 59));
+
+  // Mesmo padrão: filtra só por date para evitar índice composto.
+  // O filtro de factory é feito no cliente.
   const q = query(
     collection(db, 'production_records'),
-    where('factory', '==', factory),
     where('date', '>=', start),
     where('date', '<=', end),
-    orderBy('date', 'asc'),
   );
-  return onSnapshot(q, (snap) => {
-    callback(snap.docs.map((d) => ({
-      ...d.data(), id: d.id,
-      date: d.data().date?.toDate?.()?.toISOString?.()?.split('T')[0],
-    })));
-  }, (err) => console.error('[Firestore] subscribeProductionRecords error:', err.code));
+  return onSnapshot(
+    q,
+    (snap) => {
+      const data = snap.docs
+        .map((d) => ({
+          ...d.data(),
+          id: d.id,
+          date: d.data().date?.toDate?.()?.toISOString?.()?.split('T')[0],
+        }))
+        .filter((r) => r.factory === factory)          // ← filtro de fábrica no cliente
+        .sort((a, b) => (a.date < b.date ? -1 : 1));   // ← ordenação no cliente
+      console.log(`[Firestore] production_records snapshot: ${data.length} docs (factory=${factory})`);
+      callback(data);
+    },
+    (err) => console.error('[Firestore] subscribeProductionRecords error:', err.code, err.message)
+  );
 }
 
 export async function saveAgentLog(log) {
