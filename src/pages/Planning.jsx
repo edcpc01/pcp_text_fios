@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, ChevronLeft, ChevronRight, X, Save, Trash2 } from 'lucide-react';
-import { useAppStore, usePlanningStore, useAdminStore, CELL_TYPES, makeEntryId } from '../hooks/useStore';
+import { useAppStore, usePlanningStore, useAdminStore, useAuthStore, CELL_TYPES, makeEntryId } from '../hooks/useStore';
 import { subscribePlanningEntries, savePlanningEntry, deletePlanningEntry } from '../services/firebase';
 import { getDaysInMonth, getWeekday, formatDate, getMonthLabel, isToday } from '../utils/dates';
 

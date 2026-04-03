@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   FlaskConical, Package, ChevronLeft, ChevronRight, Pencil, Check, X,
-  TrendingDown, AlertTriangle, CheckCircle2, Layers, Calendar,
+  TrendingDown, AlertTriangle, CheckCircle2, Layers, Calendar, Upload, Loader2,
 } from 'lucide-react';
 import { useAppStore, useAdminStore, usePlanningStore, useAuthStore } from '../hooks/useStore';
 import {
@@ -268,6 +268,72 @@ export default function Materiais() {
   const [showPicker, setShowPicker] = useState(false);
   const [mpStock, setMpStock]   = useState({});  // { [codigoMicrodata]: { estoqueKg, ... } }
   const [paStock, setPaStock]   = useState({});  // { [productId]: { estoqueKg, ... } }
+  const [importing, setImporting] = useState(false);
+
+  // Logic to parse CSV and save to Firestore
+  const handleCSVImport = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const text = e.target.result;
+      const lines = text.split(/\r?\n/).filter(line => line.trim());
+      if (lines.length < 2) {
+        alert("Arquivo vazio ou inválido.");
+        setImporting(false);
+        return;
+      }
+
+      // Tenta detectar delimitador (vírgula ou ponto-e-vírgula)
+      const firstLine = lines[0];
+      const delimiter = firstLine.includes(';') ? ';' : ',';
+      
+      const rows = lines.slice(1);
+      let updatedCount = 0;
+
+      for (const row of rows) {
+        const columns = row.split(delimiter).map(c => c.trim().replace(/^"|"$/g, ''));
+        if (columns.length < 2) continue;
+
+        // Formato esperado: Código | Descrição | Estoque
+        // Mas vamos tentar ser flexíveis se o código estiver na primeira ou segunda colona
+        const code = columns[0];
+        const desc = columns[1];
+        const stockStr = columns[2] || columns[1]; // se só tiver 2 colunas, assume a 2ª como estoque
+        
+        // Converte estoque de '1.250,50' ou '1250.5' para número
+        const stockKg = parseFloat(stockStr.replace(/\./g, '').replace(',', '.'));
+
+        if (!isNaN(stockKg) && code) {
+          // 1. Tentar atualizar MP se o código bater com alguma MP necessária
+          const isMP = mpNecessidade.some(m => m.codigoMicrodata === code || m.descricao === code);
+          if (isMP) {
+            await saveRawMaterialStock(code, { descricao: desc || code, estoqueKg: stockKg });
+            updatedCount++;
+          }
+
+          // 2. Tentar atualizar PA se o código bater com algum produto cadastrado
+          const product = products.find(p => p.codigoMicrodata === code || p.id === code || p.nome === code);
+          if (product) {
+            await saveFinishedGoodStock(product.id, { productName: product.nome, estoqueKg: stockKg });
+            updatedCount++;
+          }
+        }
+      }
+
+      alert(`Importação concluída! ${updatedCount} itens processados.`);
+      setImporting(false);
+      // Reset input
+      event.target.value = '';
+    };
+    reader.onerror = () => {
+      alert("Erro ao ler arquivo.");
+      setImporting(false);
+    };
+    reader.readAsText(file, 'ISO-8859-1'); // Microdata/PowerBI geralmente exporta em ANSI/ISO
+  };
 
   // Reset range on month change
   useEffect(() => { setDateRange({ start: '', end: '' }); setShowPicker(false); }, [yearMonth]);
@@ -384,13 +450,37 @@ export default function Materiais() {
             {' · '}{factory === 'matriz' ? 'Corradi Matriz' : 'Corradi Filial'}
           </p>
         </div>
-        <DateRangeFilter
-          dateRange={dateRange}
-          setDateRange={setDateRange}
-          showPicker={showPicker}
-          setShowPicker={setShowPicker}
-          monthLabel={monthLabel}
-        />
+        <div className="flex items-center gap-2">
+          {!isSupervisor && (
+            <div className="relative">
+              <input
+                type="file"
+                id="stock-upload"
+                className="hidden"
+                accept=".csv"
+                onChange={handleCSVImport}
+                disabled={importing}
+              />
+              <label
+                htmlFor="stock-upload"
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-sm
+                  ${importing 
+                    ? 'bg-brand-surface border-brand-border text-brand-muted cursor-wait' 
+                    : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20 active:scale-95'}`}
+              >
+                {importing ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                {importing ? 'Importando...' : 'Importar CSV'}
+              </label>
+            </div>
+          )}
+          <DateRangeFilter
+            dateRange={dateRange}
+            setDateRange={setDateRange}
+            showPicker={showPicker}
+            setShowPicker={setShowPicker}
+            monthLabel={monthLabel}
+          />
+        </div>
       </div>
 
       {/* ── KPI Summary ── */}
