@@ -20,6 +20,10 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
+if (!firebaseConfig.apiKey) {
+  console.error('[Firebase] VITE_FIREBASE_API_KEY is missing! Check your environment variables.');
+}
+
 const app = initializeApp(firebaseConfig);
 
 // Firebase 10 — usa initializeFirestore com persistentLocalCache

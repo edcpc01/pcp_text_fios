@@ -23,25 +23,43 @@ export default function App() {
     const unsubMachines = subscribeMachines((data) => {
       setMachines(data);
     });
+
     setLoading(true);
+    
+    // Timeout de segurança: se Firebase falhar em 10s, cancela loading
+    const timeout = setTimeout(() => {
+      if (useAuthStore.getState().loading) {
+        console.warn('[App] Auth timeout reached, forcing loading false');
+        setLoading(false);
+      }
+    }, 10000);
+
     const unsub = onAuthChange(async (fu) => {
-      if (fu) {
-        // Busca role do Firestore (não do token)
-        const role = await getUserRole(fu.uid);
-        setUser({
-          uid: fu.uid,
-          email: fu.email,
-          name: fu.displayName || fu.email.split('@')[0],
-          role: role || 'supervisor',
-        });
-      } else {
-        setUser(null);
+      try {
+        if (fu) {
+          const role = await getUserRole(fu.uid);
+          setUser({
+            uid: fu.uid,
+            email: fu.email,
+            name: fu.displayName || fu.email.split('@')[0],
+            role: role || 'supervisor',
+          });
+        } else {
+          setUser(null);
+        }
+      } catch (err) {
+        console.error('[App] Auth update failed:', err);
+        setUser(null); // Também limpa loading
+      } finally {
+        clearTimeout(timeout);
       }
     });
+
     return () => {
       unsub();
       unsubProducts();
       unsubMachines();
+      clearTimeout(timeout);
     };
   }, []);
 

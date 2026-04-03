@@ -53,8 +53,12 @@ export default function Layout({ children }) {
                     ? 'bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/20 shadow-[0_0_10px_rgba(34,211,238,0.05)]'
                     : 'text-brand-muted hover:text-white hover:bg-white/5 border border-transparent'}`
                 }>
-                <Icon size={16} strokeWidth={isActive ? 2.5 : 2} />
-                <span className="hidden lg:inline">{label}</span>
+                {({ isActive }) => (
+                  <>
+                    <Icon size={16} strokeWidth={isActive ? 2.5 : 2} />
+                    <span className="hidden lg:inline">{label}</span>
+                  </>
+                )}
               </NavLink>
             ))}
           </nav>

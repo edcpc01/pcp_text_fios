@@ -43,7 +43,7 @@ export default function FirebaseStatus() {
     ok:       { bg: 'bg-emerald-500/10 border-emerald-500/30', text: 'text-emerald-300', icon: <CheckCircle size={14} className="text-emerald-400 shrink-0" /> },
     error:    { bg: 'bg-red-500/10 border-red-500/30', text: 'text-red-300', icon: <AlertTriangle size={14} className="text-red-400 shrink-0" /> },
   };
-  const s = styles[status];
+  const s = styles[status] || styles.checking;
 
   return (
     <div className="fixed bottom-4 right-4 z-[200] w-72 animate-slide-up">
