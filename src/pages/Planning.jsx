@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, ChevronLeft, ChevronRight, X, Save, Trash2 } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, X, Save, Trash2, CalendarDays, Package, Cpu, Activity, AlertTriangle } from 'lucide-react';
 import { useAppStore, usePlanningStore, useAdminStore, useAuthStore, CELL_TYPES, makeEntryId } from '../hooks/useStore';
 import { subscribePlanningEntries, savePlanningEntry, deletePlanningEntry } from '../services/firebase';
 import { getDaysInMonth, getWeekday, formatDate, getMonthLabel, isToday } from '../utils/dates';
@@ -213,6 +213,9 @@ function MatrixCell({ entry, date, machine, isCurrentDay, onClick, onDragStart, 
 export default function Planning() {
   const { user } = useAuthStore();
   const { factory, month, changeMonth, getYearMonth } = useAppStore();
+  const { entriesMap, setEntriesFromArray, upsertEntry, deleteEntry, setLoading } = usePlanningStore();
+  const { machines: adminMachines, products } = useAdminStore();
+
   const isSupervisor = user?.role === 'supervisor';
   const isAllUnits   = factory === 'all';
 
