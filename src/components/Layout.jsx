@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, CalendarDays, TrendingUp, Bot, LogOut, Settings, ChevronDown, Factory } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, TrendingUp, Bot, LogOut, Settings, ChevronDown, Factory, FlaskConical } from 'lucide-react';
 import { useAuthStore, useAppStore, FACTORIES } from '../hooks/useStore';
 import { signOut } from '../services/firebase';
 import AgentPanel from './AgentPanel';
@@ -22,6 +22,7 @@ export default function Layout({ children }) {
     { to: '/',           icon: LayoutDashboard, label: 'Dashboard'    },
     { to: '/planning',   icon: CalendarDays,    label: 'Planejamento' },
     { to: '/production', icon: TrendingUp,      label: 'Realizado'    },
+    { to: '/materiais',  icon: FlaskConical,    label: 'Materiais'    },
     ...(isAdmin ? [{ to: '/admin', icon: Settings, label: 'Cadastros' }] : []),
   ];
 

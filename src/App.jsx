@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Planning from './pages/Planning';
 import Production from './pages/Production';
 import Admin from './pages/Admin';
+import Materiais from './pages/Materiais';
 import Login from './pages/Login';
 
 export default function App() {
@@ -61,6 +62,7 @@ export default function App() {
         <Route path="/"           element={<Dashboard />} />
         <Route path="/planning"   element={<Planning />} />
         <Route path="/production" element={<Production />} />
+        <Route path="/materiais"  element={<Materiais />} />
         <Route path="/admin"      element={user.role === 'admin' ? <Admin /> : <Navigate to="/" replace />} />
         <Route path="*"           element={<Navigate to="/" replace />} />
       </Routes>

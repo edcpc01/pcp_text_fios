@@ -127,6 +127,58 @@ export async function saveAgentLog(log) {
 }
 
 export default app;
+
+// ─── Raw Material Stock (Microdata) ───────────────────────────────────────────
+
+/**
+ * Escuta estoque de matéria-prima (coleção microdata_stock) em tempo real.
+ * Cada doc: { codigoMicrodata: string, descricao: string, estoqueKg: number }
+ */
+export const subscribeRawMaterialStock = (callback) => {
+  return onSnapshot(collection(db, 'microdata_stock'), (snapshot) => {
+    const data = {};
+    snapshot.docs.forEach((d) => {
+      data[d.id] = { id: d.id, ...d.data() };
+    });
+    callback(data);
+  }, (err) => console.error('[Firestore] subscribeRawMaterialStock error:', err.code));
+};
+
+/**
+ * Salva ou atualiza o estoque de uma matéria-prima.
+ * @param {string} codigoMicrodata - Chave primária (código do item no Microdata)
+ * @param {Object} payload - { descricao, estoqueKg, unidade? }
+ */
+export const saveRawMaterialStock = async (codigoMicrodata, payload) => {
+  const docRef = doc(db, 'microdata_stock', codigoMicrodata);
+  await setDoc(docRef, { codigoMicrodata, ...payload, updatedAt: Timestamp.now() }, { merge: true });
+};
+
+// ─── Finished Goods Stock (Produto Acabado) ────────────────────────────────────
+
+/**
+ * Escuta estoque de produto acabado em tempo real.
+ * Cada doc: { productId: string, productName: string, estoqueKg: number }
+ */
+export const subscribeFinishedGoodsStock = (callback) => {
+  return onSnapshot(collection(db, 'finished_goods_stock'), (snapshot) => {
+    const data = {};
+    snapshot.docs.forEach((d) => {
+      data[d.id] = { id: d.id, ...d.data() };
+    });
+    callback(data);
+  }, (err) => console.error('[Firestore] subscribeFinishedGoodsStock error:', err.code));
+};
+
+/**
+ * Salva ou atualiza o estoque de um produto acabado.
+ * @param {string} productId - ID do produto (mesmo id da coleção products)
+ * @param {Object} payload - { productName, estoqueKg }
+ */
+export const saveFinishedGoodStock = async (productId, payload) => {
+  const docRef = doc(db, 'finished_goods_stock', productId);
+  await setDoc(docRef, { productId, ...payload, updatedAt: Timestamp.now() }, { merge: true });
+};
 // --- CADASTRO DE PRODUTOS (DOPTEX) ---
 
 /**
