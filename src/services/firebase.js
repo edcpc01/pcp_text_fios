@@ -186,8 +186,8 @@ export const saveFinishedGoodStock = async (productId, payload) => {
  * @param {Object} product - Objeto com nome, cor, etc.
  */
 export const saveProduct = async (product) => {
-  // Criamos um ID amigável (ex: "Liocel 40" vira "liocel-40")
-  const productId = product.id || product.nome.toLowerCase().trim().replace(/\s+/g, '-');
+  // Usa o ID existente ou gera um baseado no timestamp para evitar colisões
+  const productId = product.id || `P${Date.now()}`;
   const docRef = doc(db, "products", productId);
 
   return await setDoc(docRef, {
@@ -202,11 +202,21 @@ export const saveProduct = async (product) => {
  * @param {Function} callback - Função que recebe a lista de produtos
  */
 export const subscribeProducts = (callback) => {
-  const q = query(collection(db, "products"), orderBy("nome", "asc"));
-  return onSnapshot(q, (snapshot) => {
-    const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    callback(products);
-  });
+  // Sem orderBy para evitar necessidade de índice composto no Firestore.
+  // A ordenação é feita no cliente.
+  return onSnapshot(
+    collection(db, 'products'),
+    (snapshot) => {
+      const products = snapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
+      console.log(`[Firestore] products snapshot: ${products.length} docs`);
+      callback(products);
+    },
+    (err) => {
+      console.error('[Firestore] subscribeProducts error:', err.code, err.message);
+    }
+  );
 };
 
 /**
