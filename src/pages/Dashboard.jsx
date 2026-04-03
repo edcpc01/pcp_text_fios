@@ -6,13 +6,20 @@ import { subscribeProductionRecords, subscribePlanningEntries } from '../service
 import { seedDemoData } from '../utils/seedData';
 import { getDaysInMonth, isToday, isPast, getMonthLabel } from '../utils/dates';
 
-function KpiCard({ label, value, unit, sub, trend, accentColor }) {
+function KpiCard({ label, value, unit, sub, trend, accentColor, icon: Icon }) {
   const TrendIcon = trend > 0 ? TrendingUp : trend < 0 ? TrendingDown : Minus;
   const trendColor = trend > 0 ? 'text-brand-success' : trend < 0 ? 'text-brand-danger' : 'text-brand-muted';
   return (
     <div className="bg-brand-card border border-brand-border rounded-2xl p-5 card-hover relative overflow-hidden"
       style={{ borderTop: `2px solid ${accentColor}` }}>
-      <p className="text-[10px] font-bold text-brand-muted uppercase tracking-widest mb-3">{label}</p>
+      <div className="flex justify-between items-start mb-3">
+        <p className="text-[10px] font-bold text-brand-muted uppercase tracking-widest">{label}</p>
+        {Icon && (
+          <div className="w-8 h-8 rounded-lg bg-white/5 border border-brand-border flex items-center justify-center">
+            <Icon size={16} className="text-brand-cyan" />
+          </div>
+        )}
+      </div>
       <div className="flex items-end gap-1.5">
         <span className="text-3xl font-mono font-bold text-white">{value}</span>
         {unit && <span className="text-sm text-brand-muted mb-1">{unit}</span>}
@@ -33,7 +40,9 @@ export default function Dashboard() {
   const { records, setRecords } = useProductionStore();
   const { machines: adminMachines } = useAdminStore();
 
-  const machines = adminMachines[factory] || [];
+  const machines = factory === 'all'
+    ? [...(adminMachines.matriz || []), ...(adminMachines.filial || [])]
+    : adminMachines[factory] || [];
   const yearMonth = getYearMonth();
   const days = getDaysInMonth(month.year, month.month);
   const monthLabel = getMonthLabel(month.year, month.month);
@@ -159,10 +168,38 @@ export default function Dashboard() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Total Planejado" value={totalPlanned >= 1000 ? `${(totalPlanned/1000).toFixed(0)}k` : totalPlanned} unit="kg" accentColor="#22d3ee" trend={0} sub={hasRange ? 'Período' : `${days.length} dias no mês`} />
-        <KpiCard label="Total Realizado" value={totalActual >= 1000 ? `${(totalActual/1000).toFixed(0)}k` : totalActual} unit="kg" accentColor="#10b981" trend={totalActual >= totalPlanned * 0.9 ? 1 : -1} sub={hasRange ? 'Período' : `${pastDays.length} dias apurados`} />
-        <KpiCard label="Aderência" value={`${adherence}%`} accentColor={adColor} trend={adherence >= 90 ? 1 : -1} sub="planejado vs realizado" />
-        <KpiCard label="Máquinas" value={machines.length} accentColor="#f97316" trend={0} sub={factory === 'matriz' ? 'Corradi Matriz' : 'Corradi Filial'} />
+        <KpiCard 
+          label="Total Planejado" 
+          value={totalPlanned >= 1000 ? `${(totalPlanned/1000).toFixed(1)}k` : totalPlanned} 
+          unit="kg" 
+          accentColor="#8b5cf6" 
+          icon={Calendar}
+          sub={hasRange ? 'Período' : `${days.length} dias no mês`} 
+        />
+        <KpiCard 
+          label="Total Realizado" 
+          value={totalActual >= 1000 ? `${(totalActual/1000).toFixed(1)}k` : totalActual} 
+          unit="kg" 
+          accentColor="#22d3ee" 
+          icon={TrendingUp}
+          trend={totalActual >= totalPlanned * 0.9 ? 1 : -1} 
+          sub={hasRange ? 'Período' : `${pastDays.length} dias apurados`} 
+        />
+        <KpiCard 
+          label="Aderência" 
+          value={`${adherence}%`} 
+          accentColor={adColor} 
+          icon={Activity}
+          trend={adherence >= 90 ? 1 : -1} 
+          sub="planejado vs realizado" 
+        />
+        <KpiCard 
+          label="Máquinas" 
+          value={machines.length} 
+          accentColor="#f97316" 
+          icon={Cpu}
+          sub={factory === 'all' ? 'Todas as Unidades' : factory === 'matriz' ? 'Corradi Matriz' : 'Corradi Filial'} 
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -220,10 +257,12 @@ export default function Dashboard() {
 
       {/* Machine status grid */}
       <div className="bg-brand-card border border-brand-border rounded-2xl p-5">
-        <h3 className="text-xs font-bold text-brand-muted uppercase tracking-widest mb-4 flex items-center gap-2">
-          <Cpu size={13} className="text-brand-cyan" /> Status das Máquinas — {hasRange ? 'Período' : 'Hoje'}
+        <h3 className="text-xs font-bold text-brand-muted uppercase tracking-widest mb-6 flex items-center gap-2">
+          <Cpu size={16} className="text-brand-cyan" /> 
+          Status das Máquinas — {hasRange ? 'Período' : 'Hoje'}
+          {factory === 'all' && <span className="ml-2 text-[10px] text-brand-muted opacity-50 px-2 border-l border-brand-border">Visão consolidada Matriz + Filial</span>}
         </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
           {machines.map((machine) => {
             let planned = 0;
             let actual = 0;
@@ -240,15 +279,18 @@ export default function Dashboard() {
             const pct = planned > 0 ? Math.round((actual / planned) * 100) : null;
             const color = pct === null ? '#1e3058' : pct >= 95 ? '#10b981' : pct >= 80 ? '#22d3ee' : pct >= 65 ? '#f59e0b' : '#ef4444';
             return (
-              <div key={machine.id} className="bg-brand-surface border rounded-xl p-3 transition-all" style={{ borderColor: `${color}40` }}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-bold text-white">{machine.id}</span>
-                  <span className="w-2 h-2 rounded-full pulse-dot" style={{ backgroundColor: color }} />
+              <div key={machine.id} className="bg-brand-surface border border-brand-border rounded-xl p-4 transition-all hover:bg-white/5 group">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-white group-hover:text-brand-cyan transition-colors">{machine.id}</span>
+                  <span className="w-2 h-2 rounded-full pulse-dot shadow-[0_0_8px_rgba(34,211,238,0.5)]" style={{ backgroundColor: color }} />
                 </div>
-                <p className="text-[10px] text-brand-muted truncate">{machine.name}</p>
-                <p className="text-sm font-mono font-bold mt-1" style={{ color }}>
-                  {pct !== null ? `${pct}%` : '—'}
-                </p>
+                <p className="text-[10px] text-brand-muted truncate mb-2">{machine.name}</p>
+                <div className="flex items-end justify-between">
+                  <p className="text-sm font-mono font-bold" style={{ color }}>
+                    {pct !== null ? `${pct}%` : '—'}
+                  </p>
+                  <p className="text-[9px] text-brand-muted">{actual.toLocaleString('pt-BR')}kg</p>
+                </div>
               </div>
             );
           })}

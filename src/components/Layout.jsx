@@ -34,28 +34,27 @@ export default function Layout({ children }) {
         <div className="flex items-center gap-0 px-4 h-14">
 
           {/* Logo */}
-          <div className="flex items-center gap-2.5 pr-5 border-r border-brand-border mr-3">
-            <div className="w-8 h-8 rounded-lg bg-brand-cyan/10 border border-brand-cyan/20 flex items-center justify-center shrink-0">
-              <Factory size={15} className="text-brand-cyan" />
+          <div className="flex items-center gap-3 pr-5 border-r border-brand-border mr-3">
+            <div className="w-9 h-9 rounded-xl bg-brand-cyan/10 border border-brand-cyan/25 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(34,211,238,0.1)]">
+              <Factory size={18} className="text-brand-cyan" />
             </div>
             <div className="hidden sm:block">
-              <p className="text-sm font-bold text-white leading-none">PCP Fios</p>
-              <p className="text-[10px] text-brand-muted">Planejamento</p>
+              <p className="text-[13px] font-black text-white leading-tight tracking-tight uppercase">PCP Fios</p>
+              <p className="text-[10px] text-brand-cyan/70 font-semibold uppercase tracking-widest">Master</p>
             </div>
           </div>
 
-          {/* Nav */}
-          <nav className="flex items-center gap-0.5 flex-1 overflow-x-auto">
+          <nav className="flex items-center gap-1 flex-1 overflow-x-auto no-scrollbar">
             {NAV.map(({ to, icon: Icon, label }) => (
               <NavLink key={to} to={to} end={to === '/'}
                 className={({ isActive }) =>
-                  `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap
+                  `flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap
                   ${isActive
-                    ? 'bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/20'
+                    ? 'bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/20 shadow-[0_0_10px_rgba(34,211,238,0.05)]'
                     : 'text-brand-muted hover:text-white hover:bg-white/5 border border-transparent'}`
                 }>
-                <Icon size={14} />
-                <span className="hidden sm:inline">{label}</span>
+                <Icon size={16} strokeWidth={isActive ? 2.5 : 2} />
+                <span className="hidden lg:inline">{label}</span>
               </NavLink>
             ))}
           </nav>

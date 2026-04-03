@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 
 export const FACTORIES = [
-  { id: 'matriz', name: 'Corradi Matriz', color: '#22d3ee' },
-  { id: 'filial', name: 'Corradi Filial', color: '#f97316' },
+  { id: 'all',    name: 'Todas as Unidades', color: '#8b5cf6' },
+  { id: 'matriz', name: 'Corradi Matriz',    color: '#22d3ee' },
+  { id: 'filial', name: 'Corradi Filial',    color: '#f97316' },
 ];
 
 export const MACHINES = {

@@ -90,7 +90,7 @@ export function subscribePlanningEntries(factory, yearMonth, callback) {
           id: d.id,
           date: d.data().date?.toDate?.()?.toISOString?.()?.split('T')[0],
         }))
-        .filter((e) => e.factory === factory)          // ← filtro de fábrica no cliente
+        .filter((e) => factory === 'all' || e.factory === factory) // ← filtro de fábrica no cliente (com suporte a ALL)
         .sort((a, b) => (a.date < b.date ? -1 : 1));   // ← ordenação no cliente
       console.log(`[Firestore] planning_entries snapshot: ${data.length} docs (factory=${factory})`);
       callback(data);
@@ -149,7 +149,7 @@ export function subscribeProductionRecords(factory, yearMonth, callback) {
           id: d.id,
           date: d.data().date?.toDate?.()?.toISOString?.()?.split('T')[0],
         }))
-        .filter((r) => r.factory === factory)          // ← filtro de fábrica no cliente
+        .filter((r) => factory === 'all' || r.factory === factory) // ← filtro de fábrica no cliente (com suporte a ALL)
         .sort((a, b) => (a.date < b.date ? -1 : 1));   // ← ordenação no cliente
       console.log(`[Firestore] production_records snapshot: ${data.length} docs (factory=${factory})`);
       callback(data);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus, Download, RefreshCw, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus, Download, RefreshCw, AlertTriangle, Package, Cpu, Calendar } from 'lucide-react';
 import { useAppStore, useProductionStore, usePlanningStore, MACHINES } from '../hooks/useStore';
-import { subscribeProductionRecords } from '../services/firebase';
+import { subscribeProductionRecords, subscribePlanningEntries } from '../services/firebase';
 import { getMonthLabel, getDaysInMonth, isSunday } from '../utils/dates';
 import { seedDemoData } from '../utils/seedData';
 
@@ -114,7 +114,9 @@ export default function Production() {
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'critical' | 'attention' | 'good'
   const [syncing, setSyncing] = useState(false);
 
-  const machines = MACHINES[factory] || [];
+  const machines = factory === 'all'
+    ? [...MACHINES.matriz, ...MACHINES.filial]
+    : MACHINES[factory] || [];
   const yearMonth = getYearMonth();
   const monthLabel = getMonthLabel(month.year, month.month);
 
@@ -125,7 +127,7 @@ export default function Production() {
       if (data.length === 0) {
         const { production: demo } = seedDemoData();
         const factoryDemo = demo.filter(
-          (r) => r.factory === factory && r.date.startsWith(yearMonth)
+          (r) => (factory === 'all' || r.factory === factory) && r.date.startsWith(yearMonth)
         );
         setRecords(factoryDemo);
       } else {
@@ -220,30 +222,39 @@ export default function Production() {
       {/* ─── Header ────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border shrink-0">
         <div>
-          <h1 className="text-lg font-bold text-white">Realizado</h1>
-          <p className="text-xs text-brand-muted mt-0.5 capitalize">{monthLabel}</p>
+          <h1 className="text-xl font-bold text-white flex items-center gap-2 tracking-tight">
+            <TrendingUp size={20} className="text-brand-cyan" />
+            Produção Realizada
+          </h1>
+          <p className="text-[10px] text-brand-muted mt-0.5 uppercase tracking-widest font-black">
+            {monthLabel} · {factory === 'all' ? 'Todas as Unidades' : (factory === 'matriz' ? 'Matriz' : 'Filial')}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {/* Navegação de mês */}
           <div className="flex items-center gap-1 bg-brand-surface/50 rounded-xl p-1 border border-brand-border">
-            <button onClick={() => changeMonth(-1)} className="p-1.5 hover:bg-white/[0.06] rounded-lg transition-colors text-brand-muted hover:text-white">
-              <ChevronLeft size={14} />
+            <button onClick={() => changeMonth(-1)} className="p-1.5 hover:bg-white/[0.06] rounded-xl transition-colors text-brand-muted hover:text-white">
+              <ChevronLeft size={16} />
             </button>
-            <span className="text-xs font-medium text-white px-2 min-w-[80px] text-center capitalize">
-              {new Date(month.year, month.month).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })}
+            <span className="text-xs font-bold text-white px-3 min-w-[100px] text-center capitalize">
+              {new Date(month.year, month.month).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
             </span>
-            <button onClick={() => changeMonth(1)} className="p-1.5 hover:bg-white/[0.06] rounded-lg transition-colors text-brand-muted hover:text-white">
-              <ChevronRight size={14} />
+            <button onClick={() => changeMonth(1)} className="p-1.5 hover:bg-white/[0.06] rounded-xl transition-colors text-brand-muted hover:text-white">
+              <ChevronRight size={16} />
             </button>
           </div>
 
           <button
             onClick={() => setSyncing(true)}
             disabled={syncing}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-brand-surface/60 hover:bg-brand-surface border border-brand-border text-white text-xs font-medium rounded-xl transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/20 text-brand-cyan text-xs font-bold rounded-xl transition-all disabled:opacity-50 active:scale-95 shadow-[0_0_15px_rgba(34,211,238,0.1)]"
           >
-            <RefreshCw size={13} className={syncing ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
             Sincronizar
+          </button>
+
+          <button className="p-2 rounded-xl bg-white/5 border border-brand-border text-brand-muted hover:text-white transition-all active:scale-95">
+            <Download size={16} />
           </button>
         </div>
       </div>
