@@ -7,6 +7,7 @@ import {
 } from 'firebase/firestore';
 import {
   getAuth, signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged,
+  GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail
 } from 'firebase/auth';
 import { makeEntryId } from '../hooks/useStore';
 
@@ -34,18 +35,38 @@ export const signIn = (email, pw) => signInWithEmailAndPassword(auth, email, pw)
 export const signOut = () => firebaseSignOut(auth);
 export const onAuthChange = (cb) => onAuthStateChanged(auth, cb);
 
-export async function getUserRole(uid) {
+export const signInWithGoogle = () => {
+  const provider = new GoogleAuthProvider();
+  return signInWithPopup(auth, provider);
+};
+
+export const registerWithEmail = async (email, password, name) => {
+  const cred = await createUserWithEmailAndPassword(auth, email, password);
+  if (name) {
+    await updateProfile(cred.user, { displayName: name });
+  }
+  return cred;
+};
+
+export const sendPasswordReset = (email) => sendPasswordResetEmail(auth, email);
+
+// Role management
+export const getUserRole = async (uid) => {
   try {
-    const snap = await getDoc(doc(db, 'users', uid));
-    if (snap.exists()) return snap.data().role || 'planner';
-    // Documento não existe — cria automaticamente como planner
-    await setDoc(doc(db, 'users', uid), { role: 'planner', createdAt: Timestamp.now() }, { merge: true });
-    return 'planner';
+    const userDocRef = doc(db, 'users', uid);
+    const snap = await getDoc(userDocRef);
+    if (snap.exists()) {
+      return snap.data().role || 'supervisor';
+    } else {
+      // Se o documento não existe (ex: primeiro login com Google ou novo registro), cria como supervisor
+      await setDoc(userDocRef, { role: 'supervisor', createdAt: Timestamp.now() }, { merge: true });
+      return 'supervisor';
+    }
   } catch (err) {
     console.warn('[Firebase] getUserRole falhou:', err.message);
-    return 'planner';
+    return 'supervisor';
   }
-}
+};
 
 // ─── Planning ─────────────────────────────────────────────────────────────────
 export function subscribePlanningEntries(factory, yearMonth, callback) {

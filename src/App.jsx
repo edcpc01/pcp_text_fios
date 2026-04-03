@@ -32,7 +32,7 @@ export default function App() {
           uid: fu.uid,
           email: fu.email,
           name: fu.displayName || fu.email.split('@')[0],
-          role: role || 'planner',
+          role: role || 'supervisor',
         });
       } else {
         setUser(null);

@@ -211,9 +211,12 @@ function MatrixCell({ entry, date, machine, isCurrentDay, onClick, onDragStart, 
 
 // ─── Planning Page ────────────────────────────────────────────────────────────
 export default function Planning() {
+  const { user } = useAuthStore();
   const { factory, month, changeMonth, getYearMonth } = useAppStore();
   const { entriesMap, setEntriesFromArray, setLoading, upsertEntry, deleteEntry } = usePlanningStore();
   const { products, machines: adminMachines } = useAdminStore();
+  
+  const isSupervisor = user?.role === 'supervisor';
 
   const [modal, setModal] = useState(null);
 
