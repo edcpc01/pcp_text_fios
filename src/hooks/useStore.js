@@ -128,7 +128,7 @@ export const useProductionStore = create((set, get) => ({
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
 export const useAdminStore = create((set) => ({
-  products: [...PRODUCTS],
+  products: [],  // Sempre carregado do Firebase via subscribeProducts em App.jsx
   machines: JSON.parse(JSON.stringify(MACHINES)),
   setProducts:   (data)         => set({ products: data }),
   setMachines:   (data)         => set({ machines: data }),

@@ -288,7 +288,7 @@ export default function Materiais() {
 
   // Build MP necessity map
   const mpNecessidade = useMemo(() => {
-    const map = {}; // { codigoMicrodata: { descricao, codigoMicrodata, necessidadeKg, produtos: Set } }
+    const map = {}; // { code: { descricao, codigoMicrodata, necessidadeKg, produtos: Set } }
 
     planningEntries.forEach((entry) => {
       const product = products.find((p) => p.id === entry.product || p.nome === entry.productName);
@@ -296,9 +296,10 @@ export default function Materiais() {
       const kg = entry.planned || 0;
       if (kg === 0) return;
 
-      // Helper to accumulate
+      // Helper to accumulate a single MP
       const accumulate = (mp, pct) => {
-        if (!mp?.codigoMicrodata && !mp?.descricao) return;
+        if (!mp || (!mp.codigoMicrodata && !mp.descricao)) return;
+        if (!pct || pct <= 0) return;
         const code = mp.codigoMicrodata || mp.descricao;
         if (!map[code]) {
           map[code] = {
@@ -312,27 +313,31 @@ export default function Materiais() {
         map[code].produtos.add(product.nome || product.id);
       };
 
-      // Alma
-      if (product.alma?.composicaoPct > 0) {
-        accumulate(product.alma, product.alma.composicaoPct);
-      }
-      // Efeito
-      if (product.efeito?.composicaoPct > 0) {
-        accumulate(product.efeito, product.efeito.composicaoPct);
-      }
+      // Suporta formato novo: mp1, mp2, mp3 (Admin.jsx atual)
+      const newFormat = ['mp1', 'mp2', 'mp3'].some((k) => product[k]?.descricao);
+      if (newFormat) {
+        ['mp1', 'mp2', 'mp3'].forEach((key) => {
+          const mp = product[key];
+          if (mp?.descricao) accumulate(mp, mp.composicaoPct);
+        });
+      } else {
+        // Suporta formato legado: alma / efeito
+        if (product.alma?.composicaoPct > 0) accumulate(product.alma, product.alma.composicaoPct);
+        if (product.efeito?.composicaoPct > 0) accumulate(product.efeito, product.efeito.composicaoPct);
 
-      // Fallback: produto sem ficha (usa campos legados name/type)
-      if (!product.alma && !product.efeito) {
-        const code = product.id;
-        if (!map[code]) {
-          map[code] = { codigoMicrodata: '', descricao: product.nome || product.id, necessidadeKg: 0, produtos: new Set() };
+        // Fallback: produto sem nenhuma MP definida
+        if (!product.alma && !product.efeito) {
+          const code = product.id;
+          if (!map[code]) {
+            map[code] = { codigoMicrodata: '', descricao: product.nome || product.id, necessidadeKg: 0, produtos: new Set() };
+          }
+          map[code].necessidadeKg += kg;
+          map[code].produtos.add(product.nome || product.id);
         }
-        map[code].necessidadeKg += kg;
-        map[code].produtos.add(product.nome || product.id);
       }
     });
 
-    // Convert Sets to arrays
+    // Convert Sets to arrays and sort by highest necessity
     return Object.values(map)
       .map((m) => ({ ...m, produtos: [...m.produtos] }))
       .sort((a, b) => b.necessidadeKg - a.necessidadeKg);
@@ -449,10 +454,10 @@ export default function Materiais() {
                   <tr className="border-b border-brand-border">
                     <th className="text-left px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Produto</th>
                     <th className="text-right px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Planejado</th>
-                    <th className="text-left px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">MP Alma</th>
-                    <th className="text-right px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Qtd Alma</th>
-                    <th className="text-left px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest hidden md:table-cell">MP Efeito</th>
-                    <th className="text-right px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest hidden md:table-cell">Qtd Efeito</th>
+                    <th className="text-left px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">MP 1</th>
+                    <th className="text-right px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Qtd MP 1</th>
+                    <th className="text-left px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest hidden md:table-cell">MP 2</th>
+                    <th className="text-right px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest hidden md:table-cell">Qtd MP 2</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -475,24 +480,30 @@ export default function Materiais() {
                       .sort((a, b) => b.totalKg - a.totalKg)
                       .map((row, i) => {
                         const product = products.find((p) => p.id === row.product || p.nome === row.productName);
-                        const almaDesc = product?.alma?.descricao || '—';
-                        const almaPct  = product?.alma?.composicaoPct || 0;
-                        const efeitoDesc = product?.efeito?.descricao || (product?.efeito?.composicaoPct > 0 ? 'N/I' : '—');
-                        const efeitoPct  = product?.efeito?.composicaoPct || 0;
+
+                        // Detecta formato novo (mp1/mp2/mp3) ou legado (alma/efeito)
+                        const useNewFormat = product && ['mp1', 'mp2', 'mp3'].some((k) => product[k]?.descricao);
+                        const mp1 = useNewFormat ? product?.mp1 : product?.alma;
+                        const mp2 = useNewFormat ? product?.mp2 : product?.efeito;
+
+                        const mp1Desc = mp1?.descricao || '—';
+                        const mp1Pct  = mp1?.composicaoPct || 0;
+                        const mp2Desc = mp2?.descricao || '—';
+                        const mp2Pct  = mp2?.composicaoPct || 0;
 
                         return (
                           <tr key={row.productName} className={`border-b border-brand-border/50 hover:bg-brand-surface/50 transition-colors ${i % 2 === 0 ? '' : 'bg-brand-surface/20'}`}>
                             <td className="px-5 py-3 text-white font-medium">{row.productName}</td>
                             <td className="px-5 py-3 text-right font-mono text-brand-cyan">{fmtKg(row.totalKg)}</td>
-                            <td className="px-5 py-3 text-brand-muted text-xs">{almaDesc}</td>
+                            <td className="px-5 py-3 text-brand-muted text-xs">{mp1Desc}</td>
                             <td className="px-5 py-3 text-right font-mono text-white">
-                              {almaPct > 0 ? fmtKg(row.totalKg * almaPct / 100) : '—'}
-                              {almaPct > 0 && <span className="text-brand-muted text-[10px] ml-1">({almaPct}%)</span>}
+                              {mp1Pct > 0 ? fmtKg(row.totalKg * mp1Pct / 100) : '—'}
+                              {mp1Pct > 0 && <span className="text-brand-muted text-[10px] ml-1">({mp1Pct}%)</span>}
                             </td>
-                            <td className="px-5 py-3 text-brand-muted text-xs hidden md:table-cell">{efeitoDesc !== '—' ? efeitoDesc : '—'}</td>
+                            <td className="px-5 py-3 text-brand-muted text-xs hidden md:table-cell">{mp2Desc !== '—' ? mp2Desc : '—'}</td>
                             <td className="px-5 py-3 text-right font-mono text-white hidden md:table-cell">
-                              {efeitoPct > 0 ? fmtKg(row.totalKg * efeitoPct / 100) : '—'}
-                              {efeitoPct > 0 && <span className="text-brand-muted text-[10px] ml-1">({efeitoPct}%)</span>}
+                              {mp2Pct > 0 ? fmtKg(row.totalKg * mp2Pct / 100) : '—'}
+                              {mp2Pct > 0 && <span className="text-brand-muted text-[10px] ml-1">({mp2Pct}%)</span>}
                             </td>
                           </tr>
                         );
