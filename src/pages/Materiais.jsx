@@ -443,11 +443,11 @@ export default function Materiais() {
             <FlaskConical size={20} className="text-brand-cyan" />
             Consumo de Matéria-Prima
           </h1>
-          <p className="text-sm text-brand-muted mt-0.5 capitalize">
+          <p className="text-[10px] text-brand-muted mt-0.5 uppercase tracking-widest font-black">
             {hasRange
               ? `${dateRange.start.split('-').reverse().join('/')} → ${dateRange.end.split('-').reverse().join('/')}`
               : monthLabel}
-            {' · '}{factory === 'matriz' ? 'Corradi Matriz' : 'Corradi Filial'}
+            {' · '}{factory === 'all' ? 'Todas as Unidades' : (factory === 'matriz' ? 'Matriz' : 'Filial')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -512,7 +512,7 @@ export default function Materiais() {
       {/* ── MP Cards ── */}
       <div>
         <h2 className="text-xs font-bold text-brand-muted uppercase tracking-widest mb-4 flex items-center gap-2">
-          <FlaskConical size={13} className="text-brand-cyan" />
+          <FlaskConical size={16} className="text-brand-cyan" />
           Matéria-Prima — Necessidade vs Estoque Microdata
           <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-md bg-brand-surface border border-brand-border">
             Clique no estoque para editar
@@ -622,7 +622,7 @@ export default function Materiais() {
       {/* ── Estoque de Produto Acabado ── */}
       <div>
         <h2 className="text-xs font-bold text-brand-muted uppercase tracking-widest mb-4 flex items-center gap-2">
-          <Package size={13} className="text-violet-400" />
+          <Package size={16} className="text-violet-400" />
           Estoque de Produto Acabado (Microdata)
           <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-md bg-brand-surface border border-brand-border">
             Clique no valor para editar
