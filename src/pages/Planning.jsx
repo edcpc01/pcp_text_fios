@@ -188,21 +188,21 @@ function MatrixCell({ entry, date, machine, isCurrentDay, onClick, onDragStart, 
       style={ct
         ? { background: ct.bg, borderColor: ct.border }
         : { background: isCurrentDay ? 'rgba(34,211,238,0.04)' : 'transparent' }}>
-      <div className="h-[52px] flex flex-col items-center justify-center gap-0.5 px-1">
+      <div className="h-[52px] flex flex-col items-center justify-center gap-0.5 px-1 group-hover:bg-brand-cyan/5 transition-colors">
         {entry ? (
           entry.cellType === 'producao' ? (<>
-            <span className="text-[11px] font-mono font-bold leading-none" style={{ color: ct.text }}>
+            <span className="text-[11px] font-mono font-black leading-none" style={{ color: ct.text }}>
               {entry.planned >= 1000 ? `${(entry.planned / 1000).toFixed(1)}k` : entry.planned}
             </span>
-            <span className="text-[9px]" style={{ color: ct.text, opacity: 0.7 }}>{entry.quality}</span>
+            <span className="text-[9px] font-bold" style={{ color: ct.text, opacity: 0.8 }}>{entry.quality}</span>
           </>) : (
-            <span className="text-[8px] font-bold uppercase text-center leading-tight px-0.5"
+            <span className="text-[8px] font-black uppercase text-center leading-tight px-0.5"
               style={{ color: ct.text, opacity: 0.9 }}>
               {entry.cellType === 'parada_np' ? 'P.N.P' : entry.cellType === 'parada_p' ? 'P.Prog' : 'Manut.'}
             </span>
           )
         ) : (
-          <Plus size={9} className="text-brand-border/70" />
+          <Plus size={9} className="text-brand-border/40 group-hover:text-brand-cyan transition-colors" />
         )}
       </div>
     </td>
@@ -213,14 +213,14 @@ function MatrixCell({ entry, date, machine, isCurrentDay, onClick, onDragStart, 
 export default function Planning() {
   const { user } = useAuthStore();
   const { factory, month, changeMonth, getYearMonth } = useAppStore();
-  const { entriesMap, setEntriesFromArray, setLoading, upsertEntry, deleteEntry } = usePlanningStore();
-  const { products, machines: adminMachines } = useAdminStore();
-  
   const isSupervisor = user?.role === 'supervisor';
+  const isAllUnits   = factory === 'all';
 
   const [modal, setModal] = useState(null);
 
-  const machineList = adminMachines[factory] || [];
+  const machineList = isAllUnits
+    ? [...(adminMachines.matriz || []), ...(adminMachines.filial || [])]
+    : adminMachines[factory] || [];
   const days        = getDaysInMonth(month.year, month.month);
   const yearMonth   = getYearMonth();
   const monthLabel  = getMonthLabel(month.year, month.month);
@@ -309,41 +309,67 @@ export default function Planning() {
   return (
     <div className="flex flex-col bg-brand-bg" style={{ height: 'calc(100vh - 56px)' }}>
 
-      {/* Header */}
+      {/* ─── Header ────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border bg-brand-surface/30 shrink-0 flex-wrap gap-3">
         <div>
-          <h1 className="text-lg font-bold text-white">Planejamento</h1>
-          <p className="text-xs text-brand-muted capitalize mt-0.5">{monthLabel}</p>
+          <h1 className="text-xl font-bold text-white flex items-center gap-2 tracking-tight">
+            <CalendarDays size={20} className="text-brand-cyan" />
+            Planejamento de Produção
+          </h1>
+          <p className="text-[10px] text-brand-muted mt-0.5 uppercase tracking-widest font-black">
+            {monthLabel} · {factory === 'all' ? 'Todas as Unidades' : (factory === 'matriz' ? 'Matriz' : 'Filial')}
+          </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <Legend />
           <div className="flex items-center gap-1 bg-brand-card border border-brand-border rounded-xl p-1">
-            <button onClick={() => changeMonth(-1)} className="p-1.5 hover:bg-white/5 rounded-lg text-brand-muted hover:text-white transition-colors"><ChevronLeft size={13} /></button>
-            <span className="text-xs font-medium text-white px-2 min-w-[72px] text-center capitalize">
-              {new Date(month.year, month.month).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })}
+            <button onClick={() => changeMonth(-1)} className="p-1.5 hover:bg-white/5 rounded-lg text-brand-muted hover:text-white transition-colors">
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-xs font-bold text-white px-3 min-w-[100px] text-center capitalize">
+              {new Date(month.year, month.month).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
             </span>
-            <button onClick={() => changeMonth(1)} className="p-1.5 hover:bg-white/5 rounded-lg text-brand-muted hover:text-white transition-colors"><ChevronRight size={13} /></button>
+            <button onClick={() => changeMonth(1)} className="p-1.5 hover:bg-white/5 rounded-lg text-brand-muted hover:text-white transition-colors">
+              <ChevronRight size={16} />
+            </button>
           </div>
-          {!isSupervisor && (
+          {!isSupervisor && !isAllUnits && (
             <button onClick={() => setModal({ entry: null, machine: null, date: new Date().toISOString().split('T')[0] })}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-brand-cyan/10 hover:bg-brand-cyan/15 border border-brand-cyan/30 text-brand-cyan text-xs font-semibold rounded-xl transition-all">
-              <Plus size={13} /> Nova entrada
+              className="flex items-center gap-2 px-4 py-2 bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/20 text-brand-cyan text-xs font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(34,211,238,0.1)] active:scale-95">
+              <Plus size={14} /> Nova entrada
             </button>
           )}
         </div>
       </div>
 
-      {/* KPI bar */}
-      <div className="px-6 py-2.5 flex items-center gap-6 border-b border-brand-border/40 shrink-0 flex-wrap">
+      {isAllUnits && (
+        <div className="px-6 py-2 bg-indigo-500/5 border-b border-brand-border flex items-center gap-2.5 animate-fade-in">
+          <AlertTriangle size={14} className="text-indigo-400" />
+          <p className="text-[11px] font-medium text-indigo-300">
+            <strong>Visão Consolidada:</strong> O gerenciamento de máquinas é específico por unidade. Selecione Matriz ou Filial para editar.
+          </p>
+        </div>
+      )}
+
+      {/* ─── KPI Bar ───────────────────────────────────────── */}
+      <div className="px-6 py-3 flex items-center gap-8 border-b border-brand-border/40 shrink-0 flex-wrap bg-brand-surface/10">
         {[
-          { label: 'Total planejado', value: `${grandTotal.toLocaleString('pt-BR')} kg` },
-          { label: 'Máquinas',        value: machineList.length },
-          { label: 'Dias no mês',     value: days.length },
-          { label: 'Entradas',        value: entryCount },
+          { label: 'Total Planejado', value: grandTotal.toLocaleString('pt-BR'), unit: 'kg', icon: Package },
+          { label: 'Máquinas',        value: machineList.length, icon: Cpu },
+          { label: 'Dias no Mês',     value: days.length, icon: CalendarDays },
+          { label: 'Entradas',        value: entryCount, icon: Activity },
         ].map((k) => (
-          <div key={k.label}>
-            <p className="text-[10px] text-brand-muted uppercase tracking-wider">{k.label}</p>
-            <p className="text-sm font-mono font-bold text-white">{k.value}</p>
+          <div key={k.label} className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-white/5 border border-brand-border flex items-center justify-center">
+              <k.icon size={14} className="text-brand-muted" />
+            </div>
+            <div>
+              <p className="text-[9px] text-brand-muted uppercase font-bold tracking-tighter leading-none mb-1">{k.label}</p>
+              <div className="flex items-baseline gap-0.5">
+                <span className="text-xs font-mono font-bold text-white">{k.value}</span>
+                {k.unit && <span className="text-[9px] text-brand-muted font-bold">{k.unit}</span>}
+              </div>
+            </div>
           </div>
         ))}
       </div>
