@@ -362,7 +362,8 @@ export default function Materiais() {
   // Filter planning entries by period
   const planningEntries = useMemo(() => {
     const all = Object.values(entriesMap).filter(
-      (e) => (e.cellType === 'producao' || !e.cellType) && e.factory === factory,
+      (e) => (e.cellType === 'producao' || !e.cellType) &&
+             (factory === 'all' || e.factory === factory),
     );
     if (!hasRange) return all;
     return all.filter((e) => e.date >= dateRange.start && e.date <= dateRange.end);
