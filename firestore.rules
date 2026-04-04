@@ -1,8 +1,148 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // ─── Helper Functions ──────────────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function getUserFactory() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.factory;
+    }
+
+    function isAdmin() {
+      return isAuth() && getUserRole() == 'admin';
+    }
+
+    function isSupervisor() {
+      return isAuth() && getUserRole() in ['admin', 'supervisor'];
+    }
+
+    function isPlanner() {
+      return isAuth() && getUserRole() in ['admin', 'supervisor', 'planner'];
+    }
+
+    function isViewer() {
+      return isAuth() && getUserRole() in ['admin', 'supervisor', 'planner', 'viewer'];
+    }
+
+    // User can access data from their assigned factory or 'all' (multi-factory)
+    function canAccessFactory(factory) {
+      let userFactory = getUserFactory();
+      return factory == userFactory || factory == 'all' || userFactory == 'all';
+    }
+
+    // ─── /users — User Profiles ───────────────────────────────────────────────
+    match /users/{uid} {
+      // Users can read their own profile + list all users (for notifications)
+      allow read: if isAuth() && (request.auth.uid == uid || isAdmin());
+      
+      // Only admin can write (create/update user roles)
+      allow write: if isAdmin();
+      
+      // Users can create their own profile on first login (merge)
+      allow create: if isAuth() && request.auth.uid == uid && 
+                       request.resource.data.role == 'planner' && // Default role
+                       request.resource.data.factory != null;
+    }
+
+    // ─── /planning_entries — Production Planning Matrix ──────────────────────
+    match /planning_entries/{entryId} {
+      // Read: Planners+ can read all; Viewers can read their factory
+      allow read: if isPlanner() && canAccessFactory(resource.data.factory);
+      
+      // Write: Supervisors+ can create/update/delete planning entries
+      allow create, update: if isSupervisor() && canAccessFactory(request.resource.data.factory) &&
+                              request.resource.data.factory != null &&
+                              request.resource.data.machine != null &&
+                              request.resource.data.date != null;
+      
+      allow delete: if isSupervisor() && canAccessFactory(resource.data.factory);
+    }
+
+    // ─── /production_records — Actual Production Data ──────────────────────────
+    match /production_records/{recordId} {
+      // Read: Planners+ can read all; Viewers can read their factory
+      allow read: if isPlanner() && canAccessFactory(resource.data.factory);
+      
+      // Write: Cloud Functions & Supervisors can write
+      // (typically synced from Microdata ERP via Cloud Function, which uses service account)
+      allow create, update: if isSupervisor() && canAccessFactory(request.resource.data.factory) &&
+                              request.resource.data.factory != null &&
+                              request.resource.data.date != null;
+      
+      allow delete: if isAdmin();
+    }
+
+    // ─── /products — Product Catalog ──────────────────────────────────────────
+    match /products/{productId} {
+      // Read: All authenticated users
+      allow read: if isAuth();
+      
+      // Write: Only admin (product master data)
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── /machines_config — Machine Configuration ──────────────────────────────
+    match /machines_config/{machineId} {
+      // Read: All authenticated users (needed for planning grid)
+      allow read: if isAuth();
+      
+      // Write: Only admin (machine master data)
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── /raw_material_stock — Raw Material Inventory ──────────────────────────
+    match /raw_material_stock/{stockId} {
+      // Read: Planners+ can read
+      allow read: if isPlanner();
+      
+      // Write: Supervisors+ can update stock levels
+      allow create, update: if isSupervisor();
+      
+      allow delete: if isAdmin();
+    }
+
+    // ─── /finished_goods_stock — Finished Product Inventory ────────────────────
+    match /finished_goods_stock/{stockId} {
+      // Read: Planners+ can read
+      allow read: if isPlanner();
+      
+      // Write: Supervisors+ can update stock levels
+      allow create, update: if isSupervisor();
+      
+      allow delete: if isAdmin();
+    }
+
+    // ─── /agent_logs — AI Agent Conversation History ───────────────────────────
+    match /agent_logs/{logId} {
+      // Read: Users can read their own logs; Admin can read all
+      allow read: if isAuth() && (resource.data.userId == request.auth.uid || isAdmin());
+      
+      // Write: Logged-in users can create logs; Cloud Functions can write
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      
+      allow update, delete: if isAdmin();
+    }
+
+    // ─── /kpi_summaries — Aggregated KPI Data (Cloud Function writes) ──────────
+    match /kpi_summaries/{summaryId} {
+      // Read: Planners+ can read their factory KPIs
+      allow read: if isPlanner() && canAccessFactory(resource.data.factory);
+      
+      // Write: Only Cloud Function (via service account)
+      allow create, update: if false; // Service account writes bypass rules
+      
+      allow delete: if isAdmin();
+    }
+
+    // ─── Deny all other collections by default ──────────────────────────────────
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
   }
 }
