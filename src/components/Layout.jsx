@@ -37,17 +37,19 @@ export default function Layout({ children }) {
 
           {/* Logo */}
           <div className="flex items-center gap-2.5 pr-5 border-r border-brand-border mr-3 shrink-0">
-            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
-              <svg viewBox="0 0 64 64" className="w-8 h-8">
-                <defs>
-                  <linearGradient id="nbg" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#1a4fd6"/>
-                    <stop offset="100%" stopColor="#1338a8"/>
-                  </linearGradient>
-                </defs>
-                <rect width="64" height="64" rx="12" fill="url(#nbg)"/>
-                <path d="M18 13 L18 51 L31 51 Q45 51 47 38 Q49 25 47 21 Q44 13 31 13 Z M24 19 L31 19 Q39 19 41 25 Q43 29 43 32 Q43 39 39 43 Q36 47 31 47 L24 47 Z" fill="white" fillRule="evenodd"/>
-                <rect x="18" y="55" width="28" height="3" rx="1.5" fill="#22d3ee" opacity="0.85"/>
+            <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0">
+              <svg viewBox="0 0 64 64" width="32" height="32">
+                <rect width="64" height="64" rx="14" fill="#0d1b2e"/>
+                <g transform="translate(32,39)" fill="none" stroke="#22d3ee" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="-20" y="0" width="40" height="20" rx="2" fill="#0d1b2e" stroke="#22d3ee" strokeWidth="2.8"/>
+                  <rect x="-17" y="-10" width="7" height="11" rx="1.5" fill="#0d1b2e" stroke="#22d3ee" strokeWidth="2.5"/>
+                  <rect x="-4"  y="-15" width="7" height="16" rx="1.5" fill="#0d1b2e" stroke="#22d3ee" strokeWidth="2.5"/>
+                  <rect x="9"   y="-8"  width="7" height="9"  rx="1.5" fill="#0d1b2e" stroke="#22d3ee" strokeWidth="2.5"/>
+                  <rect x="-15" y="5"   width="5" height="5" rx="1" fill="#22d3ee" stroke="none"/>
+                  <rect x="-4"  y="5"   width="5" height="5" rx="1" fill="#22d3ee" stroke="none"/>
+                  <rect x="7"   y="5"   width="5" height="5" rx="1" fill="#22d3ee" stroke="none"/>
+                </g>
+                <text x="53" y="24" fontFamily="Georgia,'Times New Roman',serif" fontSize="26" fontWeight="700" fontStyle="italic" fill="white" textAnchor="middle">D</text>
               </svg>
             </div>
             <div className="hidden sm:block">

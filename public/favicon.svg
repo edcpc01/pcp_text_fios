@@ -1,11 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1a4fd6"/>
-      <stop offset="100%" stop-color="#1338a8"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="12" fill="url(#bg)"/>
-  <path d="M18 13 L18 51 L31 51 Q45 51 47 38 Q49 25 47 21 Q44 13 31 13 Z M24 19 L31 19 Q39 19 41 25 Q43 29 43 32 Q43 39 39 43 Q36 47 31 47 L24 47 Z" fill="white" fill-rule="evenodd"/>
-  <rect x="18" y="55" width="28" height="3" rx="1.5" fill="#22d3ee" opacity="0.85"/>
+  <rect width="64" height="64" rx="14" fill="#0d1b2e"/>
+  <!-- Factory icon (cyan) centered lower -->
+  <g transform="translate(32,39)" fill="none" stroke="#22d3ee" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="-20" y="0" width="40" height="20" rx="2" fill="#0d1b2e" stroke="#22d3ee" stroke-width="2.8"/>
+    <rect x="-17" y="-10" width="7" height="11" rx="1.5" fill="#0d1b2e" stroke="#22d3ee" stroke-width="2.5"/>
+    <rect x="-4" y="-15" width="7" height="16" rx="1.5" fill="#0d1b2e" stroke="#22d3ee" stroke-width="2.5"/>
+    <rect x="9"  y="-8"  width="7" height="9"  rx="1.5" fill="#0d1b2e" stroke="#22d3ee" stroke-width="2.5"/>
+    <rect x="-15" y="5"  width="5" height="5" rx="1" fill="#22d3ee" stroke="none"/>
+    <rect x="-4"  y="5"  width="5" height="5" rx="1" fill="#22d3ee" stroke="none"/>
+    <rect x="7"   y="5"  width="5" height="5" rx="1" fill="#22d3ee" stroke="none"/>
+  </g>
+  <!-- Cursive D top-right -->
+  <text x="53" y="24" font-family="Georgia,'Times New Roman',serif" font-size="26" font-weight="700" font-style="italic" fill="white" text-anchor="middle">D</text>
 </svg>
