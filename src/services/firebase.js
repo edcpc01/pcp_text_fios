@@ -236,6 +236,24 @@ export async function saveFinishedGoodStock(productId, data) {
   }, { merge: true });
 }
 
+// ─── Production Records (write) ──────────────────────────────────────────────
+export async function saveProductionRecord(record) {
+  // ID único por fábrica + máquina + produto + data → re-sync não duplica
+  const docId = `${record.factory}__${record.machine}__${record.product}__${record.date}`;
+  await setDoc(doc(db, 'production_records', docId), {
+    factory:     record.factory,
+    machine:     record.machine,
+    machineName: record.machineName || record.machine,
+    product:     record.product,
+    productName: record.productName || record.product,
+    date:        Timestamp.fromDate(new Date(record.date + 'T12:00:00')),
+    actual:      Number(record.actual) || 0,
+    planned:     Number(record.planned) || 0,
+    source:      'csv',
+    updatedAt:   Timestamp.now(),
+  }, { merge: true });
+}
+
 // ─── Agent Logs ───────────────────────────────────────────────────────────────
 export async function saveAgentLog(log) {
   await setDoc(doc(collection(db, 'agent_logs')), { ...log, timestamp: Timestamp.now() });

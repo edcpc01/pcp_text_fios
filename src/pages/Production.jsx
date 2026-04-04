@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus, Download, RefreshCw, AlertTriangle, Package, Cpu, Calendar } from 'lucide-react';
-import { useAppStore, useProductionStore, usePlanningStore, MACHINES } from '../hooks/useStore';
-import { subscribeProductionRecords, subscribePlanningEntries } from '../services/firebase';
+import { useState, useEffect, useRef } from 'react';
+import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus, Download, RefreshCw, AlertTriangle, FolderOpen, X } from 'lucide-react';
+import { useAppStore, useProductionStore, usePlanningStore, useAdminStore, MACHINES } from '../hooks/useStore';
+import { subscribeProductionRecords, subscribePlanningEntries, saveProductionRecord } from '../services/firebase';
 import { getMonthLabel, getDaysInMonth, isSunday } from '../utils/dates';
 import { seedDemoData } from '../utils/seedData';
+import { pickOrReuseFile, clearFileHandle, parseProducaoCSV, findProductByCode } from '../utils/csvSync';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -104,15 +105,99 @@ function ProductRow({ item, rank }) {
 
 // ─── Production Page ──────────────────────────────────────────────────────────
 
+const CSV_HANDLE_KEY = 'producao-csv';
+
 export default function Production() {
   const { factory, month, changeMonth, getYearMonth } = useAppStore();
   const { records, setRecords, setLoading } = useProductionStore();
   const { entries } = usePlanningStore();
+  const { products } = useAdminStore();
 
   const [viewMode, setViewMode] = useState('product'); // 'product' | 'machine' | 'daily'
   const [sortBy, setSortBy] = useState('planned'); // 'planned' | 'actual' | 'pct' | 'name'
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'critical' | 'attention' | 'good'
   const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState(null); // { imported, skipped, noProduct }
+  const fallbackInputRef = useRef(null);
+
+  // ─── CSV Sync ───────────────────────────────────────────────────────────────
+
+  const processCSVText = async (text) => {
+    const rows = parseProducaoCSV(text);
+    if (rows.length === 0) {
+      setSyncResult({ imported: 0, skipped: 0, noProduct: 0, error: 'Arquivo vazio ou formato não reconhecido.' });
+      return;
+    }
+
+    // Determina a fábrica — se 'all', usa a primeira fábrica dos dados (ou 'matriz')
+    const targetFactory = factory === 'all' ? 'matriz' : factory;
+
+    let imported = 0, skipped = 0, noProduct = 0;
+    for (const row of rows) {
+      const product = findProductByCode(products, row.productCode);
+      if (!product) { noProduct++; continue; }
+
+      // Filtra pelo mês atual se a data estiver fora do mês exibido
+      const yearMonth = getYearMonth();
+      if (!row.date.startsWith(yearMonth)) { skipped++; continue; }
+
+      await saveProductionRecord({
+        factory:     targetFactory,
+        machine:     row.machine,
+        machineName: row.machine,
+        product:     product.id,
+        productName: product.nome || product.productName || product.id,
+        date:        row.date,
+        actual:      row.quantity,
+        planned:     0,
+      });
+      imported++;
+    }
+
+    setSyncResult({ imported, skipped, noProduct });
+    setSyncing(false);
+  };
+
+  const handleSync = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    setSyncResult(null);
+
+    // Tenta File System Access API; se não suportado, usa input[type=file]
+    if (window.showOpenFilePicker) {
+      try {
+        const file = await pickOrReuseFile(CSV_HANDLE_KEY);
+        if (!file) { setSyncing(false); return; }
+        const text = await file.text();
+        await processCSVText(text);
+      } catch (err) {
+        setSyncResult({ error: err.message });
+        setSyncing(false);
+      }
+    } else {
+      fallbackInputRef.current?.click();
+    }
+  };
+
+  const handleFallbackFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) { setSyncing(false); return; }
+    try {
+      const text = await file.text();
+      await processCSVText(text);
+    } catch (err) {
+      setSyncResult({ error: err.message });
+      setSyncing(false);
+    }
+    e.target.value = '';
+  };
+
+  const handleResetFile = async () => {
+    await clearFileHandle(CSV_HANDLE_KEY);
+    setSyncResult(null);
+  };
+
+  // ────────────────────────────────────────────────────────────────────────────
 
   const machines = factory === 'all'
     ? [...MACHINES.matriz, ...MACHINES.filial]
@@ -219,6 +304,24 @@ export default function Production() {
   return (
     <div className="flex flex-col h-full min-h-0">
 
+      {/* ─── Toast de resultado do sync ──────────────────────────────── */}
+      {syncResult && (
+        <div className={`mx-6 mt-3 flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-medium shrink-0 ${
+          syncResult.error
+            ? 'bg-red-500/10 border-red-500/20 text-red-400'
+            : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+        }`}>
+          <span>
+            {syncResult.error
+              ? `Erro: ${syncResult.error}`
+              : `${syncResult.imported} registros importados · ${syncResult.noProduct} produto(s) não encontrado(s) no PWA · ${syncResult.skipped} fora do mês`}
+          </span>
+          <button onClick={() => setSyncResult(null)} className="ml-4 text-current opacity-60 hover:opacity-100">
+            <X size={13} />
+          </button>
+        </div>
+      )}
+
       {/* ─── Header ────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border shrink-0">
         <div>
@@ -244,17 +347,24 @@ export default function Production() {
             </button>
           </div>
 
+          {/* Input fallback para browsers sem File System Access API */}
+          <input ref={fallbackInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFallbackFile} />
+
           <button
-            onClick={() => setSyncing(true)}
+            onClick={handleSync}
             disabled={syncing}
             className="flex items-center gap-2 px-4 py-2 bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/20 text-brand-cyan text-xs font-bold rounded-xl transition-all disabled:opacity-50 active:scale-95 shadow-[0_0_15px_rgba(34,211,238,0.1)]"
           >
             <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
-            Sincronizar
+            {syncing ? 'Sincronizando...' : 'Sincronizar'}
           </button>
 
-          <button className="p-2 rounded-xl bg-white/5 border border-brand-border text-brand-muted hover:text-white transition-all active:scale-95">
-            <Download size={16} />
+          <button
+            onClick={handleResetFile}
+            title="Redefinir arquivo CSV configurado"
+            className="p-2 rounded-xl bg-white/5 border border-brand-border text-brand-muted hover:text-white transition-all active:scale-95"
+          >
+            <FolderOpen size={16} />
           </button>
         </div>
       </div>

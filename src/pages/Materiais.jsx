@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlaskConical, Package, ChevronLeft, ChevronRight, Pencil, Check, X,
-  TrendingDown, AlertTriangle, CheckCircle2, Layers, Calendar, Upload, Loader2,
+  TrendingDown, AlertTriangle, CheckCircle2, Layers, RefreshCw, Loader2, FolderOpen,
 } from 'lucide-react';
 import { useAppStore, useAdminStore, usePlanningStore, useAuthStore } from '../hooks/useStore';
 import {
@@ -10,6 +10,7 @@ import {
   subscribeFinishedGoodsStock, saveFinishedGoodStock,
 } from '../services/firebase';
 import { getMonthLabel } from '../utils/dates';
+import { pickOrReuseFile, clearFileHandle, parseEstoqueCSV, findProductByCode } from '../utils/csvSync';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -266,73 +267,76 @@ export default function Materiais() {
 
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [showPicker, setShowPicker] = useState(false);
-  const [mpStock, setMpStock]   = useState({});  // { [codigoMicrodata]: { estoqueKg, ... } }
-  const [paStock, setPaStock]   = useState({});  // { [productId]: { estoqueKg, ... } }
+  const [mpStock, setMpStock]   = useState({});
+  const [paStock, setPaStock]   = useState({});
   const [importing, setImporting] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
+  const fallbackInputRef = useRef(null);
 
-  // Logic to parse CSV and save to Firestore
-  const handleCSVImport = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+  const CSV_HANDLE_KEY = 'estoque-csv';
 
+  const processEstoqueText = async (text, mpNecessidadeLocal) => {
+    const rows = parseEstoqueCSV(text);
+    if (rows.length === 0) {
+      setSyncResult({ mp: 0, pa: 0, skipped: 0, error: 'Arquivo vazio ou formato não reconhecido.' });
+      setImporting(false);
+      return;
+    }
+
+    let mp = 0, pa = 0, skipped = 0;
+    for (const row of rows) {
+      // 1. Verifica se é MP necessária (comparando contra necessidade calculada do planejamento)
+      const isMP = (mpNecessidadeLocal || []).some(
+        (m) => String(m.codigoMicrodata).toLowerCase() === row.code.toLowerCase() ||
+               String(m.descricao).toLowerCase() === row.description.toLowerCase(),
+      );
+      if (isMP) {
+        await saveRawMaterialStock(row.code, { descricao: row.description || row.code, estoqueKg: row.stockKg });
+        mp++;
+        continue;
+      }
+
+      // 2. Verifica se é PA cadastrado no Firebase (por product.id ou product.codigoMicrodata)
+      const product = findProductByCode(products, row.code);
+      if (product) {
+        await saveFinishedGoodStock(product.id, { productName: product.nome, estoqueKg: row.stockKg });
+        pa++;
+        continue;
+      }
+
+      skipped++;
+    }
+
+    setSyncResult({ mp, pa, skipped });
+    setImporting(false);
+  };
+
+  const handleSync = async (mpNecessidadeLocal) => {
+    if (importing) return;
     setImporting(true);
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const text = e.target.result;
-      const lines = text.split(/\r?\n/).filter(line => line.trim());
-      if (lines.length < 2) {
-        alert("Arquivo vazio ou inválido.");
+    setSyncResult(null);
+
+    if (window.showOpenFilePicker) {
+      try {
+        const file = await pickOrReuseFile(CSV_HANDLE_KEY);
+        if (!file) { setImporting(false); return; }
+        const text = await file.text();
+        await processEstoqueText(text, mpNecessidadeLocal);
+      } catch (err) {
+        setSyncResult({ error: err.message });
         setImporting(false);
-        return;
       }
+    } else {
+      fallbackInputRef.current?.click();
+    }
+  };
 
-      // Tenta detectar delimitador (vírgula ou ponto-e-vírgula)
-      const firstLine = lines[0];
-      const delimiter = firstLine.includes(';') ? ';' : ',';
-      
-      const rows = lines.slice(1);
-      let updatedCount = 0;
-
-      for (const row of rows) {
-        const columns = row.split(delimiter).map(c => c.trim().replace(/^"|"$/g, ''));
-        if (columns.length < 2) continue;
-
-        // Formato esperado: Código | Descrição | Estoque
-        // Mas vamos tentar ser flexíveis se o código estiver na primeira ou segunda colona
-        const code = columns[0];
-        const desc = columns[1];
-        const stockStr = columns[2] || columns[1]; // se só tiver 2 colunas, assume a 2ª como estoque
-        
-        // Converte estoque de '1.250,50' ou '1250.5' para número
-        const stockKg = parseFloat(stockStr.replace(/\./g, '').replace(',', '.'));
-
-        if (!isNaN(stockKg) && code) {
-          // 1. Tentar atualizar MP se o código bater com alguma MP necessária
-          const isMP = mpNecessidade.some(m => m.codigoMicrodata === code || m.descricao === code);
-          if (isMP) {
-            await saveRawMaterialStock(code, { descricao: desc || code, estoqueKg: stockKg });
-            updatedCount++;
-          }
-
-          // 2. Tentar atualizar PA se o código bater com algum produto cadastrado
-          const product = products.find(p => p.codigoMicrodata === code || p.id === code || p.nome === code);
-          if (product) {
-            await saveFinishedGoodStock(product.id, { productName: product.nome, estoqueKg: stockKg });
-            updatedCount++;
-          }
-        }
-      }
-
-      alert(`Importação concluída! ${updatedCount} itens processados.`);
-      setImporting(false);
-      // Reset input
-      event.target.value = '';
-    };
-    reader.onerror = () => {
-      alert("Erro ao ler arquivo.");
-      setImporting(false);
-    };
-    reader.readAsText(file, 'ISO-8859-1'); // Microdata/PowerBI geralmente exporta em ANSI/ISO
+  const handleFallbackFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) { setImporting(false); return; }
+    const text = await file.text();
+    await processEstoqueText(text, []);
+    e.target.value = '';
   };
 
   // Reset range on month change
@@ -451,28 +455,47 @@ export default function Materiais() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Input fallback browsers sem File System Access API */}
+          <input ref={fallbackInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFallbackFile} />
+
           {!isSupervisor && (
-            <div className="relative">
-              <input
-                type="file"
-                id="stock-upload"
-                className="hidden"
-                accept=".csv"
-                onChange={handleCSVImport}
+            <>
+              <button
+                onClick={() => handleSync(mpNecessidade)}
                 disabled={importing}
-              />
-              <label
-                htmlFor="stock-upload"
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-sm
-                  ${importing 
-                    ? 'bg-brand-surface border-brand-border text-brand-muted cursor-wait' 
-                    : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20 active:scale-95'}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all shadow-sm
+                  ${importing
+                    ? 'bg-brand-surface border-brand-border text-brand-muted cursor-wait opacity-60'
+                    : 'bg-brand-cyan/10 border-brand-cyan/20 text-brand-cyan hover:bg-brand-cyan/20 active:scale-95 shadow-[0_0_12px_rgba(34,211,238,0.08)]'}`}
               >
-                {importing ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                {importing ? 'Importando...' : 'Importar CSV'}
-              </label>
+                {importing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                {importing ? 'Sincronizando...' : 'Sincronizar Estoque'}
+              </button>
+              <button
+                onClick={() => clearFileHandle(CSV_HANDLE_KEY).then(() => setSyncResult(null))}
+                title="Redefinir arquivo CSV de estoque"
+                className="p-2 rounded-xl bg-white/5 border border-brand-border text-brand-muted hover:text-white transition-all active:scale-95"
+              >
+                <FolderOpen size={15} />
+              </button>
+            </>
+          )}
+
+          {syncResult && (
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[11px] font-medium ${
+              syncResult.error
+                ? 'bg-red-500/10 border-red-500/20 text-red-400'
+                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+            }`}>
+              <span>
+                {syncResult.error
+                  ? syncResult.error
+                  : `${syncResult.mp} MP · ${syncResult.pa} PA · ${syncResult.skipped} ignorados`}
+              </span>
+              <button onClick={() => setSyncResult(null)} className="opacity-60 hover:opacity-100"><X size={12} /></button>
             </div>
           )}
+
           <DateRangeFilter
             dateRange={dateRange}
             setDateRange={setDateRange}
