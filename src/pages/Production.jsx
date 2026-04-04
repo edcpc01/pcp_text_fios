@@ -240,7 +240,7 @@ export default function Production() {
 
     // 1. Planejado: soma das planning entries filtradas pelo mês/fábrica atual
     entries.forEach((e) => {
-      if (e.cellType === 'parada') return;
+      if (e.cellType !== 'producao' && e.cellType) return;
       const key = e.product;
       if (!key) return;
       if (!map[key]) map[key] = { name: e.productName || e.product, planned: 0, actual: 0 };
@@ -268,7 +268,7 @@ export default function Production() {
       map[m.id] = { name: m.id, label: m.name, planned: 0, actual: 0 };
     });
     entries.forEach((e) => {
-      if (e.cellType === 'parada') return;
+      if (e.cellType !== 'producao' && e.cellType) return;
       if (map[e.machine]) map[e.machine].planned += e.planned || 0;
     });
     records.forEach((r) => {

@@ -67,14 +67,17 @@ export default function Dashboard() {
   }, [yearMonth]);
 
   const allEntries = Object.values(entriesMap);
-  const basePlanningEntries = allEntries.filter((e) => e.cellType === 'producao' || !e.cellType);
+  const basePlanningEntries = allEntries.filter(
+    (e) => (e.cellType === 'producao' || !e.cellType) &&
+           (factory === 'all' || e.factory === factory),
+  );
   
   const hasRange = dateRange.start && dateRange.end;
   const activePlanning = hasRange ? basePlanningEntries.filter((e) => e.date >= dateRange.start && e.date <= dateRange.end) : basePlanningEntries;
   const activeRecords  = hasRange ? records.filter((r) => r.date >= dateRange.start && r.date <= dateRange.end) : records;
 
-  const totalPlanned = activePlanning.reduce((s, e) => s + (e.planned || 0), 0);
-  const totalActual  = activeRecords.reduce((s, r) => s + (r.actual || 0), 0);
+  const totalPlanned = Math.round(activePlanning.reduce((s, e) => s + (e.planned || 0), 0));
+  const totalActual  = Math.round(activeRecords.reduce((s, r) => s + (r.actual || 0), 0) * 100) / 100;
   const adherence    = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : 0;
   const pastDays     = days.filter((d) => isPast(d) || isToday(d));
 
@@ -176,10 +179,10 @@ export default function Dashboard() {
           icon={Calendar}
           sub={hasRange ? 'Período' : `${days.length} dias no mês`} 
         />
-        <KpiCard 
-          label="Total Realizado" 
-          value={totalActual >= 1000 ? `${(totalActual/1000).toFixed(1)}k` : totalActual} 
-          unit="kg" 
+        <KpiCard
+          label="Total Realizado"
+          value={totalActual >= 1000 ? `${(totalActual/1000).toFixed(1)}k` : totalActual.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
+          unit="kg"
           accentColor="#22d3ee" 
           icon={TrendingUp}
           trend={totalActual >= totalPlanned * 0.9 ? 1 : -1} 

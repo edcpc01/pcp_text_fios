@@ -247,8 +247,8 @@ export async function saveProductionRecord(record) {
     product:     record.product,
     productName: record.productName || record.product,
     date:        Timestamp.fromDate(new Date(record.date + 'T12:00:00')),
-    actual:      Number(record.actual) || 0,
-    planned:     Number(record.planned) || 0,
+    actual:      Math.round((Number(record.actual) || 0) * 100) / 100,
+    planned:     Math.round((Number(record.planned) || 0) * 100) / 100,
     source:      'csv',
     updatedAt:   Timestamp.now(),
   }, { merge: true });
