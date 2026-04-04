@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, ChevronLeft, ChevronRight, X, Save, Trash2, CalendarDays, Package, Cpu, Activity, AlertTriangle } from 'lucide-react';
-import { useAppStore, usePlanningStore, useAdminStore, useAuthStore, CELL_TYPES, makeEntryId } from '../hooks/useStore';
+import { Plus, ChevronLeft, ChevronRight, X, Save, Trash2, CalendarDays, Package, Cpu, Activity } from 'lucide-react';
+import { useAppStore, usePlanningStore, useAdminStore, useAuthStore, CELL_TYPES, makeEntryId, FACTORIES } from '../hooks/useStore';
 import { subscribePlanningEntries, savePlanningEntry, deletePlanningEntry } from '../services/firebase';
 import { getDaysInMonth, getWeekday, formatDate, getMonthLabel, isToday } from '../utils/dates';
 
@@ -21,18 +21,17 @@ function Legend() {
 // ─── Entry Modal ──────────────────────────────────────────────────────────────
 function EntryModal({ entry, machine, date, factory, products, machines, onSave, onDelete, onClose }) {
   const isEdit = !!entry;
-
   const defaultProduct = products[0];
   const initialPlanned = entry?.planned ?? (
-    (machine && defaultProduct && machine.spindles) 
-      ? Math.round(machine.spindles * defaultProduct.prodDiaPosicao * (machine.efficiency / 100))
+    (machine && defaultProduct && machine.spindles)
+      ? Math.round(machine.spindles * (defaultProduct.prodDiaPosicao || 0) * ((machine.efficiency || 95) / 100))
       : (machine?.capacity ? Math.round(machine.capacity * 0.8) : 400)
   );
 
   const [form, setForm] = useState({
     machine:     entry?.machine     || machine?.id    || '',
     machineName: entry?.machineName || machine?.name  || '',
-    product:     entry?.product     || defaultProduct?.id  || '',
+    product:     entry?.product     || defaultProduct?.id   || '',
     productName: entry?.productName || defaultProduct?.nome || '',
     date:        entry?.date || date || '',
     planned:     initialPlanned,
@@ -42,26 +41,24 @@ function EntryModal({ entry, machine, date, factory, products, machines, onSave,
   const [saving,   setSaving]   = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Recalculate kg when product or machine changes
+  const recalc = (m, p) => {
+    if (m?.spindles && m?.efficiency && p?.prodDiaPosicao)
+      return Math.round(m.spindles * p.prodDiaPosicao * (m.efficiency / 100));
+    if (m?.capacity) return Math.round(m.capacity * 0.8);
+    return form.planned;
+  };
+
   const handleProduct = (id) => {
     const p = products.find((x) => x.id === id);
     const m = machines?.find((x) => x.id === form.machine);
-    let newPlanned = form.planned;
-    if (m?.spindles && m?.efficiency && p?.prodDiaPosicao) {
-       newPlanned = Math.round(m.spindles * p.prodDiaPosicao * (m.efficiency / 100));
-    }
-    if (p) setForm((f) => ({ ...f, product: p.id, productName: p.nome, planned: newPlanned }));
+    if (p) setForm((f) => ({ ...f, product: p.id, productName: p.nome, planned: recalc(m, p) }));
   };
 
   const handleMachine = (id) => {
     const m = machines?.find((x) => x.id === id);
     const p = products.find((x) => x.id === form.product);
-    let newPlanned = form.planned;
-    if (m?.spindles && m?.efficiency && p?.prodDiaPosicao) {
-       newPlanned = Math.round(m.spindles * p.prodDiaPosicao * (m.efficiency / 100));
-    } else if (m) {
-       newPlanned = Math.round(m.capacity * 0.8);
-    }
-    if (m) setForm((f) => ({ ...f, machine: m.id, machineName: m.name, planned: newPlanned }));
+    if (m) setForm((f) => ({ ...f, machine: m.id, machineName: m.name, planned: recalc(m, p) }));
   };
 
   const isProducao = form.cellType === 'producao';
@@ -83,7 +80,6 @@ function EntryModal({ entry, machine, date, factory, products, machines, onSave,
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full sm:max-w-md bg-brand-card border border-brand-border rounded-t-2xl sm:rounded-2xl shadow-2xl animate-slide-up">
-
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-brand-border">
           <div>
             <h3 className="text-sm font-semibold text-white">{isEdit ? 'Editar' : 'Novo'} Planejamento</h3>
@@ -93,8 +89,6 @@ function EntryModal({ entry, machine, date, factory, products, machines, onSave,
         </div>
 
         <div className="px-5 py-4 space-y-4">
-
-          {/* Tipo */}
           <div>
             <label className="block text-xs font-bold text-brand-muted mb-2 uppercase tracking-wider">Tipo de dia</label>
             <div className="grid grid-cols-2 gap-2">
@@ -111,7 +105,6 @@ function EntryModal({ entry, machine, date, factory, products, machines, onSave,
             </div>
           </div>
 
-          {/* Data + Máquina */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-brand-muted mb-1.5 uppercase tracking-wider">Data</label>
@@ -137,7 +130,7 @@ function EntryModal({ entry, machine, date, factory, products, machines, onSave,
             </div>
             <div>
               <label className="block text-xs font-bold text-brand-muted mb-1.5 uppercase tracking-wider">Kg/dia</label>
-              <input type="number" value={form.planned} min={0} max={9999}
+              <input type="number" value={form.planned} min={0} max={99999}
                 onChange={(e) => setForm((f) => ({ ...f, planned: Number(e.target.value) }))}
                 className="w-full bg-brand-surface border border-brand-border rounded-xl px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-brand-cyan/50 transition-all" />
             </div>
@@ -172,40 +165,53 @@ function EntryModal({ entry, machine, date, factory, products, machines, onSave,
 // ─── Matrix Cell ──────────────────────────────────────────────────────────────
 function MatrixCell({ entry, date, machine, isCurrentDay, onClick, onDragStart, onDrop }) {
   const ct = entry?.cellType ? CELL_TYPES[entry.cellType] : null;
-  const tooltipText = entry 
-    ? (entry.cellType === 'producao' ? `Produto: ${entry.productName || 'Sem produto'}\nKg: ${entry.planned}` : entry.cellType)
+  const tooltipText = entry
+    ? (entry.cellType === 'producao' ? `${entry.productName || ''}\n${entry.planned} kg` : ct?.label)
     : 'Planejar dia';
 
   return (
     <td
-      onClick={() => onClick(entry || null, machine, date)}
+      onClick={() => onClick && onClick(entry || null, machine, date)}
       title={tooltipText}
-      draggable={!!entry}
+      draggable={!!entry && !!onDragStart}
       onDragStart={(e) => onDragStart && onDragStart(e, entry)}
       onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
       onDrop={(e) => onDrop && onDrop(e, machine, date)}
-      className="border border-brand-border/40 min-w-[56px] w-[56px] cursor-pointer transition-all duration-100 hover:brightness-125"
+      className={`border border-brand-border/40 min-w-[56px] w-[56px] transition-all duration-100 ${onClick ? 'cursor-pointer hover:brightness-125' : ''}`}
       style={ct
         ? { background: ct.bg, borderColor: ct.border }
         : { background: isCurrentDay ? 'rgba(34,211,238,0.04)' : 'transparent' }}>
-      <div className="h-[52px] flex flex-col items-center justify-center gap-0.5 px-1 group-hover:bg-brand-cyan/5 transition-colors">
+      <div className="h-[52px] flex flex-col items-center justify-center gap-0.5 px-1">
         {entry ? (
           entry.cellType === 'producao' ? (<>
             <span className="text-[11px] font-mono font-black leading-none" style={{ color: ct.text }}>
               {entry.planned >= 1000 ? `${(entry.planned / 1000).toFixed(1)}k` : entry.planned}
             </span>
-            <span className="text-[9px] font-bold" style={{ color: ct.text, opacity: 0.8 }}>{entry.quality}</span>
+            <span className="text-[9px] font-bold" style={{ color: ct.text, opacity: 0.8 }}>{entry.quality || 'A'}</span>
           </>) : (
-            <span className="text-[8px] font-black uppercase text-center leading-tight px-0.5"
-              style={{ color: ct.text, opacity: 0.9 }}>
+            <span className="text-[8px] font-black uppercase text-center leading-tight px-0.5" style={{ color: ct.text, opacity: 0.9 }}>
               {entry.cellType === 'parada_np' ? 'P.N.P' : entry.cellType === 'parada_p' ? 'P.Prog' : 'Manut.'}
             </span>
           )
         ) : (
-          <Plus size={9} className="text-brand-border/40 group-hover:text-brand-cyan transition-colors" />
+          onClick ? <Plus size={9} className="text-brand-border/40" /> : null
         )}
       </div>
     </td>
+  );
+}
+
+// ─── Machine row separator for "all" view ────────────────────────────────────
+function FactoryDivider({ label, color }) {
+  return (
+    <tr>
+      <td colSpan={999} className="px-4 py-1.5 bg-brand-surface/40 border-y border-brand-border/60">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color }}>{label}</span>
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -221,14 +227,20 @@ export default function Planning() {
 
   const [modal, setModal] = useState(null);
 
+  // When "all", show all machines from both factories with their real factory prefix
+  // Each machine carries a `factory` property so we can look up the right entry
   const machineList = isAllUnits
-    ? [...(adminMachines.matriz || []), ...(adminMachines.filial || [])]
-    : adminMachines[factory] || [];
-  const days        = getDaysInMonth(month.year, month.month);
-  const yearMonth   = getYearMonth();
-  const monthLabel  = getMonthLabel(month.year, month.month);
+    ? [
+        ...(adminMachines.matriz || []).map((m) => ({ ...m, _factory: 'matriz' })),
+        ...(adminMachines.filial || []).map((m) => ({ ...m, _factory: 'filial' })),
+      ]
+    : (adminMachines[factory] || []).map((m) => ({ ...m, _factory: factory }));
 
-  // Subscribe — when Firestore returns data, replace entire map
+  const days      = getDaysInMonth(month.year, month.month);
+  const yearMonth = getYearMonth();
+  const monthLabel = getMonthLabel(month.year, month.month);
+
+  // Subscribe — handles 'all' internally in firebase.js (merges both factories)
   useEffect(() => {
     setLoading(true);
     const unsub = subscribePlanningEntries(factory, yearMonth, (data) => {
@@ -237,38 +249,41 @@ export default function Planning() {
     return () => unsub();
   }, [factory, yearMonth]);
 
-  // Derived totals (only producao type)
+  // KEY FIX: use machine._factory (actual factory) not the selected factory
+  // This way "all" view correctly finds entries stored as "matriz__M01__date"
+  const getEntry = (machine, date) => {
+    const f = machine._factory || factory;
+    return entriesMap[makeEntryId(f, machine.id, date)] || null;
+  };
+
+  // Totals
   const machineTotals = {};
   machineList.forEach((m) => {
     let total = 0;
     days.forEach((date) => {
-      const e = entriesMap[makeEntryId(factory, m.id, date)];
+      const e = getEntry(m, date);
       if (e?.cellType === 'producao') total += e.planned || 0;
     });
     machineTotals[m.id] = total;
   });
-  const grandTotal   = Object.values(machineTotals).reduce((s, v) => s + v, 0);
-  const entryCount   = Object.keys(entriesMap).length;
+  const grandTotal = Object.values(machineTotals).reduce((s, v) => s + v, 0);
+  const entryCount = Object.keys(entriesMap).length;
 
-  // Save: always use stable ID — upsert in Firestore AND store
   const handleSave = useCallback(async (data) => {
-    const stableId = makeEntryId(data.factory, data.machine, data.date);
-    const entry = { ...data, id: stableId };
-    // Optimistic update immediately
+    // When saving from "all" view, use the machine's real factory
+    const targetFactory = data._factory || data.factory || factory;
+    const stableId = makeEntryId(targetFactory, data.machine, data.date);
+    const entry = { ...data, id: stableId, factory: targetFactory };
+    delete entry._factory;
     upsertEntry(entry);
-    // Persist to Firestore
-    try {
-      await savePlanningEntry(entry);
-    } catch (err) {
-      console.error('Firestore save failed (offline mode)', err);
-      // Entry stays in local store even if offline
-    }
-  }, [upsertEntry]);
+    try { await savePlanningEntry(entry); }
+    catch (err) { console.error('Save failed:', err); }
+  }, [upsertEntry, factory]);
 
   const handleDelete = useCallback(async (id) => {
     deleteEntry(id);
     try { await deletePlanningEntry(id); }
-    catch (err) { console.error('Delete failed', err); }
+    catch (err) { console.error('Delete failed:', err); }
   }, [deleteEntry]);
 
   const handleDragStart = useCallback((e, entry) => {
@@ -277,42 +292,32 @@ export default function Planning() {
 
   const handleDrop = useCallback(async (event, destMachine, destDate) => {
     event.preventDefault();
-    event.stopPropagation();
     const dataStr = event.dataTransfer.getData('application/json');
     if (!dataStr) return;
     try {
       const sourceEntry = JSON.parse(dataStr);
-      
       const s = sourceEntry.date < destDate ? sourceEntry.date : destDate;
-      const e = sourceEntry.date < destDate ? destDate : sourceEntry.date;
-      
+      const e = sourceEntry.date > destDate ? sourceEntry.date : destDate;
       let curr = new Date(s + 'T12:00:00Z');
-      const endD = new Date(e + 'T12:00:00Z');
-      const datesToFill = [];
-      while (curr <= endD) {
-        datesToFill.push(curr.toISOString().split('T')[0]);
+      const end = new Date(e + 'T12:00:00Z');
+      while (curr <= end) {
+        const d = curr.toISOString().split('T')[0];
+        await handleSave({ ...sourceEntry, machine: destMachine.id, machineName: destMachine.name, date: d, _factory: destMachine._factory });
         curr.setUTCDate(curr.getUTCDate() + 1);
       }
+    } catch (err) { console.error('Drop error:', err); }
+  }, [handleSave]);
 
-      for (const d of datesToFill) {
-        const newEntry = {
-          ...sourceEntry,
-          id: makeEntryId(factory, destMachine.id, d),
-          machine: destMachine.id,
-          machineName: destMachine.name,
-          date: d
-        };
-        await handleSave(newEntry);
-      }
-    } catch(err) {
-      console.error('Drop error', err);
-    }
-  }, [factory, handleSave]);
+  // For modal — pass the machine's actual factory
+  const openModal = (entry, machine, date) => {
+    if (isSupervisor) return;
+    setModal({ entry: entry || null, machine, date, factory: machine._factory || factory });
+  };
 
   return (
     <div className="flex flex-col bg-brand-bg" style={{ height: 'calc(100vh - 56px)' }}>
 
-      {/* ─── Header ────────────────────────────────────────────────────── */}
+      {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border bg-brand-surface/30 shrink-0 flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-white flex items-center gap-2 tracking-tight">
@@ -320,7 +325,7 @@ export default function Planning() {
             Planejamento de Produção
           </h1>
           <p className="text-[10px] text-brand-muted mt-0.5 uppercase tracking-widest font-black">
-            {monthLabel} · {factory === 'all' ? 'Todas as Unidades' : (factory === 'matriz' ? 'Matriz' : 'Filial')}
+            {monthLabel} · {isAllUnits ? 'Todas as Unidades' : (factory === 'matriz' ? 'Matriz' : 'Filial')}
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
@@ -336,25 +341,17 @@ export default function Planning() {
               <ChevronRight size={16} />
             </button>
           </div>
-          {!isSupervisor && !isAllUnits && (
-            <button onClick={() => setModal({ entry: null, machine: null, date: new Date().toISOString().split('T')[0] })}
-              className="flex items-center gap-2 px-4 py-2 bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/20 text-brand-cyan text-xs font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(34,211,238,0.1)] active:scale-95">
+          {!isSupervisor && (
+            <button
+              onClick={() => setModal({ entry: null, machine: null, date: new Date().toISOString().split('T')[0], factory: isAllUnits ? 'matriz' : factory })}
+              className="flex items-center gap-2 px-4 py-2 bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/20 text-brand-cyan text-xs font-bold rounded-xl transition-all active:scale-95">
               <Plus size={14} /> Nova entrada
             </button>
           )}
         </div>
       </div>
 
-      {isAllUnits && (
-        <div className="px-6 py-2 bg-indigo-500/5 border-b border-brand-border flex items-center gap-2.5 animate-fade-in">
-          <AlertTriangle size={14} className="text-indigo-400" />
-          <p className="text-[11px] font-medium text-indigo-300">
-            <strong>Visão Consolidada:</strong> O gerenciamento de máquinas é específico por unidade. Selecione Matriz ou Filial para editar.
-          </p>
-        </div>
-      )}
-
-      {/* ─── KPI Bar ───────────────────────────────────────── */}
+      {/* KPI bar */}
       <div className="px-6 py-3 flex items-center gap-8 border-b border-brand-border/40 shrink-0 flex-wrap bg-brand-surface/10">
         {[
           { label: 'Total Planejado', value: grandTotal.toLocaleString('pt-BR'), unit: 'kg', icon: Package },
@@ -382,7 +379,7 @@ export default function Planning() {
         <table className="border-collapse w-max min-w-full">
           <thead>
             <tr className="sticky top-0 z-10 bg-brand-bg/95 backdrop-blur-sm">
-              <th className="sticky left-0 z-20 bg-brand-bg border border-brand-border/40 px-4 py-3 text-left min-w-[130px]">
+              <th className="sticky left-0 z-20 bg-brand-bg border border-brand-border/40 px-4 py-3 text-left min-w-[160px]">
                 <span className="text-[10px] font-bold text-brand-muted uppercase tracking-wider">Máquina</span>
               </th>
               {days.map((date) => {
@@ -393,12 +390,8 @@ export default function Planning() {
                     className="border border-brand-border/40 min-w-[56px] w-[56px] py-2 px-0.5 text-center"
                     style={today ? { background: 'rgba(34,211,238,0.06)', borderColor: 'rgba(34,211,238,0.25)' } : {}}>
                     <div className="flex flex-col items-center gap-0.5">
-                      <span className={`text-[9px] font-medium uppercase ${isSun ? 'text-red-400/80' : 'text-brand-muted'}`}>
-                        {getWeekday(date)}
-                      </span>
-                      <span className={`text-[11px] font-mono font-bold ${today ? 'text-brand-cyan' : isSun ? 'text-red-400/60' : 'text-brand-muted'}`}>
-                        {date.split('-')[2]}
-                      </span>
+                      <span className={`text-[9px] font-medium uppercase ${isSun ? 'text-red-400/80' : 'text-brand-muted'}`}>{getWeekday(date)}</span>
+                      <span className={`text-[11px] font-mono font-bold ${today ? 'text-brand-cyan' : isSun ? 'text-red-400/60' : 'text-brand-muted'}`}>{date.split('-')[2]}</span>
                     </div>
                   </th>
                 );
@@ -409,38 +402,45 @@ export default function Planning() {
             </tr>
           </thead>
           <tbody>
-            {machineList.map((machine) => (
-              <tr key={machine.id} className="group hover:bg-white/[0.01]">
-                <td className="sticky left-0 z-10 bg-brand-bg group-hover:bg-brand-surface/20 border border-brand-border/40 px-4 py-0 transition-colors">
-                  <div className="py-2">
-                    <span className="text-xs font-bold text-white block">{machine.id}</span>
-                    <span className="text-[10px] text-brand-muted">{machine.name}</span>
-                  </div>
-                </td>
-                {days.map((date) => {
-                  const entryId = makeEntryId(factory, machine.id, date);
-                  const entry   = entriesMap[entryId] || null;
-                  return (
-                    <MatrixCell
-                      key={date}
-                      entry={entry}
-                      date={date}
-                      machine={machine}
-                      isCurrentDay={isToday(date)}
-                      onClick={isSupervisor ? undefined : (e, m, d) => setModal({ entry: e, machine: m, date: d })}
-                      onDragStart={isSupervisor ? undefined : handleDragStart}
-                      onDrop={isSupervisor ? undefined : handleDrop}
-                    />
-                  );
-                })}
-                <td className="sticky right-0 z-10 bg-brand-bg group-hover:bg-brand-surface/20 border border-brand-border/40 px-3 transition-colors text-right">
-                  <span className="text-xs font-mono font-bold text-brand-cyan">
-                    {(machineTotals[machine.id] || 0).toLocaleString('pt-BR')}
-                  </span>
-                  <span className="text-[10px] text-brand-muted ml-0.5">kg</span>
-                </td>
-              </tr>
-            ))}
+            {(() => {
+              const rows = [];
+              let lastFactory = null;
+              machineList.forEach((machine) => {
+                // Insert factory divider in "all" view
+                if (isAllUnits && machine._factory !== lastFactory) {
+                  lastFactory = machine._factory;
+                  const fData = FACTORIES.find((f) => f.id === machine._factory);
+                  rows.push(<FactoryDivider key={`div-${machine._factory}`} label={fData?.name || machine._factory} color={fData?.color || '#64748b'} />);
+                }
+                rows.push(
+                  <tr key={`${machine._factory}-${machine.id}`} className="group hover:bg-white/[0.01]">
+                    <td className="sticky left-0 z-10 bg-brand-bg group-hover:bg-brand-surface/20 border border-brand-border/40 px-4 py-0 transition-colors">
+                      <div className="py-2">
+                        <span className="text-xs font-bold text-white block">{machine.id}</span>
+                        <span className="text-[10px] text-brand-muted">{machine.name}</span>
+                      </div>
+                    </td>
+                    {days.map((date) => (
+                      <MatrixCell
+                        key={date}
+                        entry={getEntry(machine, date)}
+                        date={date}
+                        machine={machine}
+                        isCurrentDay={isToday(date)}
+                        onClick={!isSupervisor ? (e, m, d) => openModal(e, m, d) : undefined}
+                        onDragStart={!isSupervisor ? handleDragStart : undefined}
+                        onDrop={!isSupervisor ? handleDrop : undefined}
+                      />
+                    ))}
+                    <td className="sticky right-0 z-10 bg-brand-bg group-hover:bg-brand-surface/20 border border-brand-border/40 px-3 transition-colors text-right">
+                      <span className="text-xs font-mono font-bold text-brand-cyan">{(machineTotals[machine.id] || 0).toLocaleString('pt-BR')}</span>
+                      <span className="text-[10px] text-brand-muted ml-0.5">kg</span>
+                    </td>
+                  </tr>
+                );
+              });
+              return rows;
+            })()}
             {/* Total row */}
             <tr className="border-t-2 border-brand-border">
               <td className="sticky left-0 z-10 bg-brand-surface border border-brand-border/40 px-4 py-2.5">
@@ -448,14 +448,14 @@ export default function Planning() {
               </td>
               {days.map((date) => {
                 const dayTotal = machineList.reduce((s, m) => {
-                  const e = entriesMap[makeEntryId(factory, m.id, date)];
+                  const e = getEntry(m, date);
                   return s + (e?.cellType === 'producao' ? (e.planned || 0) : 0);
                 }, 0);
                 return (
                   <td key={date} className="border border-brand-border/40 bg-brand-surface text-center"
                     style={isToday(date) ? { background: 'rgba(34,211,238,0.04)' } : {}}>
                     <span className="text-[10px] font-mono text-brand-muted">
-                      {dayTotal > 0 ? (dayTotal >= 1000 ? `${(dayTotal/1000).toFixed(1)}k` : dayTotal) : '—'}
+                      {dayTotal > 0 ? (dayTotal >= 1000 ? `${(dayTotal / 1000).toFixed(1)}k` : dayTotal) : '—'}
                     </span>
                   </td>
                 );
@@ -474,9 +474,14 @@ export default function Planning() {
           entry={modal.entry}
           machine={modal.machine}
           date={modal.date}
-          factory={factory}
+          factory={modal.factory}
           products={products}
-          machines={machineList}
+          machines={
+            // In "all" view, show machines from the relevant factory
+            modal.factory === 'matriz' ? (adminMachines.matriz || []) :
+            modal.factory === 'filial' ? (adminMachines.filial || []) :
+            machineList
+          }
           onSave={handleSave}
           onDelete={handleDelete}
           onClose={() => setModal(null)}

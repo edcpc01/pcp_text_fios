@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, TrendingUp, FlaskConical,
-  Bot, LogOut, Settings, ChevronDown, Factory,
+  Bot, LogOut, Settings, ChevronDown,
 } from 'lucide-react';
 import { useAuthStore, useAppStore, FACTORIES } from '../hooks/useStore';
 import { signOut } from '../services/firebase';
@@ -37,8 +37,18 @@ export default function Layout({ children }) {
 
           {/* Logo */}
           <div className="flex items-center gap-2.5 pr-5 border-r border-brand-border mr-3 shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-brand-cyan/10 border border-brand-cyan/20 flex items-center justify-center">
-              <Factory size={15} className="text-brand-cyan" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
+              <svg viewBox="0 0 64 64" className="w-8 h-8">
+                <defs>
+                  <linearGradient id="nbg" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#1a4fd6"/>
+                    <stop offset="100%" stopColor="#1338a8"/>
+                  </linearGradient>
+                </defs>
+                <rect width="64" height="64" rx="12" fill="url(#nbg)"/>
+                <path d="M18 13 L18 51 L31 51 Q45 51 47 38 Q49 25 47 21 Q44 13 31 13 Z M24 19 L31 19 Q39 19 41 25 Q43 29 43 32 Q43 39 39 43 Q36 47 31 47 L24 47 Z" fill="white" fillRule="evenodd"/>
+                <rect x="18" y="55" width="28" height="3" rx="1.5" fill="#22d3ee" opacity="0.85"/>
+              </svg>
             </div>
             <div className="hidden sm:block">
               <p className="text-sm font-bold text-white leading-none">PCP Fios</p>

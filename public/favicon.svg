@@ -1,47 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#0f172a"/>
-      <stop offset="100%" stop-color="#0c1222"/>
-    </linearGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#f59e0b"/>
-      <stop offset="100%" stop-color="#d97706"/>
-    </linearGradient>
-    <linearGradient id="blue" x1="0" y1="64" x2="64" y2="0" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#0ea5e9"/>
-      <stop offset="100%" stop-color="#38bdf8"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a4fd6"/>
+      <stop offset="100%" stop-color="#1338a8"/>
     </linearGradient>
   </defs>
-
-  <!-- Background -->
-  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
-
-  <!-- Subtle border -->
-  <rect width="64" height="64" rx="14" fill="none" stroke="#1e293b" stroke-width="1.5"/>
-
-  <!-- Spool / thread bobbin icon -->
-  <!-- Top flange -->
-  <rect x="14" y="10" width="36" height="7" rx="3.5" fill="url(#accent)" opacity="0.95"/>
-
-  <!-- Core cylinder -->
-  <rect x="20" y="17" width="24" height="22" rx="2" fill="#1e293b"/>
-
-  <!-- Thread lines on core -->
-  <line x1="20" y1="22" x2="44" y2="22" stroke="url(#blue)" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="20" y1="26" x2="44" y2="26" stroke="url(#blue)" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
-  <line x1="20" y1="30" x2="44" y2="30" stroke="url(#blue)" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
-  <line x1="20" y1="34" x2="44" y2="34" stroke="url(#blue)" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>
-
-  <!-- Bottom flange -->
-  <rect x="14" y="39" width="36" height="7" rx="3.5" fill="url(#accent)" opacity="0.95"/>
-
-  <!-- Center axis -->
-  <circle cx="32" cy="28.5" r="3" fill="#0c1222" stroke="#f59e0b" stroke-width="1"/>
-
-  <!-- Data / chart bars at bottom — planejamento indicator -->
-  <rect x="14" y="50" width="7" height="5" rx="1" fill="#0ea5e9" opacity="0.9"/>
-  <rect x="23" y="47" width="7" height="8" rx="1" fill="#0ea5e9" opacity="0.7"/>
-  <rect x="32" y="49" width="7" height="6" rx="1" fill="#f59e0b" opacity="0.9"/>
-  <rect x="41" y="46" width="7" height="9" rx="1" fill="#f59e0b" opacity="0.7"/>
+  <rect width="64" height="64" rx="12" fill="url(#bg)"/>
+  <path d="M18 13 L18 51 L31 51 Q45 51 47 38 Q49 25 47 21 Q44 13 31 13 Z M24 19 L31 19 Q39 19 41 25 Q43 29 43 32 Q43 39 39 43 Q36 47 31 47 L24 47 Z" fill="white" fill-rule="evenodd"/>
+  <rect x="18" y="55" width="28" height="3" rx="1.5" fill="#22d3ee" opacity="0.85"/>
 </svg>
