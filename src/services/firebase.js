@@ -3,7 +3,7 @@ import {
   getFirestore,
   collection, doc, getDoc, setDoc, deleteDoc,
   query, where, orderBy, onSnapshot, Timestamp,
-  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  initializeFirestore, memoryLocalCache,
 } from 'firebase/firestore';
 import {
   getAuth,
@@ -35,7 +35,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+  localCache: memoryLocalCache(),
 });
 
 export const auth = getAuth(app);

@@ -14,37 +14,48 @@
  */
 
 // ─── File System Access API ───────────────────────────────────────────────────
+// Armazena file handles no IndexedDB com fallback silencioso em caso de erro de disco
 
-const IDB_DB   = 'pcp-csv-handles';
+const IDB_DB    = 'pcp-csv-handles';
 const IDB_STORE = 'handles';
 
 function openIDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(IDB_DB, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror   = () => reject(req.error);
+    try {
+      const req = indexedDB.open(IDB_DB, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror   = () => reject(req.error);
+    } catch (e) {
+      reject(e);
+    }
   });
 }
 
 export async function saveFileHandle(key, handle) {
-  const db = await openIDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(IDB_STORE, 'readwrite');
-    tx.objectStore(IDB_STORE).put(handle, key);
-    tx.oncomplete = resolve;
-    tx.onerror    = reject;
-  });
+  try {
+    const db = await openIDB();
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction(IDB_STORE, 'readwrite');
+        tx.objectStore(IDB_STORE).put(handle, key);
+        tx.oncomplete = resolve;
+        tx.onerror    = resolve; // falha silenciosa — handle não será reutilizado
+      } catch { resolve(); }
+    });
+  } catch { /* disco cheio ou iDB indisponível — ignora */ }
 }
 
 export async function loadFileHandle(key) {
   try {
     const db = await openIDB();
     return new Promise((resolve) => {
-      const tx  = db.transaction(IDB_STORE, 'readonly');
-      const req = tx.objectStore(IDB_STORE).get(key);
-      req.onsuccess = () => resolve(req.result || null);
-      req.onerror   = () => resolve(null);
+      try {
+        const tx  = db.transaction(IDB_STORE, 'readonly');
+        const req = tx.objectStore(IDB_STORE).get(key);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror   = () => resolve(null);
+      } catch { resolve(null); }
     });
   } catch {
     return null;
@@ -52,13 +63,17 @@ export async function loadFileHandle(key) {
 }
 
 export async function clearFileHandle(key) {
-  const db = await openIDB();
-  return new Promise((resolve) => {
-    const tx = db.transaction(IDB_STORE, 'readwrite');
-    tx.objectStore(IDB_STORE).delete(key);
-    tx.oncomplete = resolve;
-    tx.onerror    = resolve;
-  });
+  try {
+    const db = await openIDB();
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction(IDB_STORE, 'readwrite');
+        tx.objectStore(IDB_STORE).delete(key);
+        tx.oncomplete = resolve;
+        tx.onerror    = resolve;
+      } catch { resolve(); }
+    });
+  } catch { /* ignora */ }
 }
 
 /**
