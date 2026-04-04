@@ -53,7 +53,7 @@ export async function getUserRole(uid) {
   try {
     const snap = await getDoc(doc(db, 'users', uid));
     if (snap.exists()) return snap.data().role || 'planner';
-    await setDoc(doc(db, 'users', uid), { role: 'planner', createdAt: Timestamp.now() }, { merge: true });
+    await setDoc(doc(db, 'users', uid), { role: 'planner', factory: 'all', createdAt: Timestamp.now() }, { merge: true });
     return 'planner';
   } catch (err) {
     console.warn('[Firebase] getUserRole failed:', err.message);

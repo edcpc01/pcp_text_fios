@@ -31,9 +31,10 @@ service cloud.firestore {
     }
 
     // User can access data from their assigned factory or 'all' (multi-factory)
+    // null factory (missing field) is treated as 'all' for backward compatibility
     function canAccessFactory(factory) {
       let userFactory = getUserFactory();
-      return factory == userFactory || factory == 'all' || userFactory == 'all';
+      return userFactory == null || factory == userFactory || factory == 'all' || userFactory == 'all';
     }
 
     // ─── /users — User Profiles ───────────────────────────────────────────────
@@ -45,9 +46,8 @@ service cloud.firestore {
       allow write: if isAdmin();
       
       // Users can create their own profile on first login (merge)
-      allow create: if isAuth() && request.auth.uid == uid && 
-                       request.resource.data.role == 'planner' && // Default role
-                       request.resource.data.factory != null;
+      allow create: if isAuth() && request.auth.uid == uid &&
+                       request.resource.data.role == 'planner'; // Default role
     }
 
     // ─── /planning_entries — Production Planning Matrix ──────────────────────
