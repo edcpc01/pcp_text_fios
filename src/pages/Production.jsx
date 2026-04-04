@@ -224,32 +224,46 @@ export default function Production() {
 
   // ─── Agregações ────────────────────────────────────────────────────────
 
-  // Por produto
+  // Por produto — planejado vem de entries, realizado vem de records (CSV)
+  // A ligação é feita pelo código do produto (r.product / e.product)
   const byProduct = (() => {
     const map = {};
-    records.forEach((r) => {
-      const key = r.productName || r.product;
-      if (!map[key]) map[key] = { name: key, planned: 0, actual: 0 };
-      map[key].actual += r.actual || 0;
-      map[key].planned += r.planned || 0;
+
+    // 1. Planejado: soma das planning entries filtradas pelo mês/fábrica atual
+    entries.forEach((e) => {
+      if (e.cellType === 'parada') return;
+      const key = e.product;
+      if (!key) return;
+      if (!map[key]) map[key] = { name: e.productName || e.product, planned: 0, actual: 0 };
+      map[key].planned += e.planned || 0;
     });
+
+    // 2. Realizado: soma dos production records (importados via CSV)
+    records.forEach((r) => {
+      const key = r.product;
+      if (!key) return;
+      if (!map[key]) map[key] = { name: r.productName || r.product, planned: 0, actual: 0 };
+      map[key].actual += r.actual || 0;
+    });
+
     return Object.values(map).map((item) => ({
       ...item,
       pct: item.planned > 0 ? Math.round((item.actual / item.planned) * 100) : 0,
     }));
   })();
 
-  // Por máquina
+  // Por máquina — planejado vem de entries, realizado vem de records (CSV)
   const byMachine = (() => {
     const map = {};
     machines.forEach((m) => {
       map[m.id] = { name: m.id, label: m.name, planned: 0, actual: 0 };
     });
+    entries.forEach((e) => {
+      if (e.cellType === 'parada') return;
+      if (map[e.machine]) map[e.machine].planned += e.planned || 0;
+    });
     records.forEach((r) => {
-      if (map[r.machine]) {
-        map[r.machine].actual += r.actual || 0;
-        map[r.machine].planned += r.planned || 0;
-      }
+      if (map[r.machine]) map[r.machine].actual += r.actual || 0;
     });
     return Object.values(map).map((item) => ({
       ...item,
@@ -292,9 +306,9 @@ export default function Production() {
     return b.planned - a.planned; // default
   });
 
-  // KPIs globais
-  const totalPlanned = records.reduce((s, r) => s + (r.planned || 0), 0);
-  const totalActual = records.reduce((s, r) => s + (r.actual || 0), 0);
+  // KPIs globais — derivados do byProduct já consolidado
+  const totalPlanned = byProduct.reduce((s, p) => s + p.planned, 0);
+  const totalActual  = byProduct.reduce((s, p) => s + p.actual, 0);
   const globalPct = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : 0;
   const globalColors = getAdherenceColor(globalPct);
 
