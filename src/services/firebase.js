@@ -238,8 +238,8 @@ export async function saveFinishedGoodStock(productId, data) {
 
 // ─── Production Records (write) ──────────────────────────────────────────────
 export async function saveProductionRecord(record) {
-  // ID único por fábrica + máquina + produto + data → re-sync não duplica
-  const docId = `${record.factory}__${record.machine}__${record.product}__${record.date}`;
+  // ID único por fábrica + produto + data → re-sync agrega corretamente (sem duplicar por máquina)
+  const docId = `${record.factory}__${record.product}__${record.date}`;
   await setDoc(doc(db, 'production_records', docId), {
     factory:     record.factory,
     machine:     record.machine,

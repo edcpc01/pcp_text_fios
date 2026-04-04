@@ -132,30 +132,45 @@ export default function Production() {
 
     // Determina a fábrica — se 'all', usa a primeira fábrica dos dados (ou 'matriz')
     const targetFactory = factory === 'all' ? 'matriz' : factory;
+    const yearMonth = getYearMonth();
 
-    let imported = 0, skipped = 0, noProduct = 0;
+    // 1. Filtra e resolve produtos
+    let skipped = 0, noProduct = 0;
+    const validRows = [];
     for (const row of rows) {
+      if (!row.date.startsWith(yearMonth)) { skipped++; continue; }
       const product = findProductByCode(products, row.productCode);
       if (!product) { noProduct++; continue; }
-
-      // Filtra pelo mês atual se a data estiver fora do mês exibido
-      const yearMonth = getYearMonth();
-      if (!row.date.startsWith(yearMonth)) { skipped++; continue; }
-
-      await saveProductionRecord({
-        factory:     targetFactory,
-        machine:     row.machine,
-        machineName: row.machine,
-        product:     product.id,
-        productName: product.nome || product.productName || product.id,
-        date:        row.date,
-        actual:      row.quantity,
-        planned:     0,
-      });
-      imported++;
+      validRows.push({ row, product });
     }
 
-    setSyncResult({ imported, skipped, noProduct });
+    // 2. Agrega por produto+data (soma todas as linhas do CSV para o mesmo produto/dia)
+    // Não inclui máquina na chave pois o CSV pode ter várias linhas por máquina/bobina
+    const aggMap = {};
+    for (const { row, product } of validRows) {
+      const key = `${product.id}__${row.date}`;
+      if (!aggMap[key]) {
+        aggMap[key] = {
+          factory:     targetFactory,
+          machine:     row.machine || 'CSV',
+          machineName: row.machine || 'CSV',
+          product:     product.id,
+          productName: product.nome || product.productName || product.id,
+          date:        row.date,
+          actual:      0,
+          planned:     0,
+        };
+      }
+      aggMap[key].actual += row.quantity;
+    }
+
+    // 3. Salva no Firestore (um doc por produto+dia)
+    const toSave = Object.values(aggMap);
+    for (const record of toSave) {
+      await saveProductionRecord(record);
+    }
+
+    setSyncResult({ imported: toSave.length, skipped, noProduct });
     setSyncing(false);
   };
 
