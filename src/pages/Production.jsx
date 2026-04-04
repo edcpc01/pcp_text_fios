@@ -110,7 +110,8 @@ const CSV_HANDLE_KEY = 'producao-csv';
 export default function Production() {
   const { factory, month, changeMonth, getYearMonth } = useAppStore();
   const { records, setRecords, setLoading } = useProductionStore();
-  const { entries } = usePlanningStore();
+  const { entriesMap, setEntriesFromArray } = usePlanningStore();
+  const entries = Object.values(entriesMap);
   const { products } = useAdminStore();
 
   const [viewMode, setViewMode] = useState('product'); // 'product' | 'machine' | 'daily'
@@ -218,6 +219,14 @@ export default function Production() {
       } else {
         setRecords(data);
       }
+    });
+    return () => unsub();
+  }, [factory, yearMonth]);
+
+  // Subscribe ao planejamento (para calcular aderência por produto)
+  useEffect(() => {
+    const unsub = subscribePlanningEntries(factory, yearMonth, (data) => {
+      setEntriesFromArray(data);
     });
     return () => unsub();
   }, [factory, yearMonth]);
