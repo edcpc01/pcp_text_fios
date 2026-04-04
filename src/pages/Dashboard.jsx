@@ -219,7 +219,7 @@ export default function Dashboard() {
                   tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
                 <Tooltip contentStyle={{ background: '#1a2744', border: '1px solid #1e3058', borderRadius: 10, fontSize: 12 }}
                   labelStyle={{ color: '#94a3b8' }} formatter={(v, n) => [`${v.toLocaleString('pt-BR')} kg`, n === 'planned' ? 'Planejado' : 'Realizado']} />
-                <Bar dataKey="planned" fill="rgba(34,211,238,0.25)" radius={[4,4,0,0]} />
+                <Bar dataKey="planned" fill="rgba(148,163,184,0.35)" radius={[4,4,0,0]} />
                 <Bar dataKey="actual" radius={[4,4,0,0]}>
                   {chartData.map((e, i) => (
                     <Cell key={i} fill={e.actual >= e.planned * 0.9 ? '#10b981' : e.actual >= e.planned * 0.75 ? '#f59e0b' : '#ef4444'} />
