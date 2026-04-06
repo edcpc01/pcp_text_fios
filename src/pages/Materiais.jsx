@@ -283,28 +283,55 @@ export default function Materiais() {
       return;
     }
 
-    let mp = 0, pa = 0, skipped = 0;
+    // Monta lookup map do CSV: código (lowercase) → row e descrição (lowercase) → row
+    // Assim podemos buscar a partir dos códigos do app, não do CSV
+    const csvByCode = {};
+    const csvByDesc = {};
     for (const row of rows) {
-      // 1. Verifica se é MP necessária (comparando contra necessidade calculada do planejamento)
-      const isMP = (mpNecessidadeLocal || []).some(
-        (m) => String(m.codigoMicrodata).toLowerCase() === row.code.toLowerCase() ||
-               String(m.descricao).toLowerCase() === row.description.toLowerCase(),
-      );
-      if (isMP) {
-        await saveRawMaterialStock(row.code, { descricao: row.description || row.code, estoqueKg: row.stockKg });
+      if (row.code) csvByCode[row.code.toLowerCase()] = row;
+      if (row.description) csvByDesc[row.description.toLowerCase()] = row;
+    }
+
+    const findInCsv = (code, desc) => {
+      if (code) {
+        const match = csvByCode[String(code).toLowerCase()];
+        if (match) return match;
+      }
+      if (desc) {
+        // Busca exata pela descrição
+        const exact = csvByDesc[String(desc).toLowerCase()];
+        if (exact) return exact;
+        // Busca parcial: descrição do app contida na descrição do CSV ou vice-versa
+        const descNorm = String(desc).toLowerCase();
+        const partial = Object.entries(csvByDesc).find(
+          ([k]) => k.includes(descNorm) || descNorm.includes(k),
+        );
+        if (partial) return partial[1];
+      }
+      return null;
+    };
+
+    let mp = 0, pa = 0, skipped = 0;
+
+    // 1. Atualiza estoque de MPs — drive a partir dos MPs cadastrados/planejados no app
+    for (const m of (mpNecessidadeLocal || [])) {
+      const match = findInCsv(m.codigoMicrodata, m.descricao);
+      if (match) {
+        const key = m.codigoMicrodata || m.descricao;
+        await saveRawMaterialStock(key, { descricao: m.descricao || match.description, estoqueKg: match.stockKg });
         mp++;
-        continue;
+      } else {
+        skipped++;
       }
+    }
 
-      // 2. Verifica se é PA cadastrado no Firebase (por product.id ou product.codigoMicrodata)
-      const product = findProductByCode(products, row.code);
-      if (product) {
-        await saveFinishedGoodStock(product.id, { productName: product.nome, estoqueKg: row.stockKg });
+    // 2. Atualiza estoque de PAs — drive a partir dos produtos cadastrados no app
+    for (const product of products) {
+      const match = findInCsv(product.codigoMicrodata, product.nome);
+      if (match) {
+        await saveFinishedGoodStock(product.id, { productName: product.nome, estoqueKg: match.stockKg });
         pa++;
-        continue;
       }
-
-      skipped++;
     }
 
     setSyncResult({ mp, pa, skipped });
