@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(firebase deploy:*)",
-      "Bash(npx firebase-tools:*)"
+      "Bash(npx firebase-tools:*)",
+      "Bash(cmd /c \"cd /d C:\\\\Users\\\\edcarlos.camargo\\\\Documents\\\\GitHub\\\\pcp_text_fios && npm install --save-dev sharp 2>&1\")",
+      "Bash(cmd /c \"cd /d C:\\\\Users\\\\edcarlos.camargo\\\\Documents\\\\GitHub\\\\pcp_text_fios && npm install --save-dev sharp\")",
+      "Bash(cmd /c \"cd /d C:\\\\Users\\\\edcarlos.camargo\\\\Documents\\\\GitHub\\\\pcp_text_fios && node scripts/generate-icons.js 2>&1\")",
+      "Bash(cmd /c \"where node && where npm\")",
+      "Bash(powershell -Command \"& {Set-Location 'C:\\\\Users\\\\edcarlos.camargo\\\\Documents\\\\GitHub\\\\pcp_text_fios'; node --version; npm --version}\")",
+      "Bash(node scripts/generate-icons.js)"
     ]
   }
 }
