@@ -95,16 +95,16 @@ function LotesExpander({ lots }) {
 
       {open && (
         <div className="mt-2 space-y-1 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
-          <div className="grid grid-cols-[1fr_auto_auto] text-[9px] text-brand-muted font-bold uppercase tracking-widest pb-1 border-b border-brand-border/50 gap-x-2">
+          <div className="grid grid-cols-[1fr_2rem_4rem] text-[9px] text-brand-muted font-bold uppercase tracking-widest pb-1 border-b border-brand-border/50">
             <span>Lote</span>
-            <span>Emp.</span>
+            <span className="text-center">Emp.</span>
             <span className="text-right">Peso</span>
           </div>
           {lots.map((lot, i) => (
-            <div key={i} className="grid grid-cols-[1fr_auto_auto] items-center text-[11px] gap-x-2 py-0.5 hover:bg-white/5 rounded px-1 -mx-1 transition-colors">
+            <div key={i} className="grid grid-cols-[1fr_2rem_4rem] items-center text-[11px] py-0.5 hover:bg-white/5 rounded px-1 -mx-1 transition-colors">
               <span className="font-mono text-white truncate" title={lot.lote}>{lot.lote || '—'}</span>
-              <span className="text-brand-muted shrink-0">{lot.empresa || '—'}</span>
-              <span className="font-mono font-bold text-brand-cyan text-right shrink-0">{fmtKg(lot.pesoKg)}</span>
+              <span className="text-brand-muted text-center">{lot.empresa || '—'}</span>
+              <span className="font-mono font-bold text-brand-cyan text-right">{fmtKg(lot.pesoKg)}</span>
             </div>
           ))}
         </div>
