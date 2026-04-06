@@ -1,15 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#0d1b2e"/>
-  <!-- Factory icon (cyan) centered lower -->
-  <g transform="translate(32,39)" fill="none" stroke="#22d3ee" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="-20" y="0" width="40" height="20" rx="2" fill="#0d1b2e" stroke="#22d3ee" stroke-width="2.8"/>
-    <rect x="-17" y="-10" width="7" height="11" rx="1.5" fill="#0d1b2e" stroke="#22d3ee" stroke-width="2.5"/>
-    <rect x="-4" y="-15" width="7" height="16" rx="1.5" fill="#0d1b2e" stroke="#22d3ee" stroke-width="2.5"/>
-    <rect x="9"  y="-8"  width="7" height="9"  rx="1.5" fill="#0d1b2e" stroke="#22d3ee" stroke-width="2.5"/>
-    <rect x="-15" y="5"  width="5" height="5" rx="1" fill="#22d3ee" stroke="none"/>
-    <rect x="-4"  y="5"  width="5" height="5" rx="1" fill="#22d3ee" stroke="none"/>
-    <rect x="7"   y="5"  width="5" height="5" rx="1" fill="#22d3ee" stroke="none"/>
+  <!-- Background azul Doptex -->
+  <rect width="64" height="64" rx="12" fill="#003087"/>
+
+  <!-- D estilo Doptex — path arredondado bold branco -->
+  <text x="32" y="36" font-family="Arial Black,Arial,sans-serif" font-size="38" font-weight="900" fill="white" text-anchor="middle" dominant-baseline="middle" letter-spacing="-1">D</text>
+
+  <!-- Fábrica pequena abaixo do D -->
+  <g transform="translate(32,56)" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6">
+    <!-- Corpo principal -->
+    <rect x="-13" y="-8" width="26" height="9" rx="1" fill="#003087" stroke="white" stroke-width="1.4"/>
+    <!-- Chaminé esquerda -->
+    <rect x="-11" y="-13" width="4" height="6" rx="0.8" fill="#003087" stroke="white" stroke-width="1.3"/>
+    <!-- Chaminé central -->
+    <rect x="-2.5" y="-15" width="4" height="8" rx="0.8" fill="#003087" stroke="white" stroke-width="1.3"/>
+    <!-- Chaminé direita -->
+    <rect x="6" y="-12" width="4" height="5" rx="0.8" fill="#003087" stroke="white" stroke-width="1.3"/>
+    <!-- Janelas -->
+    <rect x="-9" y="-5.5" width="3" height="3" rx="0.5" fill="white" stroke="none"/>
+    <rect x="-3" y="-5.5" width="3" height="3" rx="0.5" fill="white" stroke="none"/>
+    <rect x="3"  y="-5.5" width="3" height="3" rx="0.5" fill="white" stroke="none"/>
   </g>
-  <!-- Cursive D top-right -->
-  <text x="53" y="24" font-family="Georgia,'Times New Roman',serif" font-size="26" font-weight="700" font-style="italic" fill="white" text-anchor="middle">D</text>
 </svg>

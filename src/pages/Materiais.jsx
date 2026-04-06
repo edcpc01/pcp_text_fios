@@ -515,7 +515,7 @@ export default function Materiais() {
         <div>
           <h1 className="text-xl font-bold text-white flex items-center gap-2">
             <FlaskConical size={20} className="text-brand-cyan" />
-            Consumo de Matéria-Prima
+            Estoque Matéria Prima e Produto Acabado
           </h1>
           <p className="text-[10px] text-brand-muted mt-0.5 uppercase tracking-widest font-black">
             {hasRange
