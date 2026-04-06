@@ -40,13 +40,13 @@ export default function Layout({ children }) {
             <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0">
               {/* Mesmo design do favicon.svg — fundo brand-cyan, D branco, fábrica branca */}
               <svg viewBox="0 0 64 64" width="32" height="32" xmlns="http://www.w3.org/2000/svg">
-                <rect width="64" height="64" rx="12" fill="#22d3ee"/>
+                <rect width="64" height="64" rx="12" fill="#06b6d4"/>
                 <text x="32" y="28" fontFamily="Georgia,'Times New Roman',serif" fontSize="30" fontWeight="700" fontStyle="italic" fill="white" textAnchor="middle" dominantBaseline="middle">D</text>
                 <g transform="translate(32,54)" fill="none" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6">
-                  <rect x="-15" y="-10" width="30" height="11" rx="1" fill="#22d3ee" stroke="white" strokeWidth="1.4"/>
-                  <rect x="-12" y="-18" width="5" height="9"  rx="0.8" fill="#22d3ee" stroke="white" strokeWidth="1.3"/>
-                  <rect x="-3"  y="-22" width="5" height="13" rx="0.8" fill="#22d3ee" stroke="white" strokeWidth="1.3"/>
-                  <rect x="7"   y="-16" width="5" height="7"  rx="0.8" fill="#22d3ee" stroke="white" strokeWidth="1.3"/>
+                  <rect x="-15" y="-10" width="30" height="11" rx="1" fill="#06b6d4" stroke="white" strokeWidth="1.4"/>
+                  <rect x="-12" y="-18" width="5" height="9"  rx="0.8" fill="#06b6d4" stroke="white" strokeWidth="1.3"/>
+                  <rect x="-3"  y="-22" width="5" height="13" rx="0.8" fill="#06b6d4" stroke="white" strokeWidth="1.3"/>
+                  <rect x="7"   y="-16" width="5" height="7"  rx="0.8" fill="#06b6d4" stroke="white" strokeWidth="1.3"/>
                   <rect x="-11" y="-6"  width="4" height="4" rx="0.5" fill="white" stroke="none"/>
                   <rect x="-3"  y="-6"  width="4" height="4" rx="0.5" fill="white" stroke="none"/>
                   <rect x="5"   y="-6"  width="4" height="4" rx="0.5" fill="white" stroke="none"/>

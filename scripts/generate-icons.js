@@ -18,7 +18,7 @@ const fs     = require('fs');
 const ROOT     = path.join(__dirname, '..');
 const LOGO     = path.join(ROOT, 'public', 'doptex-logo.png');
 const SVG_SRC  = path.join(ROOT, 'public', 'icon-source.svg');
-const BG_COLOR = { r: 34, g: 211, b: 238, alpha: 1 }; // #22d3ee – brand-cyan (cor do texto Dashboard)
+const BG_COLOR = { r: 6, g: 182, b: 212, alpha: 1 }; // #06b6d4 – cyan-500 (levemente mais escuro que o texto Dashboard)
 
 const ICONS = [
   { file: path.join(ROOT, 'public', 'icons', 'icon-192.png'),          size: 192 },
@@ -84,7 +84,7 @@ function factorySVG(size) {
   const chimneys = ch.map(c => {
     const cy = bodyY - c.h;
     return `<rect x="${c.x}" y="${cy}" width="${c.w}" height="${c.h + 2}" rx="${s * 0.01}"
-              fill="#22d3ee" stroke="white" stroke-width="${sw}"/>`;
+              fill="#06b6d4" stroke="white" stroke-width="${sw}"/>`;
   }).join('');
 
   const windows = [-1, 0, 1].map(i => {
@@ -96,7 +96,7 @@ function factorySVG(size) {
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}">
     ${chimneys}
     <rect x="${bodyX}" y="${bodyY}" width="${bodyW}" height="${bodyH}" rx="${s * 0.012}"
-          fill="#22d3ee" stroke="white" stroke-width="${sw}"/>
+          fill="#06b6d4" stroke="white" stroke-width="${sw}"/>
     ${windows}
   </svg>`);
 }
