@@ -22,9 +22,9 @@ export default function Layout({ children }) {
 
   const NAV = [
     { to: '/',           icon: LayoutDashboard, label: 'Dashboard'    },
+    { to: '/materiais',  icon: FlaskConical,    label: 'Materiais'    },
     { to: '/planning',   icon: CalendarDays,    label: 'Planejamento' },
     { to: '/production', icon: TrendingUp,      label: 'Realizado'    },
-    { to: '/materiais',  icon: FlaskConical,    label: 'Materiais'    },
     ...(isAdmin ? [{ to: '/admin', icon: Settings, label: 'Cadastros' }] : []),
   ];
 

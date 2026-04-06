@@ -120,11 +120,17 @@ export default function Dashboard() {
   // ── Stock totals ──────────────────────────────────────────────────────────
   const totalMpKg = Object.values(rawStock).reduce((s, v) => s + (v.estoqueKg || 0), 0);
   const totalPaKg = Object.values(paStock).reduce((s, v) => s + (v.estoqueKg || 0), 0);
-  const topMps    = Object.entries(rawStock)
+  const topMps = Object.entries(rawStock)
     .map(([k, v]) => ({ code: v.code || k, desc: v.descricao || k, kg: v.estoqueKg || 0 }))
     .filter((v) => v.kg > 0)
     .sort((a, b) => b.kg - a.kg)
-    .slice(0, 6);
+    .slice(0, 8);
+
+  const topPas = Object.entries(paStock)
+    .map(([k, v]) => ({ id: k, name: v.productName || k, kg: v.estoqueKg || 0 }))
+    .filter((v) => v.kg > 0)
+    .sort((a, b) => b.kg - a.kg)
+    .slice(0, 8);
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
@@ -218,20 +224,20 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Mix de Produtos — largura total */}
+      {/* Mix de Produtos — largura total, linhas */}
       <div className="bg-brand-card border border-brand-border rounded-2xl p-5" style={{ borderTop: '2px solid #f97316' }}>
         <h3 className="text-xs font-bold text-brand-muted uppercase tracking-widest mb-4 flex items-center gap-2">
           <Package size={13} className="text-brand-orange" /> Mix de Produtos
         </h3>
         {productMix.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-3">
+          <div className="space-y-3">
             {productMix.map(([name, val]) => {
               const pct = totalPlanned > 0 ? Math.round((val / totalPlanned) * 100) : 0;
               return (
                 <div key={name}>
                   <div className="flex justify-between text-xs mb-1.5">
-                    <span className="text-white font-medium truncate max-w-[60%]" title={name}>{name}</span>
-                    <span className="text-brand-muted font-mono whitespace-nowrap">
+                    <span className="text-white font-medium" title={name}>{name}</span>
+                    <span className="text-brand-muted font-mono whitespace-nowrap ml-4">
                       {val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val} kg ({pct}%)
                     </span>
                   </div>
@@ -247,42 +253,61 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Materiais — resumo de estoque */}
-      <div className="bg-brand-card border border-brand-border rounded-2xl p-5" style={{ borderTop: '2px solid #22d3ee' }}>
-        <h3 className="text-xs font-bold text-brand-muted uppercase tracking-widest mb-4 flex items-center gap-2">
-          <FlaskConical size={13} className="text-brand-cyan" /> Estoque Matéria-Prima e Produto Acabado
-        </h3>
+      {/* Estoque — dois cards lado a lado */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* Totais */}
-        <div className="grid grid-cols-2 gap-4 mb-5">
-          <div className="bg-brand-surface rounded-xl p-4 border border-brand-border">
-            <p className="text-[10px] font-bold text-brand-muted uppercase tracking-widest mb-1">Estoque MP (Microdata)</p>
+        {/* Card Matéria-Prima */}
+        <div className="bg-brand-card border border-brand-border rounded-2xl p-5" style={{ borderTop: '2px solid #22d3ee' }}>
+          <h3 className="text-xs font-bold text-brand-muted uppercase tracking-widest mb-4 flex items-center gap-2">
+            <FlaskConical size={13} className="text-brand-cyan" /> Estoque Matéria-Prima
+          </h3>
+          <div className="bg-brand-surface rounded-xl px-4 py-3 border border-brand-border mb-4">
+            <p className="text-[10px] text-brand-muted uppercase tracking-widest mb-0.5">Total (Microdata)</p>
             <p className="text-2xl font-mono font-bold text-white">{fmtKg(totalMpKg)}</p>
           </div>
-          <div className="bg-brand-surface rounded-xl p-4 border border-brand-border">
-            <p className="text-[10px] font-bold text-brand-muted uppercase tracking-widest mb-1">Estoque PA (Microdata)</p>
-            <p className="text-2xl font-mono font-bold text-white">{fmtKg(totalPaKg)}</p>
-          </div>
+          {topMps.length > 0 ? (
+            <div className="space-y-1.5">
+              {topMps.map((mp) => (
+                <div key={mp.code} className="flex items-center justify-between bg-brand-surface rounded-lg px-3 py-2 border border-brand-border/50">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] text-brand-muted font-mono">{mp.code}</p>
+                    <p className="text-xs text-white truncate" title={mp.desc}>{mp.desc}</p>
+                  </div>
+                  <span className="font-mono font-bold text-brand-cyan text-sm ml-3 shrink-0">{fmtKg(mp.kg)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-brand-muted text-sm text-center py-4">Sincronize na página Materiais</p>
+          )}
         </div>
 
-        {/* Top MPs */}
-        {topMps.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {topMps.map((mp) => (
-              <div key={mp.code} className="flex items-center justify-between bg-brand-surface rounded-lg px-3 py-2 border border-brand-border/50">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] text-brand-muted font-mono">{mp.code}</p>
-                  <p className="text-xs text-white truncate" title={mp.desc}>{mp.desc}</p>
-                </div>
-                <span className="font-mono font-bold text-brand-cyan text-sm ml-3 shrink-0">{fmtKg(mp.kg)}</span>
-              </div>
-            ))}
+        {/* Card Produto Acabado */}
+        <div className="bg-brand-card border border-brand-border rounded-2xl p-5" style={{ borderTop: '2px solid #8b5cf6' }}>
+          <h3 className="text-xs font-bold text-brand-muted uppercase tracking-widest mb-4 flex items-center gap-2">
+            <Package size={13} className="text-brand-agent" /> Estoque Produto Acabado
+          </h3>
+          <div className="bg-brand-surface rounded-xl px-4 py-3 border border-brand-border mb-4">
+            <p className="text-[10px] text-brand-muted uppercase tracking-widest mb-0.5">Total (Microdata)</p>
+            <p className="text-2xl font-mono font-bold text-white">{fmtKg(totalPaKg)}</p>
           </div>
-        )}
+          {topPas.length > 0 ? (
+            <div className="space-y-1.5">
+              {topPas.map((pa) => (
+                <div key={pa.id} className="flex items-center justify-between bg-brand-surface rounded-lg px-3 py-2 border border-brand-border/50">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] text-brand-muted font-mono">{pa.id}</p>
+                    <p className="text-xs text-white truncate" title={pa.name}>{pa.name}</p>
+                  </div>
+                  <span className="font-mono font-bold text-brand-agent text-sm ml-3 shrink-0">{fmtKg(pa.kg)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-brand-muted text-sm text-center py-4">Sincronize na página Materiais</p>
+          )}
+        </div>
 
-        {topMps.length === 0 && (
-          <p className="text-brand-muted text-sm text-center py-4">Sincronize o estoque na página Materiais</p>
-        )}
       </div>
 
     </div>
