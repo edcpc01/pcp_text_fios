@@ -167,7 +167,7 @@ export default function AgentPanel() {
       if (!GEMINI_URL) throw new Error('VITE_GEMINI_API_KEY não configurada.');
 
       const body = {
-        system_instruction: { parts: [{ text: buildSystemPrompt(ctx) }] },
+        systemInstruction: { parts: [{ text: buildSystemPrompt(ctx) }] },
         contents: historyRef.current,
         generationConfig: {
           temperature: 0.4,
