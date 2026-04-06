@@ -250,6 +250,7 @@ export default function Production() {
 
   // Limita o planejado até a data atual — compara planejado vs realizado no mesmo período
   const today = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
   // yearMonth já usa month+1 (getYearMonth), portanto a comparação fica correta
   const isCurrentMonth = yearMonth === today.slice(0, 7);
 
@@ -273,7 +274,7 @@ export default function Production() {
       const entryDate = resolveEntryDate(e);
       // Exclui entries cujo mês não bate com o mês sendo visualizado
       if (entryDate && !entryDate.startsWith(yearMonth)) return;
-      if (isCurrentMonth && entryDate && entryDate > today) return;
+      if (isCurrentMonth && entryDate && entryDate > yesterday) return;
       const key = e.product;
       if (!key) return;
       if (!map[key]) map[key] = { name: e.productName || e.product, planned: 0, actual: 0 };
@@ -304,7 +305,7 @@ export default function Production() {
       if (e.cellType !== 'producao' && e.cellType) return;
       const entryDate = resolveEntryDate(e);
       if (entryDate && !entryDate.startsWith(yearMonth)) return;
-      if (isCurrentMonth && entryDate && entryDate > today) return;
+      if (isCurrentMonth && entryDate && entryDate > yesterday) return;
       if (map[e.machine]) map[e.machine].planned += e.planned || 0;
     });
     records.forEach((r) => {
@@ -453,7 +454,7 @@ export default function Production() {
             <span className="text-xs font-normal text-brand-muted ml-1">kg</span>
           </p>
           <p className="text-[10px] text-brand-muted/60 mt-1">
-            de {totalPlanned.toLocaleString('pt-BR')} kg planejados até hoje
+            de {totalPlanned.toLocaleString('pt-BR')} kg planejados até ontem
           </p>
         </div>
 
