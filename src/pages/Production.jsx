@@ -253,6 +253,15 @@ export default function Production() {
   // yearMonth já usa month+1 (getYearMonth), portanto a comparação fica correta
   const isCurrentMonth = yearMonth === today.slice(0, 7);
 
+  /**
+   * Resolve a data de uma entry de planejamento.
+   * Quando `e.date` é convertido com sucesso pelo Firestore (Timestamp → string) retorna
+   * a string "YYYY-MM-DD". Se a data foi salva como string pura, a conversão falha e
+   * `e.date` fica undefined — nesse caso usamos o ID do documento como fallback,
+   * pois o ID segue o formato `factory__machine__YYYY-MM-DD`.
+   */
+  const resolveEntryDate = (e) => e.date || e.id?.split('__')[2] || null;
+
   // Por produto — planejado vem de entries, realizado vem de records (CSV)
   // A ligação é feita pelo código do produto (r.product / e.product)
   const byProduct = (() => {
@@ -261,7 +270,10 @@ export default function Production() {
     // 1. Planejado: soma das planning entries até hoje (não conta dias futuros)
     entries.forEach((e) => {
       if (e.cellType !== 'producao' && e.cellType) return;
-      if (isCurrentMonth && e.date > today) return;
+      const entryDate = resolveEntryDate(e);
+      // Exclui entries cujo mês não bate com o mês sendo visualizado
+      if (entryDate && !entryDate.startsWith(yearMonth)) return;
+      if (isCurrentMonth && entryDate && entryDate > today) return;
       const key = e.product;
       if (!key) return;
       if (!map[key]) map[key] = { name: e.productName || e.product, planned: 0, actual: 0 };
@@ -290,7 +302,9 @@ export default function Production() {
     });
     entries.forEach((e) => {
       if (e.cellType !== 'producao' && e.cellType) return;
-      if (isCurrentMonth && e.date > today) return;
+      const entryDate = resolveEntryDate(e);
+      if (entryDate && !entryDate.startsWith(yearMonth)) return;
+      if (isCurrentMonth && entryDate && entryDate > today) return;
       if (map[e.machine]) map[e.machine].planned += e.planned || 0;
     });
     records.forEach((r) => {
