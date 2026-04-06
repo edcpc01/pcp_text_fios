@@ -39,17 +39,17 @@ export default function Layout({ children }) {
           <div className="flex items-center gap-2.5 pr-5 border-r border-brand-border mr-3 shrink-0">
             <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0">
               <svg viewBox="0 0 64 64" width="32" height="32">
-                <rect width="64" height="64" rx="14" fill="#0d1b2e"/>
-                <g transform="translate(32,39)" fill="none" stroke="#22d3ee" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="-20" y="0" width="40" height="20" rx="2" fill="#0d1b2e" stroke="#22d3ee" strokeWidth="2.8"/>
-                  <rect x="-17" y="-10" width="7" height="11" rx="1.5" fill="#0d1b2e" stroke="#22d3ee" strokeWidth="2.5"/>
-                  <rect x="-4"  y="-15" width="7" height="16" rx="1.5" fill="#0d1b2e" stroke="#22d3ee" strokeWidth="2.5"/>
-                  <rect x="9"   y="-8"  width="7" height="9"  rx="1.5" fill="#0d1b2e" stroke="#22d3ee" strokeWidth="2.5"/>
-                  <rect x="-15" y="5"   width="5" height="5" rx="1" fill="#22d3ee" stroke="none"/>
-                  <rect x="-4"  y="5"   width="5" height="5" rx="1" fill="#22d3ee" stroke="none"/>
-                  <rect x="7"   y="5"   width="5" height="5" rx="1" fill="#22d3ee" stroke="none"/>
+                <rect width="64" height="64" rx="14" fill="#22d3ee"/>
+                <text x="32" y="27" fontFamily="Georgia,'Times New Roman',serif" fontSize="28" fontWeight="700" fontStyle="italic" fill="white" textAnchor="middle" dominantBaseline="middle">D</text>
+                <g transform="translate(32,55)" fill="none" stroke="white" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="-18" y="-11" width="36" height="12" rx="1.5" fill="#22d3ee" stroke="white" strokeWidth="2.6"/>
+                  <rect x="-15" y="-20" width="6" height="10" rx="1.2" fill="#22d3ee" stroke="white" strokeWidth="2.3"/>
+                  <rect x="-3"  y="-25" width="6" height="15" rx="1.2" fill="#22d3ee" stroke="white" strokeWidth="2.3"/>
+                  <rect x="9"   y="-17" width="6" height="7"  rx="1.2" fill="#22d3ee" stroke="white" strokeWidth="2.3"/>
+                  <rect x="-13" y="-7"  width="4" height="4" rx="1" fill="white" stroke="none"/>
+                  <rect x="-3"  y="-7"  width="4" height="4" rx="1" fill="white" stroke="none"/>
+                  <rect x="7"   y="-7"  width="4" height="4" rx="1" fill="white" stroke="none"/>
                 </g>
-                <text x="53" y="24" fontFamily="Georgia,'Times New Roman',serif" fontSize="26" fontWeight="700" fontStyle="italic" fill="white" textAnchor="middle">D</text>
               </svg>
             </div>
             <div className="hidden sm:block">

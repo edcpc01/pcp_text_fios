@@ -17,7 +17,7 @@ const fs     = require('fs');
 const ROOT     = path.join(__dirname, '..');
 const LOGO     = path.join(ROOT, 'public', 'doptex-logo.png');
 const SVG_SRC  = path.join(ROOT, 'public', 'icon-source.svg');
-const BG_COLOR = { r: 26, g: 68, b: 200, alpha: 1 }; // #1a44c8 – azul Doptex
+const BG_COLOR = { r: 34, g: 211, b: 238, alpha: 1 }; // #22d3ee – ciano Doptex
 
 const ICONS = [
   { file: path.join(ROOT, 'public', 'icons', 'icon-192.png'),          size: 192 },
@@ -30,7 +30,7 @@ const ICONS = [
 /** SVG inline da fábrica branca, posicionada na faixa inferior do canvas */
 function factorySVG(size) {
   const s    = size;
-  const fH   = Math.round(s * 0.20);  // altura total da área da fábrica
+  const fH   = Math.round(s * 0.30);  // altura total da área da fábrica (aumentada)
   const baseY = Math.round(s * 0.97); // linha do chão
   const cx   = s / 2;
   const sw   = Math.max(2, Math.round(s * 0.018)); // stroke-width
@@ -56,7 +56,7 @@ function factorySVG(size) {
   const chimneys = ch.map(c => {
     const cy = bodyY - c.h;
     return `<rect x="${c.x}" y="${cy}" width="${c.w}" height="${c.h + 2}" rx="${s*0.01}"
-              fill="#1a44c8" stroke="white" stroke-width="${sw}"/>`;
+              fill="#22d3ee" stroke="white" stroke-width="${sw}"/>`;
   }).join('');
 
   const windows = [-1, 0, 1].map(i => {
@@ -68,7 +68,7 @@ function factorySVG(size) {
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}">
     ${chimneys}
     <rect x="${bodyX}" y="${bodyY}" width="${bodyW}" height="${bodyH}" rx="${s*0.012}"
-          fill="#1a44c8" stroke="white" stroke-width="${sw}"/>
+          fill="#22d3ee" stroke="white" stroke-width="${sw}"/>
     ${windows}
   </svg>`);
 }
@@ -82,8 +82,8 @@ function factorySVG(size) {
   for (const { file, size } of ICONS) {
     const factory = factorySVG(size);
 
-    // Área reservada para a logo (78% do topo)
-    const logoAreaH = Math.round(size * 0.78);
+    // Área reservada para a logo (62% do topo – logo menor, fábrica maior)
+    const logoAreaH = Math.round(size * 0.62);
 
     if (useLogo) {
       // 1. Fundo azul Doptex

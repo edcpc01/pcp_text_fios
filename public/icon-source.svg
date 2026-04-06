@@ -1,23 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Background azul Doptex -->
-  <rect width="512" height="512" rx="96" fill="#003087"/>
+  <!-- Background ciano Doptex -->
+  <rect width="512" height="512" rx="96" fill="#22d3ee"/>
 
   <!-- D estilo Doptex bold branco -->
-  <text x="256" y="280" font-family="Arial Black,Arial,sans-serif" font-size="310" font-weight="900" fill="white" text-anchor="middle" dominant-baseline="middle" letter-spacing="-8">D</text>
+  <text x="256" y="220" font-family="Georgia,'Times New Roman',serif" font-size="260" font-weight="700" font-style="italic" fill="white" text-anchor="middle" dominant-baseline="middle">D</text>
 
   <!-- Fábrica abaixo do D -->
-  <g transform="translate(256,448)" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="12">
+  <g transform="translate(256,460)" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="12">
     <!-- Corpo principal -->
-    <rect x="-105" y="-64" width="210" height="72" rx="8" fill="#003087" stroke="white" stroke-width="11"/>
+    <rect x="-120" y="-72" width="240" height="80" rx="8" fill="#22d3ee" stroke="white" stroke-width="11"/>
     <!-- Chaminé esquerda -->
-    <rect x="-88" y="-108" width="32" height="48" rx="6" fill="#003087" stroke="white" stroke-width="10"/>
+    <rect x="-100" y="-130" width="36" height="62" rx="6" fill="#22d3ee" stroke="white" stroke-width="10"/>
     <!-- Chaminé central -->
-    <rect x="-20" y="-122" width="32" height="62" rx="6" fill="#003087" stroke="white" stroke-width="10"/>
+    <rect x="-22" y="-160" width="36" height="92" rx="6" fill="#22d3ee" stroke="white" stroke-width="10"/>
     <!-- Chaminé direita -->
-    <rect x="48" y="-98" width="32" height="38" rx="6" fill="#003087" stroke="white" stroke-width="10"/>
+    <rect x="58" y="-115" width="36" height="47" rx="6" fill="#22d3ee" stroke="white" stroke-width="10"/>
     <!-- Janelas -->
-    <rect x="-72" y="-44" width="24" height="24" rx="4" fill="white" stroke="none"/>
-    <rect x="-24" y="-44" width="24" height="24" rx="4" fill="white" stroke="none"/>
-    <rect x="24"  y="-44" width="24" height="24" rx="4" fill="white" stroke="none"/>
+    <rect x="-86" y="-50" width="28" height="28" rx="4" fill="white" stroke="none"/>
+    <rect x="-28" y="-50" width="28" height="28" rx="4" fill="white" stroke="none"/>
+    <rect x="30"  y="-50" width="28" height="28" rx="4" fill="white" stroke="none"/>
   </g>
 </svg>
