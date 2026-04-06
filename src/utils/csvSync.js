@@ -177,6 +177,9 @@ function findCol(headers, candidates) {
   return -1;
 }
 
+// Classificações do Microdata excluídas em todos os parsers (consignação/análise)
+const CLASSIF_EXCLUIDAS = ['a3', 'as'];
+
 // ─── Parse CSV de Produção Realizada ─────────────────────────────────────────
 
 /**
@@ -194,12 +197,19 @@ export function parseProducaoCSV(text) {
   const iMachine = findCol(headers, ['maquina', 'machine', 'maq', 'cod_maquina', 'codigo_maquina', 'equipamento']);
   const iCode    = findCol(headers, ['codigo_produto', 'cod_produto', 'produto', 'product', 'codigo', 'cod', 'code', 'item']);
   const iName    = findCol(headers, ['descricao', 'description', 'desc', 'nome', 'name']);
-  const iQty     = findCol(headers, ['quantidade', 'qtd', 'realizado', 'produzido', 'kg', 'qty', 'amount']);
+  const iQty     = findCol(headers, ['quantidade', 'qtd', 'realizado', 'produzido', 'kg', 'qty', 'amount', 'peso']);
+  const iClassif = findCol(headers, ['classif', 'classificacao', 'classification', 'class']);
 
   const rows = [];
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i].split(delim).map(parseValue);
     if (cols.length < 2) continue;
+
+    // Exclui registros com classificação A3 ou AS (consignação/análise)
+    if (iClassif >= 0) {
+      const classif = (cols[iClassif] || '').trim().toLowerCase();
+      if (CLASSIF_EXCLUIDAS.includes(classif)) continue;
+    }
 
     const date        = parseDate(iDate    >= 0 ? cols[iDate]    : cols[0]);
     const machine     = iMachine >= 0 ? cols[iMachine] : cols[1];
@@ -215,9 +225,6 @@ export function parseProducaoCSV(text) {
 }
 
 // ─── Parse CSV de Estoque ─────────────────────────────────────────────────────
-
-// Classificações do Microdata que devem ser ignoradas na soma de estoque
-const CLASSIF_EXCLUIDAS = ['a3', 'as'];
 
 /**
  * Retorna array de { code, description, stockKg, lots }

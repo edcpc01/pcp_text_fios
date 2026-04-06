@@ -250,7 +250,8 @@ export default function Production() {
 
   // Limita o planejado até a data atual — compara planejado vs realizado no mesmo período
   const today = new Date().toISOString().split('T')[0];
-  const isCurrentMonth = `${month.year}-${String(month.month).padStart(2, '0')}` === today.slice(0, 7);
+  // yearMonth já usa month+1 (getYearMonth), portanto a comparação fica correta
+  const isCurrentMonth = yearMonth === today.slice(0, 7);
 
   // Por produto — planejado vem de entries, realizado vem de records (CSV)
   // A ligação é feita pelo código do produto (r.product / e.product)
