@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlaskConical, Package, ChevronLeft, ChevronRight, Pencil, Check, X,
-  TrendingDown, AlertTriangle, CheckCircle2, Layers, RefreshCw, Loader2, FolderOpen,
+  TrendingDown, AlertTriangle, CheckCircle2, Layers, RefreshCw, Loader2, FolderOpen, ChevronDown,
 } from 'lucide-react';
 import { useAppStore, useAdminStore, usePlanningStore, useAuthStore } from '../hooks/useStore';
 import {
@@ -74,6 +74,42 @@ function InlineEdit({ value, onSave, label = 'Editar estoque', editable = true }
       {fmtKg(value)}
       <Pencil size={11} className="text-brand-muted opacity-0 group-hover:opacity-100 transition-opacity" />
     </button>
+  );
+}
+
+// ─── Lotes Expander ───────────────────────────────────────────────────────────
+
+function LotesExpander({ lots }) {
+  const [open, setOpen] = useState(false);
+  if (!lots || lots.length === 0) return null;
+
+  return (
+    <div className="border-t border-brand-border pt-3">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest hover:text-brand-cyan transition-colors w-full"
+      >
+        <ChevronDown size={11} className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        {lots.length} {lots.length === 1 ? 'Lote disponível' : 'Lotes disponíveis'}
+      </button>
+
+      {open && (
+        <div className="mt-2 space-y-1 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+          <div className="grid grid-cols-[1fr_auto_auto] text-[9px] text-brand-muted font-bold uppercase tracking-widest pb-1 border-b border-brand-border/50 gap-x-2">
+            <span>Lote</span>
+            <span>Emp.</span>
+            <span className="text-right">Peso</span>
+          </div>
+          {lots.map((lot, i) => (
+            <div key={i} className="grid grid-cols-[1fr_auto_auto] items-center text-[11px] gap-x-2 py-0.5 hover:bg-white/5 rounded px-1 -mx-1 transition-colors">
+              <span className="font-mono text-white truncate" title={lot.lote}>{lot.lote || '—'}</span>
+              <span className="text-brand-muted shrink-0">{lot.empresa || '—'}</span>
+              <span className="font-mono font-bold text-brand-cyan text-right shrink-0">{fmtKg(lot.pesoKg)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -153,6 +189,9 @@ function MpCard({ mp, stock, onSaveStock, editable }) {
           <span>Usado em: {mp.produtos.slice(0, 3).join(', ')}{mp.produtos.length > 3 ? ` +${mp.produtos.length - 3}` : ''}</span>
         )}
       </div>
+
+      {/* Lotes */}
+      <LotesExpander lots={stock?.lots} />
     </div>
   );
 }
@@ -188,6 +227,9 @@ function PaCard({ product, stock, onSaveStock, editable }) {
           {product.tituloDtex} dtex · {product.comprimentoEnrolamento}m/bobina
         </p>
       )}
+
+      {/* Lotes */}
+      <LotesExpander lots={stock?.lots} />
     </div>
   );
 }
@@ -318,7 +360,7 @@ export default function Materiais() {
       const match = findInCsv(m.codigoMicrodata, m.descricao);
       if (match) {
         const key = m.codigoMicrodata || m.descricao;
-        await saveRawMaterialStock(key, { descricao: m.descricao || match.description, estoqueKg: match.stockKg });
+        await saveRawMaterialStock(key, { descricao: m.descricao || match.description, estoqueKg: match.stockKg, lots: match.lots || [] });
         mp++;
       } else {
         skipped++;
@@ -329,7 +371,7 @@ export default function Materiais() {
     for (const product of products) {
       const match = findInCsv(product.codigoMicrodata, product.nome);
       if (match) {
-        await saveFinishedGoodStock(product.id, { productName: product.nome, estoqueKg: match.stockKg });
+        await saveFinishedGoodStock(product.id, { productName: product.nome, estoqueKg: match.stockKg, lots: match.lots || [] });
         pa++;
       }
     }

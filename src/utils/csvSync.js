@@ -220,7 +220,7 @@ export function parseProducaoCSV(text) {
 const CLASSIF_EXCLUIDAS = ['a3', 'as'];
 
 /**
- * Retorna array de { code, description, stockKg }
+ * Retorna array de { code, description, stockKg, lots }
  *
  * Suporta o formato de exportação do Microdata ERP (consulta 0053TE - Estoque de Fios):
  *   Empresa;Produto;Descricao;Cor;Classif;Lote;Fornecedor;...;Peso;...
@@ -228,6 +228,7 @@ const CLASSIF_EXCLUIDAS = ['a3', 'as'];
  * Linhas com Classif "A3" ou "AS" são excluídas pois representam lotes
  * em análise/consignação que não devem compor o saldo disponível.
  * Os valores de Peso são agrupados por código de produto (soma por produto).
+ * Cada produto retorna também o array `lots` com os lotes individuais disponíveis.
  */
 export function parseEstoqueCSV(text) {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
@@ -240,9 +241,11 @@ export function parseEstoqueCSV(text) {
   const iDesc    = findCol(headers, ['descricao', 'description', 'desc', 'nome', 'name']);
   const iStock   = findCol(headers, ['peso', 'estoque', 'saldo', 'quantidade', 'qtd', 'stock', 'kg', 'qty']);
   const iClassif = findCol(headers, ['classif', 'classificacao', 'classification', 'class']);
+  const iLote    = findCol(headers, ['lote', 'lot', 'batch', 'nr_lote', 'num_lote']);
+  const iEmpresa = findCol(headers, ['empresa', 'company', 'emp', 'filial', 'unidade']);
 
   // Agrupa por código — o Microdata retorna uma linha por lote, precisamos somar
-  const accumulator = {}; // { code: { description, stockKg } }
+  const accumulator = {}; // { code: { description, stockKg, lots[] } }
 
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i].split(delim).map(parseValue);
@@ -257,20 +260,26 @@ export function parseEstoqueCSV(text) {
     const code    = iCode  >= 0 ? cols[iCode]  : cols[0];
     const desc    = iDesc  >= 0 ? cols[iDesc]  : cols[1];
     const stockKg = parseNumber(iStock >= 0 ? cols[iStock] : cols[2]);
+    const lote    = iLote    >= 0 ? (cols[iLote]    || '').trim() : '';
+    const empresa = iEmpresa >= 0 ? (cols[iEmpresa] || '').trim() : '';
 
     if (!code || isNaN(stockKg)) continue;
 
     const key = (code || '').trim();
     if (!accumulator[key]) {
-      accumulator[key] = { description: (desc || '').trim(), stockKg: 0 };
+      accumulator[key] = { description: (desc || '').trim(), stockKg: 0, lots: [] };
     }
     accumulator[key].stockKg += stockKg;
+    if (lote || empresa) {
+      accumulator[key].lots.push({ lote, empresa, pesoKg: stockKg });
+    }
   }
 
-  return Object.entries(accumulator).map(([code, { description, stockKg }]) => ({
+  return Object.entries(accumulator).map(([code, { description, stockKg, lots }]) => ({
     code,
     description,
     stockKg,
+    lots,
   }));
 }
 
