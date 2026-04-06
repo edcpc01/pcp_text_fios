@@ -216,8 +216,18 @@ export function parseProducaoCSV(text) {
 
 // ─── Parse CSV de Estoque ─────────────────────────────────────────────────────
 
+// Classificações do Microdata que devem ser ignoradas na soma de estoque
+const CLASSIF_EXCLUIDAS = ['a3', 'as'];
+
 /**
  * Retorna array de { code, description, stockKg }
+ *
+ * Suporta o formato de exportação do Microdata ERP (consulta 0053TE - Estoque de Fios):
+ *   Empresa;Produto;Descricao;Cor;Classif;Lote;Fornecedor;...;Peso;...
+ *
+ * Linhas com Classif "A3" ou "AS" são excluídas pois representam lotes
+ * em análise/consignação que não devem compor o saldo disponível.
+ * Os valores de Peso são agrupados por código de produto (soma por produto).
  */
 export function parseEstoqueCSV(text) {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
@@ -226,23 +236,42 @@ export function parseEstoqueCSV(text) {
   const delim   = detectDelimiter(lines[0]);
   const headers = lines[0].split(delim).map(parseValue);
 
-  const iCode  = findCol(headers, ['codigo', 'cod', 'code', 'item', 'produto', 'product']);
-  const iDesc  = findCol(headers, ['descricao', 'description', 'desc', 'nome', 'name']);
-  const iStock = findCol(headers, ['estoque', 'saldo', 'quantidade', 'qtd', 'stock', 'kg', 'qty']);
+  const iCode    = findCol(headers, ['produto', 'codigo', 'cod', 'code', 'item', 'product']);
+  const iDesc    = findCol(headers, ['descricao', 'description', 'desc', 'nome', 'name']);
+  const iStock   = findCol(headers, ['peso', 'estoque', 'saldo', 'quantidade', 'qtd', 'stock', 'kg', 'qty']);
+  const iClassif = findCol(headers, ['classif', 'classificacao', 'classification', 'class']);
 
-  const rows = [];
+  // Agrupa por código — o Microdata retorna uma linha por lote, precisamos somar
+  const accumulator = {}; // { code: { description, stockKg } }
+
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i].split(delim).map(parseValue);
     if (cols.length < 2) continue;
+
+    // Filtra classificações excluídas (A3, AS, etc.)
+    if (iClassif >= 0) {
+      const classif = (cols[iClassif] || '').trim().toLowerCase();
+      if (CLASSIF_EXCLUIDAS.includes(classif)) continue;
+    }
 
     const code    = iCode  >= 0 ? cols[iCode]  : cols[0];
     const desc    = iDesc  >= 0 ? cols[iDesc]  : cols[1];
     const stockKg = parseNumber(iStock >= 0 ? cols[iStock] : cols[2]);
 
     if (!code || isNaN(stockKg)) continue;
-    rows.push({ code: (code || '').trim(), description: (desc || '').trim(), stockKg });
+
+    const key = (code || '').trim();
+    if (!accumulator[key]) {
+      accumulator[key] = { description: (desc || '').trim(), stockKg: 0 };
+    }
+    accumulator[key].stockKg += stockKg;
   }
-  return rows;
+
+  return Object.entries(accumulator).map(([code, { description, stockKg }]) => ({
+    code,
+    description,
+    stockKg,
+  }));
 }
 
 // ─── Product Lookup ───────────────────────────────────────────────────────────
