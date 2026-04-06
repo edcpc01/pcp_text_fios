@@ -282,9 +282,12 @@ export default function Production() {
     });
 
     // 2. Realizado: soma dos production records (importados via CSV)
+    // Quando fábrica específica: só conta realizados de produtos que têm planejamento
+    // nesta fábrica, evitando contaminação cruzada (CSV contém produção de todas as unidades)
     records.forEach((r) => {
       const key = r.product;
       if (!key) return;
+      if (factory !== 'all' && !map[key]) return; // ignora produtos sem planejamento nesta fábrica
       if (!map[key]) map[key] = { name: r.productName || r.product, planned: 0, actual: 0 };
       map[key].actual += r.actual || 0;
     });
