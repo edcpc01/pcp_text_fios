@@ -7,7 +7,7 @@ import {
 // ─── Gemini API ───────────────────────────────────────────────────────────────
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_URL = API_KEY
-  ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${API_KEY}`
+  ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${API_KEY}`
   : null;
 
 // ─── Quick actions ────────────────────────────────────────────────────────────
@@ -219,7 +219,7 @@ export default function AgentPanel() {
           <div className="flex items-center gap-1.5">
             <span className={`w-1.5 h-1.5 rounded-full ${API_KEY ? 'bg-brand-success' : 'bg-amber-400'}`} />
             <span className="text-[10px] text-brand-muted">
-              {API_KEY ? 'Gemini 2.0 Flash Lite' : 'API key não configurada'}
+              {API_KEY ? 'Gemini Flash' : 'API key não configurada'}
             </span>
           </div>
         </div>
