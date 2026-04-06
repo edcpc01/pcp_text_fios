@@ -38,17 +38,18 @@ export default function Layout({ children }) {
           {/* Logo */}
           <div className="flex items-center gap-2.5 pr-5 border-r border-brand-border mr-3 shrink-0">
             <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0">
-              <svg viewBox="0 0 64 64" width="32" height="32">
-                <rect width="64" height="64" rx="14" fill="#22d3ee"/>
-                <text x="32" y="27" fontFamily="Georgia,'Times New Roman',serif" fontSize="28" fontWeight="700" fontStyle="italic" fill="white" textAnchor="middle" dominantBaseline="middle">D</text>
-                <g transform="translate(32,55)" fill="none" stroke="white" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="-18" y="-11" width="36" height="12" rx="1.5" fill="#22d3ee" stroke="white" strokeWidth="2.6"/>
-                  <rect x="-15" y="-20" width="6" height="10" rx="1.2" fill="#22d3ee" stroke="white" strokeWidth="2.3"/>
-                  <rect x="-3"  y="-25" width="6" height="15" rx="1.2" fill="#22d3ee" stroke="white" strokeWidth="2.3"/>
-                  <rect x="9"   y="-17" width="6" height="7"  rx="1.2" fill="#22d3ee" stroke="white" strokeWidth="2.3"/>
-                  <rect x="-13" y="-7"  width="4" height="4" rx="1" fill="white" stroke="none"/>
-                  <rect x="-3"  y="-7"  width="4" height="4" rx="1" fill="white" stroke="none"/>
-                  <rect x="7"   y="-7"  width="4" height="4" rx="1" fill="white" stroke="none"/>
+              {/* Mesmo design do favicon.svg — fundo brand-cyan, D branco, fábrica branca */}
+              <svg viewBox="0 0 64 64" width="32" height="32" xmlns="http://www.w3.org/2000/svg">
+                <rect width="64" height="64" rx="12" fill="#22d3ee"/>
+                <text x="32" y="28" fontFamily="Georgia,'Times New Roman',serif" fontSize="30" fontWeight="700" fontStyle="italic" fill="white" textAnchor="middle" dominantBaseline="middle">D</text>
+                <g transform="translate(32,54)" fill="none" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6">
+                  <rect x="-15" y="-10" width="30" height="11" rx="1" fill="#22d3ee" stroke="white" strokeWidth="1.4"/>
+                  <rect x="-12" y="-18" width="5" height="9"  rx="0.8" fill="#22d3ee" stroke="white" strokeWidth="1.3"/>
+                  <rect x="-3"  y="-22" width="5" height="13" rx="0.8" fill="#22d3ee" stroke="white" strokeWidth="1.3"/>
+                  <rect x="7"   y="-16" width="5" height="7"  rx="0.8" fill="#22d3ee" stroke="white" strokeWidth="1.3"/>
+                  <rect x="-11" y="-6"  width="4" height="4" rx="0.5" fill="white" stroke="none"/>
+                  <rect x="-3"  y="-6"  width="4" height="4" rx="0.5" fill="white" stroke="none"/>
+                  <rect x="5"   y="-6"  width="4" height="4" rx="0.5" fill="white" stroke="none"/>
                 </g>
               </svg>
             </div>
