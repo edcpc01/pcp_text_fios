@@ -206,7 +206,7 @@ function PaCard({ product, stock, onSaveStock, editable }) {
       <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
         <div className="flex-1 min-w-0">
           <p className="text-[8px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest mb-0.5">Produto Acabado</p>
-          <p className="text-xs sm:text-sm font-semibold text-white truncate" title={product.nome}>{product.nome}</p>
+          <p className="text-xs sm:text-sm font-semibold text-white break-words leading-tight" title={product.nome}>{product.nome}</p>
           <p className="text-[10px] sm:text-[11px] font-mono text-brand-muted mt-0.5">Cód. {product.codigoMicrodata || '—'}</p>
         </div>
         <span className="text-[8px] sm:text-[9px] font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-violet-500/10 text-violet-400 shrink-0">
@@ -671,79 +671,74 @@ export default function Materiais() {
             Detalhamento por Produto
           </h2>
           <div className="bg-brand-card border border-brand-border rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-brand-border">
-                    <th className="text-left px-3 sm:px-5 py-2 sm:py-3 text-[9px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest">Produto</th>
-                    <th className="text-right px-3 sm:px-5 py-2 sm:py-3 text-[9px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest">Planejado</th>
-                    <th className="text-left px-3 sm:px-5 py-2 sm:py-3 text-[9px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest">MP 1</th>
-                    <th className="text-right px-3 sm:px-5 py-2 sm:py-3 text-[9px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest">Qtd MP 1</th>
-                    <th className="text-left px-3 sm:px-5 py-2 sm:py-3 text-[9px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest hidden sm:table-cell">MP 2</th>
-                    <th className="text-right px-3 sm:px-5 py-2 sm:py-3 text-[9px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest hidden sm:table-cell">Qtd MP 2</th>
-                    <th className="text-left px-3 sm:px-5 py-2 sm:py-3 text-[9px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest hidden lg:table-cell">MP 3</th>
-                    <th className="text-right px-3 sm:px-5 py-2 sm:py-3 text-[9px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest hidden lg:table-cell">Qtd MP 3</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    // Aggregate by product
-                    const byProduct = {};
-                    planningEntries.forEach((e) => {
-                      const key = e.product || e.productName || 'N/A';
-                      if (!byProduct[key]) {
-                        byProduct[key] = {
-                          productName: e.productName || e.product || 'N/A',
-                          product: e.product,
-                          totalKg: 0,
-                        };
-                      }
-                      byProduct[key].totalKg += e.planned || 0;
-                    });
+            {/* Header row */}
+            <div className="grid grid-cols-[1fr_auto] gap-2 px-3 sm:px-5 py-2 border-b border-brand-border bg-brand-surface/30">
+              <span className="text-[9px] font-bold text-brand-muted uppercase tracking-widest">Produto / Matérias-Primas</span>
+              <span className="text-[9px] font-bold text-brand-muted uppercase tracking-widest text-right">Qtd</span>
+            </div>
+            {/* Product rows */}
+            <div className="divide-y divide-brand-border/40">
+              {(() => {
+                // Aggregate by product
+                const byProduct = {};
+                planningEntries.forEach((e) => {
+                  const key = e.product || e.productName || 'N/A';
+                  if (!byProduct[key]) {
+                    byProduct[key] = {
+                      productName: e.productName || e.product || 'N/A',
+                      product: e.product,
+                      totalKg: 0,
+                    };
+                  }
+                  byProduct[key].totalKg += e.planned || 0;
+                });
 
-                    return Object.values(byProduct)
-                      .sort((a, b) => b.totalKg - a.totalKg)
-                      .map((row, i) => {
-                        const product = products.find((p) => p.id === row.product || p.nome === row.productName);
+                return Object.values(byProduct)
+                  .sort((a, b) => b.totalKg - a.totalKg)
+                  .map((row, i) => {
+                    const product = products.find((p) => p.id === row.product || p.nome === row.productName);
 
-                        // Detecta formato novo (mp1/mp2/mp3) ou legado (alma/efeito)
-                        const useNewFormat = product && ['mp1', 'mp2', 'mp3'].some((k) => product[k]?.descricao);
-                        const mp1 = useNewFormat ? product?.mp1 : product?.alma;
-                        const mp2 = useNewFormat ? product?.mp2 : product?.efeito;
-                        const mp3 = useNewFormat ? product?.mp3 : null;
+                    const useNewFormat = product && ['mp1', 'mp2', 'mp3'].some((k) => product[k]?.descricao);
+                    const mp1 = useNewFormat ? product?.mp1 : product?.alma;
+                    const mp2 = useNewFormat ? product?.mp2 : product?.efeito;
+                    const mp3 = useNewFormat ? product?.mp3 : null;
 
-                        const mp1Desc = mp1?.descricao || '—';
-                        const mp1Pct  = mp1?.composicaoPct || 0;
-                        const mp2Desc = mp2?.descricao || '—';
-                        const mp2Pct  = mp2?.composicaoPct || 0;
-                        const mp3Desc = mp3?.descricao || '—';
-                        const mp3Pct  = mp3?.composicaoPct || 0;
+                    const mps = [
+                      { label: 'MP 1', desc: mp1?.descricao, pct: mp1?.composicaoPct || 0 },
+                      { label: 'MP 2', desc: mp2?.descricao, pct: mp2?.composicaoPct || 0 },
+                      { label: 'MP 3', desc: mp3?.descricao, pct: mp3?.composicaoPct || 0 },
+                    ].filter((m) => m.pct > 0 && m.desc);
 
-                        return (
-                          <tr key={row.productName} className={`border-b border-brand-border/50 hover:bg-brand-surface/50 transition-colors ${i % 2 === 0 ? '' : 'bg-brand-surface/20'}`}>
-                            <td className="px-3 sm:px-5 py-2 sm:py-3 text-white font-medium text-xs sm:text-sm">{row.productName}</td>
-                            <td className="px-3 sm:px-5 py-2 sm:py-3 text-right font-mono text-brand-cyan text-xs sm:text-sm">{fmtKg(row.totalKg)}</td>
-                            <td className="px-3 sm:px-5 py-2 sm:py-3 text-brand-muted text-[8px] sm:text-xs">{mp1Desc}</td>
-                            <td className="px-3 sm:px-5 py-2 sm:py-3 text-right font-mono text-white text-xs sm:text-sm">
-                              {mp1Pct > 0 ? fmtKg(row.totalKg * mp1Pct / 100) : '—'}
-                              {mp1Pct > 0 && <span className="text-brand-muted text-[8px] sm:text-[10px] ml-0.5 sm:ml-1">({mp1Pct}%)</span>}
-                            </td>
-                            <td className="px-3 sm:px-5 py-2 sm:py-3 text-brand-muted text-[8px] sm:text-xs hidden sm:table-cell">{mp2Desc !== '—' ? mp2Desc : '—'}</td>
-                            <td className="px-3 sm:px-5 py-2 sm:py-3 text-right font-mono text-white text-xs sm:text-sm hidden sm:table-cell">
-                              {mp2Pct > 0 ? fmtKg(row.totalKg * mp2Pct / 100) : '—'}
-                              {mp2Pct > 0 && <span className="text-brand-muted text-[8px] sm:text-[10px] ml-0.5 sm:ml-1">({mp2Pct}%)</span>}
-                            </td>
-                            <td className="px-3 sm:px-5 py-2 sm:py-3 text-brand-muted text-[8px] sm:text-xs hidden lg:table-cell">{mp3Desc !== '—' ? mp3Desc : '—'}</td>
-                            <td className="px-3 sm:px-5 py-2 sm:py-3 text-right font-mono text-white text-xs sm:text-sm hidden lg:table-cell">
-                              {mp3Pct > 0 ? fmtKg(row.totalKg * mp3Pct / 100) : '—'}
-                              {mp3Pct > 0 && <span className="text-brand-muted text-[8px] sm:text-[10px] ml-0.5 sm:ml-1">({mp3Pct}%)</span>}
-                            </td>
-                          </tr>
-                        );
-                      });
-                  })()}
-                </tbody>
-              </table>
+                    return (
+                      <div key={row.productName} className={`px-3 sm:px-5 py-3 hover:bg-brand-surface/50 transition-colors ${i % 2 !== 0 ? 'bg-brand-surface/10' : ''}`}>
+                        {/* Product name + total */}
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className="text-xs sm:text-sm font-semibold text-white leading-tight">{row.productName}</span>
+                          <span className="font-mono text-brand-cyan text-xs sm:text-sm shrink-0">{fmtKg(row.totalKg)}</span>
+                        </div>
+                        {/* MPs stacked */}
+                        {mps.length > 0 ? (
+                          <div className="space-y-0.5 pl-1 border-l-2 border-brand-border/50">
+                            {mps.map((mp, idx) => (
+                              <div key={idx} className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="text-[9px] font-bold text-brand-muted/60 shrink-0 uppercase">{mp.label}</span>
+                                  <span className="text-[10px] text-brand-muted truncate">{mp.desc}</span>
+                                </div>
+                                <span className="text-[10px] font-mono text-white shrink-0">
+                                  {fmtKg(row.totalKg * mp.pct / 100)}
+                                  <span className="text-brand-muted ml-0.5">({mp.pct}%)</span>
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-brand-muted/50 pl-1">Nenhuma MP configurada</span>
+                        )}
+                      </div>
+                    );
+                  });
+              })()}
             </div>
           </div>
         </div>
@@ -765,7 +760,7 @@ export default function Materiais() {
              <p className="text-brand-muted text-sm">Nenhum produto cadastrado ainda.</p>
            </div>
          ) : (
-           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
              {productsWithCode.map((product) => (
                <PaCard
                  key={product.id}

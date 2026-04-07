@@ -44,7 +44,7 @@ function ProductRow({ item, rank }) {
       </td>
 
       {/* Produto */}
-      <td className="px-2 sm:px-4 py-2 sm:py-4 min-w-[120px] sm:min-w-fit">
+      <td className="px-2 sm:px-4 py-2 sm:py-4 min-w-[90px] sm:min-w-fit">
         <div>
           <span className="text-xs sm:text-sm font-semibold text-white block truncate">{item.name}</span>
           {item.machine && (
@@ -54,7 +54,7 @@ function ProductRow({ item, rank }) {
       </td>
 
       {/* Planejado */}
-      <td className="px-2 sm:px-4 py-2 sm:py-4 text-right">
+      <td className="px-2 sm:px-4 py-2 sm:py-4 text-right min-w-[60px] sm:min-w-fit">
         <span className="text-xs sm:text-sm font-mono text-white">
           {item.planned.toLocaleString('pt-BR')}
         </span>
@@ -62,7 +62,7 @@ function ProductRow({ item, rank }) {
       </td>
 
       {/* Realizado */}
-      <td className="px-2 sm:px-4 py-2 sm:py-4 text-right">
+      <td className="px-2 sm:px-4 py-2 sm:py-4 text-right min-w-[60px] sm:min-w-fit">
         <span className={`text-xs sm:text-sm font-mono font-semibold ${colors.text}`}>
           {item.actual.toLocaleString('pt-BR')}
         </span>
@@ -70,18 +70,18 @@ function ProductRow({ item, rank }) {
       </td>
 
       {/* Barra de aderência */}
-      <td className="px-2 sm:px-4 py-2 sm:py-4 min-w-[120px] sm:min-w-[140px]">
+      <td className="px-2 sm:px-4 py-2 sm:py-4 min-w-[70px] sm:min-w-[140px]">
         <div className="space-y-1">
           <div className="flex items-center justify-between gap-1">
             <div className="flex items-center gap-0.5">
               <AdherenceIcon pct={pct} />
               <span className={`text-[8px] sm:text-xs font-mono font-bold ${colors.text}`}>{pct}%</span>
             </div>
-            <span className={`text-[7px] sm:text-[10px] font-medium px-1 sm:px-1.5 py-0.5 rounded-full border ${badge.cls}`}>
+            <span className={`hidden sm:inline text-[7px] sm:text-[10px] font-medium px-1 sm:px-1.5 py-0.5 rounded-full border ${badge.cls}`}>
               {badge.label}
             </span>
           </div>
-          <div className="h-1 sm:h-1.5 bg-brand-surface/80 rounded-full overflow-hidden">
+          <div className="hidden sm:block h-1.5 bg-brand-surface/80 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-700 ${colors.bar}`}
               style={{ width: `${barWidth}%` }}
@@ -90,8 +90,8 @@ function ProductRow({ item, rank }) {
         </div>
       </td>
 
-      {/* Desvio */}
-      <td className="px-2 sm:px-4 py-2 sm:py-4 text-right pr-3 sm:pr-6">
+      {/* Desvio — oculto em mobile */}
+      <td className="hidden sm:table-cell px-2 sm:px-4 py-2 sm:py-4 text-right pr-3 sm:pr-6">
         {item.planned > 0 && (
           <span className={`text-[8px] sm:text-xs font-mono ${item.actual >= item.planned ? 'text-emerald-400' : 'text-red-400'}`}>
             {item.actual >= item.planned ? '+' : ''}
@@ -581,27 +581,27 @@ export default function Production() {
                 <th className="pl-3 sm:pl-6 pr-2 py-3 text-left w-6 sm:w-8">
                   <span className="text-[9px] sm:text-[10px] font-semibold text-brand-muted uppercase tracking-wider">#</span>
                 </th>
-                <th className="px-2 sm:px-4 py-3 text-left min-w-[120px] sm:min-w-fit">
+                <th className="px-2 sm:px-4 py-3 text-left min-w-[90px] sm:min-w-fit">
                   <button onClick={() => setSortBy('name')} className="text-[9px] sm:text-[10px] font-semibold text-brand-muted uppercase tracking-wider hover:text-white transition-colors">
                     {viewMode === 'product' ? 'Produto' : viewMode === 'machine' ? 'Máquina' : 'Data'}
                   </button>
                 </th>
-                <th className="px-2 sm:px-4 py-3 text-right min-w-[80px] sm:min-w-fit">
+                <th className="px-2 sm:px-4 py-3 text-right min-w-[60px] sm:min-w-fit">
                   <button onClick={() => setSortBy('planned')} className="text-[9px] sm:text-[10px] font-semibold text-brand-muted uppercase tracking-wider hover:text-white transition-colors">
                     Planejado
                   </button>
                 </th>
-                <th className="px-2 sm:px-4 py-3 text-right min-w-[80px] sm:min-w-fit">
+                <th className="px-2 sm:px-4 py-3 text-right min-w-[60px] sm:min-w-fit">
                   <button onClick={() => setSortBy('actual')} className="text-[9px] sm:text-[10px] font-semibold text-brand-muted uppercase tracking-wider hover:text-white transition-colors">
                     Realizado
                   </button>
                 </th>
-                <th className="px-2 sm:px-4 py-3 min-w-[120px] sm:min-w-[180px]">
+                <th className="px-2 sm:px-4 py-3 min-w-[70px] sm:min-w-[180px]">
                   <button onClick={() => setSortBy('pct')} className="text-[9px] sm:text-[10px] font-semibold text-brand-muted uppercase tracking-wider hover:text-white transition-colors">
                     Aderência
                   </button>
                 </th>
-                <th className="px-2 sm:px-4 py-3 text-right pr-3 sm:pr-6 min-w-[70px] sm:min-w-fit">
+                <th className="hidden sm:table-cell px-2 sm:px-4 py-3 text-right pr-3 sm:pr-6 min-w-[70px] sm:min-w-fit">
                   <span className="text-[9px] sm:text-[10px] font-semibold text-brand-muted uppercase tracking-wider">Desvio</span>
                 </th>
               </tr>
@@ -641,7 +641,7 @@ export default function Production() {
                     </span>
                   </div>
                 </td>
-                <td className="px-2 sm:px-4 py-3 sm:py-4 text-right pr-3 sm:pr-6">
+                <td className="hidden sm:table-cell px-2 sm:px-4 py-3 sm:py-4 text-right pr-3 sm:pr-6">
                   {(() => {
                     const totalDev = sortedData.reduce((s, i) => s + i.actual - i.planned, 0);
                     return (

@@ -315,44 +315,44 @@ export default function Planning() {
   };
 
   return (
-    <div className="flex flex-col bg-brand-bg" style={{ height: 'calc(100vh - 56px)' }}>
+    <div className="flex flex-col bg-brand-bg overflow-hidden" style={{ height: 'calc(100vh - 56px)' }}>
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border bg-brand-surface/30 shrink-0 flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-white flex items-center gap-2 tracking-tight">
-            <CalendarDays size={20} className="text-brand-cyan" />
-            Planejamento de Produção
+      <div className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b border-brand-border bg-brand-surface/30 shrink-0 gap-2 sm:gap-3 flex-wrap">
+        <div className="min-w-0">
+          <h1 className="text-base sm:text-xl font-bold text-white flex items-center gap-2 tracking-tight">
+            <CalendarDays size={18} className="text-brand-cyan shrink-0" />
+            <span className="truncate">Planejamento de Produção</span>
           </h1>
           <p className="text-[10px] text-brand-muted mt-0.5 uppercase tracking-widest font-black">
             {monthLabel} · {isAllUnits ? 'Todas as Unidades' : (factory === 'matriz' ? 'Matriz' : 'Filial')}
           </p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <Legend />
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="hidden md:flex"><Legend /></div>
           <div className="flex items-center gap-1 bg-brand-card border border-brand-border rounded-xl p-1">
-            <button onClick={() => changeMonth(-1)} className="p-1.5 hover:bg-white/5 rounded-lg text-brand-muted hover:text-white transition-colors">
-              <ChevronLeft size={16} />
+            <button onClick={() => changeMonth(-1)} className="p-1 sm:p-1.5 hover:bg-white/5 rounded-lg text-brand-muted hover:text-white transition-colors">
+              <ChevronLeft size={15} />
             </button>
-            <span className="text-xs font-bold text-white px-3 min-w-[100px] text-center capitalize">
+            <span className="text-xs font-bold text-white px-2 sm:px-3 min-w-[80px] sm:min-w-[100px] text-center capitalize">
               {new Date(month.year, month.month).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
             </span>
-            <button onClick={() => changeMonth(1)} className="p-1.5 hover:bg-white/5 rounded-lg text-brand-muted hover:text-white transition-colors">
-              <ChevronRight size={16} />
+            <button onClick={() => changeMonth(1)} className="p-1 sm:p-1.5 hover:bg-white/5 rounded-lg text-brand-muted hover:text-white transition-colors">
+              <ChevronRight size={15} />
             </button>
           </div>
           {!isSupervisor && (
             <button
               onClick={() => setModal({ entry: null, machine: null, date: new Date().toISOString().split('T')[0], factory: isAllUnits ? 'matriz' : factory })}
-              className="flex items-center gap-2 px-4 py-2 bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/20 text-brand-cyan text-xs font-bold rounded-xl transition-all active:scale-95">
-              <Plus size={14} /> Nova entrada
+              className="flex items-center gap-1.5 px-3 py-2 bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/20 text-brand-cyan text-xs font-bold rounded-xl transition-all active:scale-95">
+              <Plus size={13} /> <span className="hidden sm:inline">Nova entrada</span><span className="sm:hidden">Novo</span>
             </button>
           )}
         </div>
       </div>
 
       {/* KPI bar */}
-      <div className="px-6 py-3 flex items-center gap-8 border-b border-brand-border/40 shrink-0 flex-wrap bg-brand-surface/10">
+      <div className="px-3 sm:px-6 py-2 sm:py-3 flex items-center gap-4 sm:gap-8 border-b border-brand-border/40 shrink-0 flex-wrap bg-brand-surface/10">
         {[
           { label: 'Total Planejado', value: grandTotal.toLocaleString('pt-BR'), unit: 'kg', icon: Package },
           { label: 'Máquinas',        value: machineList.length, icon: Cpu },
@@ -379,8 +379,8 @@ export default function Planning() {
         <table className="border-collapse w-full min-w-fit">
           <thead>
             <tr className="sticky top-0 z-20 bg-brand-bg/95 backdrop-blur-sm">
-              <th className="sticky left-0 z-30 bg-brand-bg border border-brand-border/40 px-2 md:px-3 lg:px-4 py-2 md:py-2.5 lg:py-3 text-left min-w-[80px] md:min-w-[100px] lg:min-w-[110px] shadow-[4px_0_12px_rgba(0,0,0,0.4)]">
-                <span className="text-[8px] md:text-[9px] lg:text-[10px] font-bold text-brand-muted uppercase tracking-wider">Máquina</span>
+              <th className="sticky left-0 z-30 bg-brand-bg border border-brand-border/40 px-1.5 md:px-3 lg:px-4 py-2 md:py-2.5 lg:py-3 text-left min-w-[64px] md:min-w-[100px] lg:min-w-[110px] shadow-[4px_0_12px_rgba(0,0,0,0.4)]">
+                <span className="text-[8px] md:text-[9px] lg:text-[10px] font-bold text-brand-muted uppercase tracking-wider">Máq.</span>
               </th>
               {days.map((date) => {
                 const today = isToday(date);
@@ -414,10 +414,10 @@ export default function Planning() {
                 }
                 rows.push(
                   <tr key={`${machine._factory}-${machine.id}`} className="group hover:bg-white/[0.01]">
-                    <td className="sticky left-0 z-10 bg-brand-bg group-hover:bg-brand-surface/20 border border-brand-border/40 px-2 md:px-3 lg:px-4 py-0 transition-colors shadow-[4px_0_12px_rgba(0,0,0,0.4)]">
-                      <div className="py-1 md:py-1.5 lg:py-2 min-w-[70px] md:min-w-[90px] lg:min-w-[100px]">
+                    <td className="sticky left-0 z-10 bg-brand-bg group-hover:bg-brand-surface/20 border border-brand-border/40 px-1.5 md:px-3 lg:px-4 py-0 transition-colors shadow-[4px_0_12px_rgba(0,0,0,0.4)]">
+                      <div className="py-1 md:py-1.5 lg:py-2 min-w-[54px] md:min-w-[90px] lg:min-w-[100px]">
                         <span className="text-[9px] md:text-xs lg:text-sm font-bold text-white block truncate leading-tight">{machine.id}</span>
-                        <span className="text-[8px] md:text-[9px] lg:text-[10px] text-brand-muted block truncate leading-tight mt-0.5">{machine.name}</span>
+                        <span className="text-[8px] md:text-[9px] lg:text-[10px] text-brand-muted block truncate leading-tight mt-0.5 hidden md:block">{machine.name}</span>
                       </div>
                     </td>
                     {days.map((date) => (
@@ -432,7 +432,7 @@ export default function Planning() {
                         onDrop={!isSupervisor ? handleDrop : undefined}
                       />
                     ))}
-                    <td className="sticky right-0 z-10 bg-brand-bg group-hover:bg-brand-surface/20 border border-brand-border/40 px-1.5 md:px-2 lg:px-3 transition-colors text-right shadow-[-4px_0_12px_rgba(0,0,0,0.4)]">
+                    <td className="sticky right-0 z-10 bg-brand-bg group-hover:bg-brand-surface/20 border border-brand-border/40 px-1.5 md:px-2 lg:px-3 transition-colors text-right shadow-[-4px_0_12px_rgba(0,0,0,0.4)] min-w-[55px] md:min-w-[70px] lg:min-w-[80px]">
                       <span className="text-[9px] md:text-xs lg:text-sm font-mono font-bold text-brand-cyan">{(machineTotals[machine.id] || 0).toLocaleString('pt-BR')}</span>
                       <span className="text-[7px] md:text-[8px] lg:text-[10px] text-brand-muted ml-0.5">kg</span>
                     </td>
@@ -443,7 +443,7 @@ export default function Planning() {
             })()}
             {/* Total row */}
             <tr className="border-t-2 border-brand-border">
-              <td className="sticky left-0 z-10 bg-brand-surface border border-brand-border/40 px-2 md:px-3 lg:px-4 py-1 md:py-1.5 lg:py-2.5 shadow-[4px_0_12px_rgba(0,0,0,0.4)]">
+              <td className="sticky left-0 z-10 bg-brand-surface border border-brand-border/40 px-1.5 md:px-3 lg:px-4 py-1 md:py-1.5 lg:py-2.5 shadow-[4px_0_12px_rgba(0,0,0,0.4)] min-w-[54px] md:min-w-[90px] lg:min-w-[100px]">
                 <span className="text-[8px] md:text-[9px] lg:text-[10px] font-bold text-brand-muted uppercase tracking-wider">Total</span>
               </td>
               {days.map((date) => {
@@ -460,7 +460,7 @@ export default function Planning() {
                   </td>
                 );
               })}
-              <td className="sticky right-0 z-10 bg-brand-surface border border-brand-border/40 px-1.5 md:px-2 lg:px-3 text-right shadow-[-4px_0_12px_rgba(0,0,0,0.4)]">
+              <td className="sticky right-0 z-10 bg-brand-surface border border-brand-border/40 px-1.5 md:px-2 lg:px-3 text-right shadow-[-4px_0_12px_rgba(0,0,0,0.4)] min-w-[55px] md:min-w-[70px] lg:min-w-[80px]">
                 <span className="text-[10px] md:text-[11px] lg:text-sm font-mono font-bold text-brand-cyan">{grandTotal.toLocaleString('pt-BR')}</span>
                 <span className="text-[7px] md:text-[8px] lg:text-[10px] text-brand-muted ml-0.5">kg</span>
               </td>
