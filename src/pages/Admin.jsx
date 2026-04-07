@@ -60,18 +60,49 @@ function SectionTitle({ label, color }) {
 }
 
 // ─── Materia Prima Row ────────────────────────────────────────────────────────
-function MPRow({ label, data, onChange, accent }) {
+function MPRow({ label, data, onChange, accent, allProducts }) {
+  const [autoFilled, setAutoFilled] = useState(false);
+
+  const handleCodigoChange = (v) => {
+    onChange('codigoMicrodata', v);
+    setAutoFilled(false);
+
+    if (!v.trim()) return;
+
+    // Busca em todos os produtos cadastrados (mp1, mp2, mp3)
+    for (const product of allProducts) {
+      for (const mpKey of ['mp1', 'mp2', 'mp3']) {
+        const mp = product[mpKey];
+        if (mp?.codigoMicrodata && String(mp.codigoMicrodata).trim() === v.trim()) {
+          // Preenche tudo exceto composicaoPct
+          onChange('descricao',  mp.descricao  || '');
+          onChange('tituloDtex', mp.tituloDtex || 0);
+          onChange('nFilamentos', mp.nFilamentos || 0);
+          setAutoFilled(true);
+          return;
+        }
+      }
+    }
+  };
+
   return (
     <div className="bg-brand-bg/50 border border-brand-border rounded-xl p-4">
-      <p className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: accent }}>{label}</p>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: accent }}>{label}</p>
+        {autoFilled && (
+          <span className="text-[10px] text-brand-success font-bold uppercase tracking-wider">
+            ✓ Dados preenchidos automaticamente
+          </span>
+        )}
+      </div>
       <div className="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <Label>A2 — Código Microdata</Label>
+          <TextInput value={data.codigoMicrodata} onChange={handleCodigoChange} placeholder="ex: 100045" mono />
+        </div>
         <div>
           <Label>A1 — Descrição</Label>
           <TextInput value={data.descricao} onChange={(v) => onChange('descricao', v)} placeholder="ex: PES POY 1x150/48" />
-        </div>
-        <div>
-          <Label>A2 — Código Microdata</Label>
-          <TextInput value={data.codigoMicrodata} onChange={(v) => onChange('codigoMicrodata', v)} placeholder="ex: 100045" mono />
         </div>
       </div>
       <div className="grid grid-cols-3 gap-3">
@@ -93,7 +124,7 @@ function MPRow({ label, data, onChange, accent }) {
 }
 
 // ─── Product Modal ────────────────────────────────────────────────────────────
-function ProductModal({ product, onSave, onClose }) {
+function ProductModal({ product, allProducts, onSave, onClose }) {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(
     product
@@ -157,6 +188,7 @@ function ProductModal({ product, onSave, onClose }) {
                 data={form[key]}
                 onChange={(field, val) => setMP(key, field, val)}
                 accent={MP_ACCENTS[i]}
+                allProducts={allProducts}
               />
             ))}
           </div>
@@ -438,7 +470,7 @@ export default function Admin() {
         </div>
       )}
 
-      {modal?.type === 'product' && <ProductModal product={modal.data} onSave={handleSaveProduct} onClose={() => setModal(null)} />}
+      {modal?.type === 'product' && <ProductModal product={modal.data} allProducts={products} onSave={handleSaveProduct} onClose={() => setModal(null)} />}
       {modal?.type === 'machine' && <MachineModal machine={modal.data} factory={modal.factory} onSave={handleSaveMachine} onClose={() => setModal(null)} />}
     </div>
   );
