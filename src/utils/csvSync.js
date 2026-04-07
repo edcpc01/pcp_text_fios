@@ -77,6 +77,21 @@ export async function clearFileHandle(key) {
 }
 
 /**
+ * Lê silenciosamente o arquivo salvo SEM abrir picker.
+ * Retorna File se o handle existe e a permissão está ativa, null caso contrário.
+ * Usado para auto-sync em background (sem interação do usuário).
+ */
+export async function readSavedFile(handleKey) {
+  const saved = await loadFileHandle(handleKey);
+  if (!saved) return null;
+  try {
+    const perm = await saved.queryPermission({ mode: 'read' });
+    if (perm === 'granted') return await saved.getFile();
+  } catch { /* handle inválido */ }
+  return null;
+}
+
+/**
  * Tenta reutilizar um handle salvo. Se não tiver ou permissão negada,
  * abre o file picker e salva o novo handle.
  * Retorna File ou null (se o usuário cancelar).

@@ -10,7 +10,7 @@ import {
   subscribeFinishedGoodsStock, saveFinishedGoodStock,
 } from '../services/firebase';
 import { getMonthLabel } from '../utils/dates';
-import { pickOrReuseFile, clearFileHandle, parseEstoqueCSV, findProductByCode } from '../utils/csvSync';
+import { pickOrReuseFile, clearFileHandle, readSavedFile, parseEstoqueCSV, findProductByCode } from '../utils/csvSync';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -426,6 +426,28 @@ export default function Materiais() {
     return () => { unsubMp(); unsubPa(); };
   }, []);
 
+  // ─── Auto-sync estoque (a cada 5 min, sem interação do usuário) ─────────────
+  const [lastAutoSync, setLastAutoSync] = useState(null);
+  const AUTO_SYNC_INTERVAL = 5 * 60 * 1000;
+
+  useEffect(() => {
+    const autoSync = async () => {
+      if (importing) return;
+      const file = await readSavedFile(CSV_HANDLE_KEY);
+      if (!file) return;
+      try {
+        const text = await file.text();
+        // mpNecessidade ainda não está computado aqui — passa objeto vazio, processEstoqueText é resiliente
+        await processEstoqueText(text, {});
+        setLastAutoSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+      } catch { /* falha silenciosa */ }
+    };
+
+    autoSync();
+    const interval = setInterval(autoSync, AUTO_SYNC_INTERVAL);
+    return () => clearInterval(interval);
+  }, []);
+
   const hasRange = dateRange.start && dateRange.end;
 
   // Filter planning entries by period
@@ -539,7 +561,7 @@ export default function Materiais() {
                     : 'bg-brand-cyan/10 border-brand-cyan/20 text-brand-cyan hover:bg-brand-cyan/20 active:scale-95 shadow-[0_0_12px_rgba(34,211,238,0.08)]'}`}
               >
                 {importing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                {importing ? 'Sincronizando...' : 'Sincronizar Estoque'}
+                {importing ? 'Sincronizando...' : lastAutoSync ? `Sincronizado ${lastAutoSync}` : 'Sincronizar Estoque'}
               </button>
               <button
                 onClick={() => clearFileHandle(CSV_HANDLE_KEY).then(() => setSyncResult(null))}

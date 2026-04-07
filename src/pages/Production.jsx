@@ -4,7 +4,7 @@ import { useAppStore, useProductionStore, usePlanningStore, useAdminStore, MACHI
 import { subscribeProductionRecords, subscribePlanningEntries, saveProductionRecord } from '../services/firebase';
 import { getMonthLabel, getDaysInMonth, isSunday } from '../utils/dates';
 import { seedDemoData } from '../utils/seedData';
-import { pickOrReuseFile, clearFileHandle, parseProducaoCSV, findProductByCode } from '../utils/csvSync';
+import { pickOrReuseFile, clearFileHandle, readSavedFile, parseProducaoCSV, findProductByCode } from '../utils/csvSync';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -119,7 +119,10 @@ export default function Production() {
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'critical' | 'attention' | 'good'
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null); // { imported, skipped, noProduct }
+  const [lastAutoSync, setLastAutoSync] = useState(null);
   const fallbackInputRef = useRef(null);
+
+  const AUTO_SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutos
 
   // ─── CSV Sync ───────────────────────────────────────────────────────────────
 
@@ -244,6 +247,24 @@ export default function Production() {
       setEntriesFromArray(data);
     });
     return () => unsub();
+  }, [factory, yearMonth]);
+
+  // ─── Auto-sync (lê arquivo salvo sem interação, a cada 5 min) ───────────────
+  useEffect(() => {
+    const autoSync = async () => {
+      if (syncing) return;
+      const file = await readSavedFile(CSV_HANDLE_KEY);
+      if (!file) return; // nenhum arquivo salvo — aguarda sync manual
+      try {
+        const text = await file.text();
+        await processCSVText(text);
+        setLastAutoSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+      } catch { /* falha silenciosa no auto-sync */ }
+    };
+
+    autoSync(); // executa imediatamente ao montar/trocar fábrica ou mês
+    const interval = setInterval(autoSync, AUTO_SYNC_INTERVAL);
+    return () => clearInterval(interval);
   }, [factory, yearMonth]);
 
   // ─── Agregações ────────────────────────────────────────────────────────
@@ -419,7 +440,7 @@ export default function Production() {
             className="flex items-center gap-2 px-4 py-2 bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/20 text-brand-cyan text-xs font-bold rounded-xl transition-all disabled:opacity-50 active:scale-95 shadow-[0_0_15px_rgba(34,211,238,0.1)]"
           >
             <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
-            {syncing ? 'Sincronizando...' : 'Sincronizar'}
+            {syncing ? 'Sincronizando...' : lastAutoSync ? `Sincronizado ${lastAutoSync}` : 'Sincronizar'}
           </button>
 
           <button
