@@ -4,6 +4,15 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 
 // ─── Banner de Atualização ────────────────────────────────────────────────────
 function UpdateBanner({ onUpdate, onDismiss }) {
+  const [applying, setApplying] = useState(false);
+
+  const handleClick = async () => {
+    setApplying(true);
+    await onUpdate();
+    // Se chegou aqui (reload não aconteceu), reseta estado
+    setApplying(false);
+  };
+
   return (
     <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[90]
       w-[calc(100vw-2rem)] max-w-sm animate-slide-down">
@@ -14,17 +23,21 @@ function UpdateBanner({ onUpdate, onDismiss }) {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-bold text-white leading-tight">Nova versão disponível</p>
-          <p className="text-[10px] text-brand-muted mt-0.5">Clique para atualizar agora.</p>
+          <p className="text-[10px] text-brand-muted mt-0.5">
+            {applying ? 'Aplicando atualização...' : 'Clique para atualizar agora.'}
+          </p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <button onClick={onDismiss} className="p-1 text-brand-muted hover:text-white transition-colors">
-            <X size={13} />
-          </button>
-          <button onClick={onUpdate}
+          {!applying && (
+            <button onClick={onDismiss} className="p-1 text-brand-muted hover:text-white transition-colors">
+              <X size={13} />
+            </button>
+          )}
+          <button onClick={handleClick} disabled={applying}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-success/10 border border-brand-success/30
-              text-brand-success text-xs font-bold rounded-xl hover:bg-brand-success/20 transition-colors">
-            <RefreshCw size={12} />
-            Atualizar
+              text-brand-success text-xs font-bold rounded-xl hover:bg-brand-success/20 transition-colors disabled:opacity-60">
+            <RefreshCw size={12} className={applying ? 'animate-spin' : ''} />
+            {applying ? 'Aguarde...' : 'Atualizar'}
           </button>
         </div>
       </div>
@@ -172,6 +185,8 @@ export default function PWAPrompt() {
 
   // ── Atualização ─────────────────────────────────────────────────────────────
   const [showUpdate, setShowUpdate] = useState(false);
+  const swRegistrationRef = useRef(null);
+
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
@@ -180,11 +195,15 @@ export default function PWAPrompt() {
       setShowUpdate(true);
     },
     onRegistered(r) {
+      swRegistrationRef.current = r;
       if (r) {
         // Verifica atualizações imediatamente e depois a cada 60s
         r.update();
         setInterval(() => r.update(), 60_000);
       }
+    },
+    onRegisterError(err) {
+      console.warn('[PWA] Service worker registration error:', err);
     },
   });
 
@@ -266,9 +285,22 @@ export default function PWAPrompt() {
     localStorage.setItem(DISMISS_KEY, Date.now().toString());
   };
 
-  const handleUpdate = () => {
-    updateServiceWorker(true);
-    setShowUpdate(false);
+  const handleUpdate = async () => {
+    const reg = swRegistrationRef.current;
+
+    if (reg?.waiting) {
+      // Aguarda o novo SW tomar o controle, depois recarrega
+      await new Promise((resolve) => {
+        navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true });
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      });
+    } else {
+      // Fallback: tenta pelo vite-plugin-pwa
+      try { await updateServiceWorker(true); } catch { /* ignore */ }
+    }
+
+    // Recarrega para usar o novo SW (a página vai recarregar, então setShowUpdate é desnecessário)
+    window.location.reload();
   };
 
   return (
