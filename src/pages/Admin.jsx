@@ -3,7 +3,7 @@ import { Plus, Pencil, Trash2, X, Save, Package, Cpu, ChevronDown, ChevronUp, Lo
 import { useAdminStore, FACTORIES } from '../hooks/useStore';
 import {
   saveProduct, saveMachineConfig,
-  subscribeUsers, updateUserRole, updateUserName, createUserByAdmin,
+  subscribeUsers, updateUserRole, updateUserName, updateUserEmail, createUserByAdmin,
 } from '../services/firebase';
 import { db } from '../services/firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
@@ -404,23 +404,26 @@ function UserModal({ user, onSave, onClose }) {
             <TextInput value={form.name} onChange={(v) => set('name', v)} placeholder="ex: João Silva" />
           </div>
 
+          <div>
+            <Label>E-mail</Label>
+            <TextInput
+              value={form.email}
+              onChange={(v) => set('email', v)}
+              placeholder="ex: joao@corradi.com.br"
+            />
+          </div>
+
           {isNew && (
-            <>
-              <div>
-                <Label>E-mail</Label>
-                <TextInput value={form.email} onChange={(v) => set('email', v)} placeholder="ex: joao@corradi.com.br" />
-              </div>
-              <div>
-                <Label>Senha inicial</Label>
-                <input
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => set('password', e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
-                  className="w-full bg-brand-bg border border-brand-border rounded-xl px-3 py-2 text-sm text-white placeholder:text-brand-muted/40 focus:outline-none focus:border-brand-cyan/50 transition-all"
-                />
-              </div>
-            </>
+            <div>
+              <Label>Senha inicial</Label>
+              <input
+                type="password"
+                value={form.password}
+                onChange={(e) => set('password', e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                className="w-full bg-brand-bg border border-brand-border rounded-xl px-3 py-2 text-sm text-white placeholder:text-brand-muted/40 focus:outline-none focus:border-brand-cyan/50 transition-all"
+              />
+            </div>
           )}
 
           <div>
@@ -498,8 +501,9 @@ export default function Admin() {
 
   const handleSaveUser = async (form, uid) => {
     if (uid) {
-      // Edição: só atualiza nome e role (não recriar conta)
+      // Edição: atualiza nome, email e role no Firestore
       await updateUserName(uid, form.name);
+      if (form.email) await updateUserEmail(uid, form.email);
       await updateUserRole(uid, form.role);
     } else {
       // Criação: cria conta no Auth + documento no Firestore

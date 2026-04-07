@@ -159,23 +159,38 @@ export default function PWAPrompt() {
   const [showIOSInstall,setShowIOSInstall]= useState(false);
   const deferredPrompt = useRef(null);
 
-  // ── Detecção de atualização via controllerchange ──────────────────────────
-  // Com registerType:'autoUpdate', o novo SW instala e ativa automaticamente.
-  // O evento 'controllerchange' dispara quando o novo SW assume o controle.
-  // Mostramos apenas um banner de "recarregar" — sem SKIP_WAITING manual.
+  // ── Detecção de atualização do Service Worker ─────────────────────────────
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
 
-    let refreshing = false;
+    // 1) controllerchange: novo SW assumiu o controle enquanto a página estava aberta
+    const onControllerChange = () => setShowUpdate(true);
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
 
-    const onControllerChange = () => {
-      // Evita recarregar múltiplas vezes
-      if (refreshing) return;
-      // Só mostra o banner — não faz reload automático
-      setShowUpdate(true);
+    // 2) Verifica na registration: novo SW em waiting OU updatefound futuro
+    const watchRegistration = (reg) => {
+      if (!reg) return;
+
+      // Se já há um SW esperando ao carregar a página
+      if (reg.waiting && navigator.serviceWorker.controller) {
+        setShowUpdate(true);
+      }
+
+      // Monitora futuras atualizações encontradas
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (!newWorker) return;
+        newWorker.addEventListener('statechange', () => {
+          // Novo SW instalado e esperando + página já tinha um controller → nova versão disponível
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            setShowUpdate(true);
+          }
+        });
+      });
     };
 
-    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+    navigator.serviceWorker.getRegistration().then(watchRegistration);
+
     return () => {
       navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
     };

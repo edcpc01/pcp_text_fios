@@ -13,6 +13,7 @@ import {
   getRedirectResult,
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
+  updateProfile,
   sendPasswordResetEmail,
   signOut as firebaseSignOut,
   onAuthStateChanged,
@@ -75,11 +76,11 @@ export async function getUserRole(uid, firebaseUser = null) {
 
     if (snap.exists()) {
       const data = snap.data();
-      // Se o doc já existe mas está faltando name ou email (ex: login Google pela 1ª vez),
-      // atualiza esses campos sem sobrescrever role ou factory
+      // Preenche campos faltando (sem sobrescrever role/factory)
       const updates = {};
-      if (!data.name  && firebaseUser?.displayName) updates.name  = firebaseUser.displayName;
-      if (!data.email && firebaseUser?.email)       updates.email = firebaseUser.email;
+      const derivedName = firebaseUser?.displayName || firebaseUser?.email?.split('@')[0] || '';
+      if (!data.name  && derivedName)            updates.name  = derivedName;
+      if (!data.email && firebaseUser?.email)    updates.email = firebaseUser.email;
       if (Object.keys(updates).length > 0) {
         await setDoc(ref, updates, { merge: true });
       }
@@ -114,13 +115,21 @@ export async function updateUserName(uid, name) {
   await setDoc(doc(db, 'users', uid), { name }, { merge: true });
 }
 
+export async function updateUserEmail(uid, email) {
+  await setDoc(doc(db, 'users', uid), { email }, { merge: true });
+}
+
 export async function createUserByAdmin(email, password, name, role) {
-  // Usa um app secundário para NÃO deslogar o admin ao criar a conta
+  // Usa app secundário para NÃO deslogar o admin durante a criação
   const secondaryApp = initializeApp(firebaseConfig, `admin-create-${Date.now()}`);
   const secondaryAuth = getAuth(secondaryApp);
   try {
     const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
-    // Salva perfil completo no Firestore (usando db do app principal — não afeta a sessão)
+
+    // Define displayName no Firebase Auth (facilita recuperação posterior)
+    await updateProfile(cred.user, { displayName: name });
+
+    // Salva perfil completo no Firestore usando o db do admin (app principal)
     await setDoc(doc(db, 'users', cred.user.uid), {
       email,
       name,
@@ -128,6 +137,7 @@ export async function createUserByAdmin(email, password, name, role) {
       factory: 'all',
       createdAt: Timestamp.now(),
     });
+
     await firebaseSignOut(secondaryAuth);
     return cred.user;
   } finally {
