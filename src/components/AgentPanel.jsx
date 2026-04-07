@@ -91,7 +91,7 @@ function Message({ msg }) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function AgentPanel() {
+export default function AgentPanel({ mobileFullscreen = false }) {
   const { closeAgent, factory, getYearMonth } = useAppStore();
   const { entriesMap }    = usePlanningStore();
   const { records }       = useProductionStore();
@@ -206,11 +206,13 @@ export default function AgentPanel() {
   };
 
   return (
-    <aside className="w-80 border-l border-brand-border glass flex flex-col shrink-0 z-20
-      fixed inset-y-0 right-0 md:relative animate-slide-right">
+    <aside className={`flex flex-col shrink-0 z-20 animate-slide-right
+      ${mobileFullscreen
+        ? 'w-full h-full'
+        : 'w-80 border-l border-brand-border glass fixed inset-y-0 right-0 md:relative'}`}>
 
-      {/* Header */}
-      <div className="flex items-center gap-2.5 px-4 h-16 border-b border-brand-border shrink-0">
+      {/* Header — oculto em fullscreen mobile (já tem header no Layout) */}
+      <div className={`flex items-center gap-2.5 px-4 h-16 border-b border-brand-border shrink-0 ${mobileFullscreen ? 'hidden' : ''}`}>
         <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
           <Bot size={15} className="text-purple-400" />
         </div>

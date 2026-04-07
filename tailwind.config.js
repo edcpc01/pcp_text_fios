@@ -34,5 +34,17 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // Suporte a safe-area (notch iPhone)
+    function({ addUtilities }) {
+      addUtilities({
+        '.safe-area-bottom': {
+          'padding-bottom': 'env(safe-area-inset-bottom)',
+        },
+        '.pb-safe': {
+          'padding-bottom': 'calc(4rem + env(safe-area-inset-bottom))',
+        },
+      });
+    },
+  ],
 };
