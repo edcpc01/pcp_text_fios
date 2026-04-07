@@ -9,7 +9,6 @@ import {
   getAuth,
   signInWithEmailAndPassword,
   signInWithPopup,
-  signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
@@ -46,22 +45,12 @@ const googleProvider = new GoogleAuthProvider();
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const signIn             = (email, pw) => signInWithEmailAndPassword(auth, email, pw);
-// Detecta mobile/PWA standalone — nesses contextos o popup é bloqueado, usa redirect
-function isMobileOrStandalone() {
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    window.navigator.standalone === true ||
-    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-  );
-}
 
-export function signInWithGoogle() {
-  if (isMobileOrStandalone()) {
-    return signInWithRedirect(auth, googleProvider);
-  }
-  return signInWithPopup(auth, googleProvider);
-}
+// Usa popup em todos os contextos (Android PWA abre Chrome Custom Tab corretamente).
+// Se popup for bloqueado (iOS standalone), a mensagem de erro orientará o usuário.
+export const signInWithGoogle = () => signInWithPopup(auth, googleProvider);
 
+// Mantido para capturar qualquer redirect pendente de sessões anteriores
 export const getGoogleRedirectResult = () => getRedirectResult(auth);
 export const registerWithEmail  = (email, pw)  => createUserWithEmailAndPassword(auth, email, pw);
 export const sendPasswordReset  = (email)      => sendPasswordResetEmail(auth, email);

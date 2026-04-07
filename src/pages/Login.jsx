@@ -63,7 +63,7 @@ function mapAuthError(code) {
     'auth/too-many-requests':         'Muitas tentativas. Aguarde e tente novamente.',
     'auth/network-request-failed':    'Sem conexão. Verifique sua internet.',
     'auth/popup-closed-by-user':      'Login cancelado.',
-    'auth/popup-blocked':             'Popup bloqueado pelo navegador.',
+    'auth/popup-blocked':             'Popup bloqueado. Abra o app no navegador ou use e-mail e senha.',
     'auth/cancelled-popup-request':   'Requisição de login cancelada.',
     'auth/unauthorized-domain':       'Domínio não autorizado no Firebase.',
     'auth/operation-not-allowed':     'Login com Google não habilitado no projeto.',
