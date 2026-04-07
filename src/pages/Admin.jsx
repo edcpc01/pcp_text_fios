@@ -1,14 +1,23 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, X, Save, Package, Cpu, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Save, Package, Cpu, ChevronDown, ChevronUp, Loader2, Users, ShieldCheck, Eye, Edit3 } from 'lucide-react';
 import { useAdminStore, FACTORIES } from '../hooks/useStore';
-// Importamos as funções de persistência
-import { saveProduct, subscribeProducts, saveMachineConfig } from '../services/firebase';
+import {
+  saveProduct, saveMachineConfig,
+  subscribeUsers, updateUserRole, updateUserName, createUserByAdmin,
+} from '../services/firebase';
 import { db } from '../services/firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 
 const TABS = [
-  { id: 'products', label: 'Produtos', icon: Package },
-  { id: 'machines', label: 'Máquinas', icon: Cpu },
+  { id: 'products', label: 'Produtos',  icon: Package },
+  { id: 'machines', label: 'Máquinas',  icon: Cpu     },
+  { id: 'users',    label: 'Usuários',  icon: Users   },
+];
+
+const ROLES = [
+  { id: 'admin',      label: 'Admin',      desc: 'Acesso total — cadastros, usuários e configurações', color: '#ef4444', icon: ShieldCheck },
+  { id: 'planner',    label: 'Planejador', desc: 'Pode criar e editar planejamento e produção',        color: '#22d3ee', icon: Edit3       },
+  { id: 'supervisor', label: 'Supervisor', desc: 'Somente visualização, sem edição',                   color: '#f97316', icon: Eye         },
 ];
 
 const EMPTY_MP = { descricao: '', codigoMicrodata: '', tituloDtex: 0, nFilamentos: 0, composicaoPct: 0 };
@@ -351,14 +360,121 @@ function ProductCard({ product, onEdit, onDelete }) {
   );
 }
 
+// ─── User Modal ───────────────────────────────────────────────────────────────
+function UserModal({ user, onSave, onClose }) {
+  const isNew = !user;
+  const [form, setForm] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    role: user?.role || 'planner',
+    password: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSubmit = async () => {
+    setError('');
+    if (!form.name.trim()) { setError('Nome obrigatório.'); return; }
+    if (isNew && !form.email.trim()) { setError('E-mail obrigatório.'); return; }
+    if (isNew && form.password.length < 6) { setError('Senha mínima de 6 caracteres.'); return; }
+    setLoading(true);
+    try {
+      await onSave(form, user?.uid);
+      onClose();
+    } catch (e) {
+      setError(e.message?.replace('Firebase: ', '') || 'Erro ao salvar.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-brand-card border border-brand-border rounded-2xl shadow-2xl animate-fade-in">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-brand-border">
+          <h3 className="text-sm font-bold text-white">{isNew ? 'Novo Usuário' : 'Editar Usuário'}</h3>
+          <button onClick={onClose} className="text-brand-muted hover:text-white p-1 rounded-lg"><X size={14} /></button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          <div>
+            <Label>Nome</Label>
+            <TextInput value={form.name} onChange={(v) => set('name', v)} placeholder="ex: João Silva" />
+          </div>
+
+          {isNew && (
+            <>
+              <div>
+                <Label>E-mail</Label>
+                <TextInput value={form.email} onChange={(v) => set('email', v)} placeholder="ex: joao@corradi.com.br" />
+              </div>
+              <div>
+                <Label>Senha inicial</Label>
+                <input
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => set('password', e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  className="w-full bg-brand-bg border border-brand-border rounded-xl px-3 py-2 text-sm text-white placeholder:text-brand-muted/40 focus:outline-none focus:border-brand-cyan/50 transition-all"
+                />
+              </div>
+            </>
+          )}
+
+          <div>
+            <Label>Nível de acesso</Label>
+            <div className="space-y-2 mt-1">
+              {ROLES.map((r) => {
+                const Icon = r.icon;
+                const selected = form.role === r.id;
+                return (
+                  <button key={r.id} onClick={() => set('role', r.id)}
+                    className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-xl border text-left transition-all
+                      ${selected ? 'border-opacity-50 bg-white/5' : 'border-brand-border hover:bg-white/5'}`}
+                    style={{ borderColor: selected ? r.color : undefined }}>
+                    <Icon size={14} className="mt-0.5 shrink-0" style={{ color: r.color }} />
+                    <div>
+                      <p className="text-xs font-bold text-white">{r.label}</p>
+                      <p className="text-[10px] text-brand-muted mt-0.5">{r.desc}</p>
+                    </div>
+                    {selected && <div className="ml-auto w-2 h-2 rounded-full mt-1 shrink-0" style={{ background: r.color }} />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {error && <p className="text-xs text-brand-danger">{error}</p>}
+        </div>
+
+        <div className="flex justify-end gap-2 px-5 pb-5">
+          <button onClick={onClose} className="px-4 py-2 text-xs text-brand-muted hover:text-white rounded-xl">Cancelar</button>
+          <button onClick={handleSubmit} disabled={loading}
+            className="flex items-center gap-1.5 px-5 py-2 bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan text-xs font-semibold rounded-xl hover:bg-brand-cyan/20 transition-all disabled:opacity-40">
+            {loading ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+            {isNew ? 'Criar usuário' : 'Salvar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Admin Page ───────────────────────────────────────────────────────────────
 export default function Admin() {
   const [tab, setTab] = useState('products');
   const [selectedFactory, setSelectedFactory] = useState('matriz');
   const [modal, setModal] = useState(null);
+  const [users, setUsers] = useState([]);
 
-  // Pegamos as funções e o estado do Zustand
   const { products, machines, setMachines } = useAdminStore();
+
+  useEffect(() => {
+    const unsub = subscribeUsers(setUsers);
+    return () => unsub();
+  }, []);
 
   const handleSaveProduct = async (form) => {
     await saveProduct(form); // Persiste no Firebase
@@ -377,6 +493,17 @@ export default function Admin() {
   const handleDeleteProduct = async (id) => {
     if (window.confirm("Deseja realmente excluir este produto?")) {
       await deleteDoc(doc(db, "products", id));
+    }
+  };
+
+  const handleSaveUser = async (form, uid) => {
+    if (uid) {
+      // Edição: só atualiza nome e role (não recriar conta)
+      await updateUserName(uid, form.name);
+      await updateUserRole(uid, form.role);
+    } else {
+      // Criação: cria conta no Auth + documento no Firestore
+      await createUserByAdmin(form.email, form.password, form.name, form.role);
     }
   };
 
@@ -470,8 +597,85 @@ export default function Admin() {
         </div>
       )}
 
+      {tab === 'users' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-brand-muted">{users.length} usuários cadastrados</p>
+            <button onClick={() => setModal({ type: 'user', data: null })}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan text-xs font-semibold rounded-xl hover:bg-brand-cyan/20 transition-all">
+              <Plus size={12} /> Novo usuário
+            </button>
+          </div>
+
+          {/* Legenda de roles */}
+          <div className="flex gap-3 flex-wrap">
+            {ROLES.map((r) => {
+              const Icon = r.icon;
+              return (
+                <div key={r.id} className="flex items-center gap-1.5 text-[10px] text-brand-muted">
+                  <Icon size={11} style={{ color: r.color }} />
+                  <span style={{ color: r.color }} className="font-bold">{r.label}</span>
+                  <span>— {r.desc}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="bg-brand-card border border-brand-border rounded-2xl overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-brand-border bg-brand-surface/50">
+                  {['Nome', 'E-mail', 'Nível', ''].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-[10px] font-bold text-brand-muted uppercase tracking-wider">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {users.length === 0 && (
+                  <tr><td colSpan={4} className="text-center py-8 text-brand-muted text-sm">Nenhum usuário encontrado</td></tr>
+                )}
+                {users.map((u) => {
+                  const role = ROLES.find((r) => r.id === u.role) || ROLES[1];
+                  const Icon = role.icon;
+                  return (
+                    <tr key={u.uid} className="border-b border-brand-border/40 hover:bg-white/[0.02] transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                            style={{ background: `${role.color}20`, color: role.color }}>
+                            {(u.name || u.email || '?')[0].toUpperCase()}
+                          </div>
+                          <span className="text-sm text-white font-medium">{u.name || '—'}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-brand-muted">{u.email || '—'}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <Icon size={12} style={{ color: role.color }} />
+                          <span className="text-xs font-bold" style={{ color: role.color }}>{role.label}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1 justify-end">
+                          <button
+                            onClick={() => setModal({ type: 'user', data: u })}
+                            className="p-1.5 text-brand-muted hover:text-brand-cyan hover:bg-brand-cyan/10 rounded-lg transition-all">
+                            <Pencil size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {modal?.type === 'product' && <ProductModal product={modal.data} allProducts={products} onSave={handleSaveProduct} onClose={() => setModal(null)} />}
       {modal?.type === 'machine' && <MachineModal machine={modal.data} factory={modal.factory} onSave={handleSaveMachine} onClose={() => setModal(null)} />}
+      {modal?.type === 'user'    && <UserModal    user={modal.data}    onSave={handleSaveUser}    onClose={() => setModal(null)} />}
     </div>
   );
 }

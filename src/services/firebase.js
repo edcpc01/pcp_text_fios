@@ -61,6 +61,34 @@ export async function getUserRole(uid) {
   }
 }
 
+// ─── User Management (admin only) ────────────────────────────────────────────
+export function subscribeUsers(callback) {
+  return onSnapshot(
+    collection(db, 'users'),
+    (snap) => callback(snap.docs.map((d) => ({ uid: d.id, ...d.data() }))),
+    (err) => console.error('[Firestore] subscribeUsers:', err.code),
+  );
+}
+
+export async function updateUserRole(uid, role) {
+  await setDoc(doc(db, 'users', uid), { role }, { merge: true });
+}
+
+export async function updateUserName(uid, name) {
+  await setDoc(doc(db, 'users', uid), { name }, { merge: true });
+}
+
+export async function createUserByAdmin(email, password, name, role) {
+  // Cria a conta no Firebase Auth
+  const cred = await createUserWithEmailAndPassword(auth, email, password);
+  // Salva perfil no Firestore
+  await setDoc(doc(db, 'users', cred.user.uid), {
+    email, name, role,
+    createdAt: Timestamp.now(),
+  });
+  return cred.user;
+}
+
 // ─── Planning Entries ─────────────────────────────────────────────────────────
 export function subscribePlanningEntries(factory, yearMonth, callback) {
   const [year, month] = yearMonth.split('-').map(Number);
