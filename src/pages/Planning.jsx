@@ -7,11 +7,11 @@ import { getDaysInMonth, getWeekday, formatDate, getMonthLabel, isToday } from '
 // ─── Legend ───────────────────────────────────────────────────────────────────
 function Legend() {
   return (
-    <div className="flex items-center gap-4 flex-wrap">
+    <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-0.5 max-w-full md:max-w-none">
       {Object.values(CELL_TYPES).map((t) => (
-        <div key={t.id} className="flex items-center gap-1.5">
+        <div key={t.id} className="flex items-center gap-1.5 shrink-0">
           <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: t.color }} />
-          <span className="text-xs text-brand-muted">{t.label}</span>
+          <span className="text-[10px] md:text-xs text-brand-muted whitespace-nowrap">{t.label}</span>
         </div>
       ))}
     </div>
@@ -378,26 +378,26 @@ export default function Planning() {
       <div className="flex-1 overflow-auto">
         <table className="border-collapse w-max min-w-full">
           <thead>
-            <tr className="sticky top-0 z-10 bg-brand-bg/95 backdrop-blur-sm">
-              <th className="sticky left-0 z-20 bg-brand-bg border border-brand-border/40 px-4 py-3 text-left min-w-[160px]">
-                <span className="text-[10px] font-bold text-brand-muted uppercase tracking-wider">Máquina</span>
+            <tr className="sticky top-0 z-20 bg-brand-bg/95 backdrop-blur-sm">
+              <th className="sticky left-0 z-30 bg-brand-bg border border-brand-border/40 px-3 md:px-4 py-2.5 md:py-3 text-left min-w-[110px] shadow-[4px_0_12px_rgba(0,0,0,0.4)]">
+                <span className="text-[9px] md:text-[10px] font-bold text-brand-muted uppercase tracking-wider">Máquina</span>
               </th>
               {days.map((date) => {
                 const today = isToday(date);
                 const isSun = new Date(date + 'T12:00:00').getDay() === 0;
                 return (
                   <th key={date}
-                    className="border border-brand-border/40 min-w-[56px] w-[56px] py-2 px-0.5 text-center"
+                    className="border border-brand-border/40 min-w-[54px] w-[54px] py-1.5 md:py-2 px-0.5 text-center"
                     style={today ? { background: 'rgba(34,211,238,0.06)', borderColor: 'rgba(34,211,238,0.25)' } : {}}>
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span className={`text-[9px] font-medium uppercase ${isSun ? 'text-red-400/80' : 'text-brand-muted'}`}>{getWeekday(date)}</span>
-                      <span className={`text-[11px] font-mono font-bold ${today ? 'text-brand-cyan' : isSun ? 'text-red-400/60' : 'text-brand-muted'}`}>{date.split('-')[2]}</span>
+                    <div className="flex flex-col items-center gap-0">
+                      <span className={`text-[8px] md:text-[9px] font-medium uppercase ${isSun ? 'text-red-400/80' : 'text-brand-muted'}`}>{getWeekday(date)}</span>
+                      <span className={`text-[10px] md:text-[11px] font-mono font-bold leading-none ${today ? 'text-brand-cyan' : isSun ? 'text-red-400/60' : 'text-brand-muted'}`}>{date.split('-')[2]}</span>
                     </div>
                   </th>
                 );
               })}
-              <th className="sticky right-0 z-20 bg-brand-bg border border-brand-border/40 px-3 py-3 min-w-[80px] text-right">
-                <span className="text-[10px] font-bold text-brand-muted uppercase tracking-wider">Total</span>
+              <th className="sticky right-0 z-30 bg-brand-bg border border-brand-border/40 px-2 md:px-3 py-2.5 md:py-3 min-w-[70px] md:min-w-[80px] text-right shadow-[-4px_0_12px_rgba(0,0,0,0.4)]">
+                <span className="text-[9px] md:text-[10px] font-bold text-brand-muted uppercase tracking-wider">Total</span>
               </th>
             </tr>
           </thead>
@@ -414,10 +414,10 @@ export default function Planning() {
                 }
                 rows.push(
                   <tr key={`${machine._factory}-${machine.id}`} className="group hover:bg-white/[0.01]">
-                    <td className="sticky left-0 z-10 bg-brand-bg group-hover:bg-brand-surface/20 border border-brand-border/40 px-4 py-0 transition-colors">
-                      <div className="py-2">
-                        <span className="text-xs font-bold text-white block">{machine.id}</span>
-                        <span className="text-[10px] text-brand-muted">{machine.name}</span>
+                    <td className="sticky left-0 z-10 bg-brand-bg group-hover:bg-brand-surface/20 border border-brand-border/40 px-3 md:px-4 py-0 transition-colors shadow-[4px_0_12px_rgba(0,0,0,0.4)]">
+                      <div className="py-1 md:py-2 min-w-[100px]">
+                        <span className="text-[11px] md:text-xs font-bold text-white block truncate leading-tight">{machine.id}</span>
+                        <span className="text-[9px] md:text-[10px] text-brand-muted block truncate leading-tight mt-0.5">{machine.name}</span>
                       </div>
                     </td>
                     {days.map((date) => (
@@ -432,9 +432,9 @@ export default function Planning() {
                         onDrop={!isSupervisor ? handleDrop : undefined}
                       />
                     ))}
-                    <td className="sticky right-0 z-10 bg-brand-bg group-hover:bg-brand-surface/20 border border-brand-border/40 px-3 transition-colors text-right">
-                      <span className="text-xs font-mono font-bold text-brand-cyan">{(machineTotals[machine.id] || 0).toLocaleString('pt-BR')}</span>
-                      <span className="text-[10px] text-brand-muted ml-0.5">kg</span>
+                    <td className="sticky right-0 z-10 bg-brand-bg group-hover:bg-brand-surface/20 border border-brand-border/40 px-2 md:px-3 transition-colors text-right shadow-[-4px_0_12px_rgba(0,0,0,0.4)]">
+                      <span className="text-[11px] md:text-xs font-mono font-bold text-brand-cyan">{(machineTotals[machine.id] || 0).toLocaleString('pt-BR')}</span>
+                      <span className="text-[9px] md:text-[10px] text-brand-muted ml-0.5">kg</span>
                     </td>
                   </tr>
                 );
@@ -443,8 +443,8 @@ export default function Planning() {
             })()}
             {/* Total row */}
             <tr className="border-t-2 border-brand-border">
-              <td className="sticky left-0 z-10 bg-brand-surface border border-brand-border/40 px-4 py-2.5">
-                <span className="text-[10px] font-bold text-brand-muted uppercase tracking-wider">Total</span>
+              <td className="sticky left-0 z-10 bg-brand-surface border border-brand-border/40 px-3 md:px-4 py-1.5 md:py-2.5 shadow-[4px_0_12px_rgba(0,0,0,0.4)]">
+                <span className="text-[9px] md:text-[10px] font-bold text-brand-muted uppercase tracking-wider">Total</span>
               </td>
               {days.map((date) => {
                 const dayTotal = machineList.reduce((s, m) => {
@@ -454,15 +454,15 @@ export default function Planning() {
                 return (
                   <td key={date} className="border border-brand-border/40 bg-brand-surface text-center"
                     style={isToday(date) ? { background: 'rgba(34,211,238,0.04)' } : {}}>
-                    <span className="text-[10px] font-mono text-brand-muted">
+                    <span className="text-[9px] md:text-[10px] font-mono text-brand-muted">
                       {dayTotal > 0 ? (dayTotal >= 1000 ? `${(dayTotal / 1000).toFixed(1)}k` : dayTotal) : '—'}
                     </span>
                   </td>
                 );
               })}
-              <td className="sticky right-0 z-10 bg-brand-surface border border-brand-border/40 px-3 text-right">
-                <span className="text-sm font-mono font-bold text-brand-cyan">{grandTotal.toLocaleString('pt-BR')}</span>
-                <span className="text-[10px] text-brand-muted ml-0.5">kg</span>
+              <td className="sticky right-0 z-10 bg-brand-surface border border-brand-border/40 px-2 md:px-3 text-right shadow-[-4px_0_12px_rgba(0,0,0,0.4)]">
+                <span className="text-[12px] md:text-sm font-mono font-bold text-brand-cyan">{grandTotal.toLocaleString('pt-BR')}</span>
+                <span className="text-[9px] md:text-[10px] text-brand-muted ml-0.5">kg</span>
               </td>
             </tr>
           </tbody>
