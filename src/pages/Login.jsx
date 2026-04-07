@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '../hooks/useStore';
-import { signIn, signInWithGoogle, registerWithEmail, sendPasswordReset, getUserRole } from '../services/firebase';
+import { signIn, signInWithGoogle, getGoogleRedirectResult, registerWithEmail, sendPasswordReset, getUserRole } from '../services/firebase';
 import { Eye, EyeOff, Factory, AlertCircle, Mail, ArrowLeft } from 'lucide-react';
 
 // ─── Google Icon SVG ──────────────────────────────────────────────────────────
@@ -54,18 +54,22 @@ function SuccessBanner({ msg }) {
 // ─── Auth error map ───────────────────────────────────────────────────────────
 function mapAuthError(code) {
   const msgs = {
-    'auth/invalid-credential':    'E-mail ou senha incorretos.',
-    'auth/user-not-found':        'Usuário não encontrado.',
-    'auth/wrong-password':        'Senha incorreta.',
-    'auth/email-already-in-use':  'Este e-mail já está em uso.',
-    'auth/weak-password':         'Senha muito fraca. Mínimo 6 caracteres.',
-    'auth/invalid-email':         'E-mail inválido.',
-    'auth/too-many-requests':     'Muitas tentativas. Aguarde e tente novamente.',
-    'auth/network-request-failed':'Sem conexão. Verifique sua internet.',
-    'auth/popup-closed-by-user':  'Login cancelado.',
-    'auth/popup-blocked':         'Popup bloqueado. Permita popups para este site.',
+    'auth/invalid-credential':        'E-mail ou senha incorretos.',
+    'auth/user-not-found':            'Usuário não encontrado.',
+    'auth/wrong-password':            'Senha incorreta.',
+    'auth/email-already-in-use':      'Este e-mail já está em uso.',
+    'auth/weak-password':             'Senha muito fraca. Mínimo 6 caracteres.',
+    'auth/invalid-email':             'E-mail inválido.',
+    'auth/too-many-requests':         'Muitas tentativas. Aguarde e tente novamente.',
+    'auth/network-request-failed':    'Sem conexão. Verifique sua internet.',
+    'auth/popup-closed-by-user':      'Login cancelado.',
+    'auth/popup-blocked':             'Popup bloqueado pelo navegador.',
+    'auth/cancelled-popup-request':   'Requisição de login cancelada.',
+    'auth/unauthorized-domain':       'Domínio não autorizado no Firebase.',
+    'auth/operation-not-allowed':     'Login com Google não habilitado no projeto.',
+    'auth/internal-error':            'Erro interno. Tente novamente.',
   };
-  return msgs[code] || 'Erro inesperado. Tente novamente.';
+  return msgs[code] || `Erro inesperado (${code || 'desconhecido'}). Tente novamente.`;
 }
 
 // ─── View: Login ─────────────────────────────────────────────────────────────
@@ -77,12 +81,29 @@ function LoginView({ onForgotPassword, onRegister, onGoogleSuccess, onEmailSucce
   const [google, setGoogle]   = useState(false);
   const [error, setError]     = useState('');
 
+  // Captura resultado do signInWithRedirect (mobile/PWA) ao montar
+  useEffect(() => {
+    setGoogle(true);
+    getGoogleRedirectResult()
+      .then(async (result) => {
+        if (!result) return; // nenhum redirect pendente
+        const role = await getUserRole(result.user.uid, result.user);
+        onGoogleSuccess(result.user, role);
+      })
+      .catch((err) => {
+        if (err.code && err.code !== 'auth/no-current-user') {
+          setError(mapAuthError(err.code));
+        }
+      })
+      .finally(() => setGoogle(false));
+  }, []);
+
   const handleEmail = async (e) => {
     e.preventDefault();
     setLoading(true); setError('');
     try {
       const cred = await signIn(email, password);
-      const role = await getUserRole(cred.user.uid);
+      const role = await getUserRole(cred.user.uid, cred.user);
       onEmailSuccess(cred.user, role);
     } catch (err) {
       setError(mapAuthError(err.code));
@@ -92,12 +113,18 @@ function LoginView({ onForgotPassword, onRegister, onGoogleSuccess, onEmailSucce
   const handleGoogle = async () => {
     setGoogle(true); setError('');
     try {
-      const cred = await signInWithGoogle();
-      const role = await getUserRole(cred.user.uid);
-      onGoogleSuccess(cred.user, role);
+      const result = await signInWithGoogle();
+      // signInWithRedirect retorna undefined (redireciona) — não trata aqui
+      // signInWithPopup retorna o credential — trata imediatamente
+      if (result?.user) {
+        const role = await getUserRole(result.user.uid, result.user);
+        onGoogleSuccess(result.user, role);
+      }
+      // Se redirect: página será redirecionada pelo browser, o useEffect acima captura ao voltar
     } catch (err) {
       setError(mapAuthError(err.code));
-    } finally { setGoogle(false); }
+      setGoogle(false);
+    }
   };
 
   return (
@@ -181,7 +208,7 @@ function RegisterView({ onBack, onSuccess }) {
     setLoading(true); setError('');
     try {
       const cred = await registerWithEmail(email, password, name);
-      const role = await getUserRole(cred.user.uid); // getUserRole cria doc como 'planner' se não existir
+      const role = await getUserRole(cred.user.uid, cred.user);
       onSuccess(cred.user, role);
     } catch (err) {
       setError(mapAuthError(err.code));

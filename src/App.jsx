@@ -37,7 +37,7 @@ export default function App() {
     const unsub = onAuthChange(async (fu) => {
       try {
         if (fu) {
-          const role = await getUserRole(fu.uid);
+          const role = await getUserRole(fu.uid, fu);
           setUser({
             uid: fu.uid,
             email: fu.email,

@@ -9,6 +9,8 @@ import {
   getAuth,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
@@ -43,17 +45,51 @@ const googleProvider = new GoogleAuthProvider();
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const signIn             = (email, pw) => signInWithEmailAndPassword(auth, email, pw);
-export const signInWithGoogle   = ()           => signInWithPopup(auth, googleProvider);
+// Detecta mobile/PWA standalone — nesses contextos o popup é bloqueado, usa redirect
+function isMobileOrStandalone() {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true ||
+    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  );
+}
+
+export function signInWithGoogle() {
+  if (isMobileOrStandalone()) {
+    return signInWithRedirect(auth, googleProvider);
+  }
+  return signInWithPopup(auth, googleProvider);
+}
+
+export const getGoogleRedirectResult = () => getRedirectResult(auth);
 export const registerWithEmail  = (email, pw)  => createUserWithEmailAndPassword(auth, email, pw);
 export const sendPasswordReset  = (email)      => sendPasswordResetEmail(auth, email);
 export const signOut            = ()           => firebaseSignOut(auth);
 export const onAuthChange       = (cb)         => onAuthStateChanged(auth, cb);
 
-export async function getUserRole(uid) {
+// firebaseUser: objeto completo do Firebase Auth (tem .email, .displayName)
+export async function getUserRole(uid, firebaseUser = null) {
   try {
-    const snap = await getDoc(doc(db, 'users', uid));
-    if (snap.exists()) return snap.data().role || 'planner';
-    await setDoc(doc(db, 'users', uid), { role: 'planner', factory: 'all', createdAt: Timestamp.now() }, { merge: true });
+    const ref = doc(db, 'users', uid);
+    const snap = await getDoc(ref);
+
+    if (snap.exists()) {
+      const data = snap.data();
+      // Se o doc já existe mas está faltando name ou email (ex: login Google pela 1ª vez),
+      // atualiza esses campos sem sobrescrever role ou factory
+      const updates = {};
+      if (!data.name  && firebaseUser?.displayName) updates.name  = firebaseUser.displayName;
+      if (!data.email && firebaseUser?.email)       updates.email = firebaseUser.email;
+      if (Object.keys(updates).length > 0) {
+        await setDoc(ref, updates, { merge: true });
+      }
+      return data.role || 'planner';
+    }
+
+    // Documento não existe — cria com todos os dados disponíveis
+    const name  = firebaseUser?.displayName || firebaseUser?.email?.split('@')[0] || '';
+    const email = firebaseUser?.email || '';
+    await setDoc(ref, { role: 'planner', factory: 'all', createdAt: Timestamp.now(), name, email });
     return 'planner';
   } catch (err) {
     console.warn('[Firebase] getUserRole failed:', err.message);
