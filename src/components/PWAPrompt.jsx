@@ -1,18 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Download, WifiOff, RefreshCw, X, Zap, Share } from 'lucide-react';
-import { useRegisterSW } from 'virtual:pwa-register/react';
 
 // ─── Banner de Atualização ────────────────────────────────────────────────────
 function UpdateBanner({ onUpdate, onDismiss }) {
-  const [applying, setApplying] = useState(false);
-
-  const handleClick = async () => {
-    setApplying(true);
-    await onUpdate();
-    // Se chegou aqui (reload não aconteceu), reseta estado
-    setApplying(false);
-  };
-
   return (
     <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[90]
       w-[calc(100vw-2rem)] max-w-sm animate-slide-down">
@@ -22,22 +12,18 @@ function UpdateBanner({ onUpdate, onDismiss }) {
           <Zap size={15} className="text-brand-success" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold text-white leading-tight">Nova versão disponível</p>
-          <p className="text-[10px] text-brand-muted mt-0.5">
-            {applying ? 'Aplicando atualização...' : 'Clique para atualizar agora.'}
-          </p>
+          <p className="text-xs font-bold text-white leading-tight">App atualizado</p>
+          <p className="text-[10px] text-brand-muted mt-0.5">Recarregue para usar a nova versão.</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          {!applying && (
-            <button onClick={onDismiss} className="p-1 text-brand-muted hover:text-white transition-colors">
-              <X size={13} />
-            </button>
-          )}
-          <button onClick={handleClick} disabled={applying}
+          <button onClick={onDismiss} className="p-1 text-brand-muted hover:text-white transition-colors">
+            <X size={13} />
+          </button>
+          <button onClick={onUpdate}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-success/10 border border-brand-success/30
-              text-brand-success text-xs font-bold rounded-xl hover:bg-brand-success/20 transition-colors disabled:opacity-60">
-            <RefreshCw size={12} className={applying ? 'animate-spin' : ''} />
-            {applying ? 'Aguarde...' : 'Atualizar'}
+              text-brand-success text-xs font-bold rounded-xl hover:bg-brand-success/20 transition-colors">
+            <RefreshCw size={12} />
+            Recarregar
           </button>
         </div>
       </div>
@@ -119,7 +105,6 @@ function IOSInstallBanner({ onDismiss }) {
               <p className="text-[11px] text-brand-muted mt-0.5">Siga os passos abaixo:</p>
             </div>
           </div>
-
           <div className="space-y-3 px-1">
             <div className="flex items-start gap-3">
               <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold text-brand-cyan shrink-0 border border-white/10 mt-0.5">1</div>
@@ -134,7 +119,6 @@ function IOSInstallBanner({ onDismiss }) {
               </p>
             </div>
           </div>
-
           <button onClick={onDismiss}
             className="w-full py-2.5 mt-1 bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan text-xs font-bold rounded-xl hover:bg-brand-cyan/20 transition-colors">
             Entendi
@@ -147,12 +131,11 @@ function IOSInstallBanner({ onDismiss }) {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DISMISS_KEY = 'pwa-install-dismissed-at';
-const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+const SEVEN_DAYS  = 7 * 24 * 60 * 60 * 1000;
 
 function isStandalone() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
-
 function getIsIOS() {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 }
@@ -168,57 +151,35 @@ function OfflineBanner() {
   );
 }
 
-// Proteção anti-loop: suprime o banner por 60s após um reload de atualização
-const JUST_UPDATED_KEY = 'pwa-just-updated';
-const SUPPRESS_MS = 60_000;
-function wasJustUpdated() {
-  const t = localStorage.getItem(JUST_UPDATED_KEY);
-  if (!t) return false;
-  if (Date.now() - parseInt(t, 10) < SUPPRESS_MS) return true;
-  localStorage.removeItem(JUST_UPDATED_KEY);
-  return false;
-}
-
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function PWAPrompt() {
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
-
-  // ── Instalação ──────────────────────────────────────────────────────────────
+  const [isOffline,     setIsOffline]     = useState(!navigator.onLine);
+  const [showUpdate,    setShowUpdate]    = useState(false);
+  const [showInstall,   setShowInstall]   = useState(false);
+  const [showIOSInstall,setShowIOSInstall]= useState(false);
   const deferredPrompt = useRef(null);
-  const [showInstall, setShowInstall] = useState(false);
-  const [showIOSInstall, setShowIOSInstall] = useState(false);
 
-  const checkDismissed = () => {
-    const lastDismissed = localStorage.getItem(DISMISS_KEY);
-    if (!lastDismissed) return false;
-    return (Date.now() - parseInt(lastDismissed, 10)) < SEVEN_DAYS;
-  };
-
-  // ── Atualização ─────────────────────────────────────────────────────────────
-  const [showUpdate, setShowUpdate] = useState(false);
-
-  const {
-    needRefresh: [needRefresh],
-  } = useRegisterSW({
-    onNeedRefresh() {
-      if (!wasJustUpdated()) setShowUpdate(true);
-    },
-    onRegistered(r) {
-      if (r) {
-        // Polling apenas a cada 10 minutos — não logo após o carregamento
-        // para não disparar needRefresh imediatamente após um update
-        const interval = setInterval(() => r.update(), 10 * 60_000);
-        return () => clearInterval(interval);
-      }
-    },
-    onRegisterError(err) {
-      console.warn('[PWA] Service worker registration error:', err);
-    },
-  });
-
+  // ── Detecção de atualização via controllerchange ──────────────────────────
+  // Com registerType:'autoUpdate', o novo SW instala e ativa automaticamente.
+  // O evento 'controllerchange' dispara quando o novo SW assume o controle.
+  // Mostramos apenas um banner de "recarregar" — sem SKIP_WAITING manual.
   useEffect(() => {
-    if (needRefresh && !wasJustUpdated()) setShowUpdate(true);
-  }, [needRefresh]);
+    if (!('serviceWorker' in navigator)) return;
+
+    let refreshing = false;
+
+    const onControllerChange = () => {
+      // Evita recarregar múltiplas vezes
+      if (refreshing) return;
+      // Só mostra o banner — não faz reload automático
+      setShowUpdate(true);
+    };
+
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+    return () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+    };
+  }, []);
 
   // ── Online/Offline ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -232,50 +193,53 @@ export default function PWAPrompt() {
     };
   }, []);
 
-  // ── Lógica de Exibição de Instalação ────────────────────────────────────────
+  // ── Lógica de exibição de instalação ────────────────────────────────────────
   useEffect(() => {
-    // Se já estiver instalado ou dispensado recentemente, não faz nada
     if (isStandalone() || checkDismissed()) return;
 
-    // Se for iOS, mostra o banner customizado após 5s
     if (getIsIOS()) {
       const timer = setTimeout(() => setShowIOSInstall(true), 5000);
       return () => clearTimeout(timer);
     }
 
-    // ── Captura Android/Chrome ──
-    const showInstallPrompt = () => {
-      // Mostra com um leve delay para não ser intrusivo no carregamento
-      const timer = setTimeout(() => setShowInstall(true), 3000);
-      return () => clearTimeout(timer);
-    };
-
-    // Caso já tenha sido capturado globalmente (em index.html) antes do componente montar
     if (window.pwaDeferredPrompt) {
       deferredPrompt.current = window.pwaDeferredPrompt;
-      return showInstallPrompt();
+      const timer = setTimeout(() => setShowInstall(true), 3000);
+      return () => clearTimeout(timer);
     }
 
-    // Caso contrário, escuta o evento (ou captura se disparar agora)
     const handler = (e) => {
       e.preventDefault();
       deferredPrompt.current = e;
-      window.pwaDeferredPrompt = e; // Sincroniza com global
-      showInstallPrompt();
+      window.pwaDeferredPrompt = e;
+      setTimeout(() => setShowInstall(true), 3000);
     };
-
-    window.addEventListener('beforeinstallprompt', handler);
-    window.addEventListener('appinstalled', () => {
+    const onInstalled = () => {
       setShowInstall(false);
       deferredPrompt.current = null;
       window.pwaDeferredPrompt = null;
       localStorage.setItem(DISMISS_KEY, Date.now().toString());
-    });
+    };
 
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    window.addEventListener('beforeinstallprompt', handler);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
   }, []);
 
+  function checkDismissed() {
+    const t = localStorage.getItem(DISMISS_KEY);
+    return t && (Date.now() - parseInt(t, 10)) < SEVEN_DAYS;
+  }
+
   // ── Handlers ─────────────────────────────────────────────────────────────
+  const handleUpdate = () => {
+    setShowUpdate(false);
+    window.location.reload();
+  };
+
   const handleInstall = async () => {
     if (!deferredPrompt.current) return;
     deferredPrompt.current.prompt();
@@ -291,21 +255,6 @@ export default function PWAPrompt() {
     setShowInstall(false);
     setShowIOSInstall(false);
     localStorage.setItem(DISMISS_KEY, Date.now().toString());
-  };
-
-  const handleUpdate = () => {
-    // Suprime o banner por 60s após o reload para evitar loop
-    localStorage.setItem(JUST_UPDATED_KEY, Date.now().toString());
-    setShowUpdate(false);
-
-    // Envia SKIP_WAITING diretamente ao SW em espera e recarrega
-    navigator.serviceWorker.getRegistration().then((reg) => {
-      if (reg?.waiting) {
-        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-      }
-    }).finally(() => {
-      window.location.reload();
-    });
   };
 
   return (
