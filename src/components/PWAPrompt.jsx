@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Download, WifiOff, RefreshCw, X, Zap } from 'lucide-react';
+import { Download, WifiOff, RefreshCw, X, Zap, Share } from 'lucide-react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 // ─── Banner de Atualização ────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ function UpdateBanner({ onUpdate, onDismiss }) {
   );
 }
 
-// ─── Banner de Instalação ─────────────────────────────────────────────────────
+// ─── Banner de Instalação (Android/Chrome) ────────────────────────────────────
 function InstallBanner({ onInstall, onDismiss }) {
   return (
     <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[90]
@@ -85,6 +85,65 @@ function InstallBanner({ onInstall, onDismiss }) {
   );
 }
 
+// ─── Banner de Instalação (iOS) ──────────────────────────────────────────────
+function IOSInstallBanner({ onDismiss }) {
+  return (
+    <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[90]
+      w-[calc(100vw-2rem)] max-w-sm animate-slide-up">
+      <div className="relative bg-brand-card border border-brand-cyan/20 rounded-2xl p-5
+        shadow-2xl shadow-black/60">
+        <button onClick={onDismiss}
+          className="absolute top-3 right-3 text-brand-muted hover:text-white transition-colors">
+          <X size={14} />
+        </button>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-brand-cyan/10 flex items-center justify-center shrink-0 border border-brand-cyan/20">
+              <Share size={24} className="text-brand-cyan" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white">Instalar no iPhone</p>
+              <p className="text-[11px] text-brand-muted mt-0.5">Siga os passos abaixo:</p>
+            </div>
+          </div>
+
+          <div className="space-y-3 px-1">
+            <div className="flex items-start gap-3">
+              <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold text-brand-cyan shrink-0 border border-white/10 mt-0.5">1</div>
+              <p className="text-[11px] text-brand-muted leading-relaxed">
+                Toque no ícone de <span className="text-white font-semibold">Compartilhar</span> (quadrado com seta para cima) na barra inferior do Safari.
+              </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold text-brand-cyan shrink-0 border border-white/10 mt-0.5">2</div>
+              <p className="text-[11px] text-brand-muted leading-relaxed">
+                Role a lista e toque em <span className="text-white font-semibold">Adicionar à Tela de Início</span>.
+              </p>
+            </div>
+          </div>
+
+          <button onClick={onDismiss}
+            className="w-full py-2.5 mt-1 bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan text-xs font-bold rounded-xl hover:bg-brand-cyan/20 transition-colors">
+            Entendi
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+const DISMISS_KEY = 'pwa-install-dismissed-at';
+const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function getIsIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
 // ─── Banner Offline ───────────────────────────────────────────────────────────
 function OfflineBanner() {
   return (
@@ -103,7 +162,13 @@ export default function PWAPrompt() {
   // ── Instalação ──────────────────────────────────────────────────────────────
   const deferredPrompt = useRef(null);
   const [showInstall, setShowInstall] = useState(false);
-  const installDismissed = useRef(localStorage.getItem('pwa-install-dismissed') === '1');
+  const [showIOSInstall, setShowIOSInstall] = useState(false);
+
+  const checkDismissed = () => {
+    const lastDismissed = localStorage.getItem(DISMISS_KEY);
+    if (!lastDismissed) return false;
+    return (Date.now() - parseInt(lastDismissed, 10)) < SEVEN_DAYS;
+  };
 
   // ── Atualização ─────────────────────────────────────────────────────────────
   const [showUpdate, setShowUpdate] = useState(false);
@@ -115,8 +180,11 @@ export default function PWAPrompt() {
       setShowUpdate(true);
     },
     onRegistered(r) {
-      // Verifica atualizações a cada 60s
-      if (r) setInterval(() => r.update(), 60_000);
+      if (r) {
+        // Verifica atualizações imediatamente e depois a cada 60s
+        r.update();
+        setInterval(() => r.update(), 60_000);
+      }
     },
   });
 
@@ -137,22 +205,32 @@ export default function PWAPrompt() {
     };
   }, []);
 
-  // ── Install prompt ──────────────────────────────────────────────────────────
+  // ── Lógica de Exibição de Instalação ────────────────────────────────────────
   useEffect(() => {
+    // Se já estiver instalado ou dispensado recentemente, não faz nada
+    if (isStandalone() || checkDismissed()) return;
+
+    // Se for iOS, mostra o banner customizado após 5s
+    if (getIsIOS()) {
+      const timer = setTimeout(() => setShowIOSInstall(true), 5000);
+      return () => clearTimeout(timer);
+    }
+
+    // Para outros (Android/Chrome), captura o beforeinstallprompt
     const handler = (e) => {
       e.preventDefault();
       deferredPrompt.current = e;
-      if (!installDismissed.current) {
-        // Mostra após 3s
-        setTimeout(() => setShowInstall(true), 3000);
-      }
+      // Mostra após 3s
+      setTimeout(() => setShowInstall(true), 3000);
     };
+
     window.addEventListener('beforeinstallprompt', handler);
     window.addEventListener('appinstalled', () => {
       setShowInstall(false);
       deferredPrompt.current = null;
-      localStorage.setItem('pwa-install-dismissed', '1');
+      localStorage.setItem(DISMISS_KEY, Date.now().toString());
     });
+
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
@@ -164,15 +242,14 @@ export default function PWAPrompt() {
     deferredPrompt.current = null;
     setShowInstall(false);
     if (outcome !== 'accepted') {
-      installDismissed.current = true;
-      localStorage.setItem('pwa-install-dismissed', '1');
+      localStorage.setItem(DISMISS_KEY, Date.now().toString());
     }
   };
 
-  const handleInstallDismiss = () => {
+  const handleDismiss = () => {
     setShowInstall(false);
-    installDismissed.current = true;
-    localStorage.setItem('pwa-install-dismissed', '1');
+    setShowIOSInstall(false);
+    localStorage.setItem(DISMISS_KEY, Date.now().toString());
   };
 
   const handleUpdate = () => {
@@ -194,7 +271,13 @@ export default function PWAPrompt() {
       {showInstall && !showUpdate && (
         <InstallBanner
           onInstall={handleInstall}
-          onDismiss={handleInstallDismiss}
+          onDismiss={handleDismiss}
+        />
+      )}
+
+      {showIOSInstall && !showUpdate && (
+        <IOSInstallBanner
+          onDismiss={handleDismiss}
         />
       )}
     </>
