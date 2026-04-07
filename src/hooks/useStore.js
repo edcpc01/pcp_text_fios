@@ -87,7 +87,7 @@ export const useAuthStore = create((set) => ({
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export const useAppStore = create((set, get) => ({
-  factory: 'matriz',
+  factory: 'all',
   setFactory: (f) => set({ factory: f }),
   getFactoryData: () => FACTORIES.find((f) => f.id === get().factory),
   month: { year: new Date().getFullYear(), month: new Date().getMonth() },

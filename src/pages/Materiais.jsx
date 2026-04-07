@@ -429,6 +429,8 @@ export default function Materiais() {
   // ─── Auto-sync estoque (a cada 5 min, sem interação do usuário) ─────────────
   const [lastAutoSync, setLastAutoSync] = useState(null);
   const AUTO_SYNC_INTERVAL = 5 * 60 * 1000;
+  // Ref para acessar mpNecessidade atual no interval sem criar nova closure
+  const mpNecessidadeRef = useRef([]);
 
   useEffect(() => {
     const autoSync = async () => {
@@ -437,8 +439,8 @@ export default function Materiais() {
       if (!file) return;
       try {
         const text = await file.text();
-        // mpNecessidade ainda não está computado aqui — passa objeto vazio, processEstoqueText é resiliente
-        await processEstoqueText(text, {});
+        // Chama processEstoqueText com o mpNecessidade atual via ref
+        await processEstoqueText(text, mpNecessidadeRef.current);
         setLastAutoSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
       } catch { /* falha silenciosa */ }
     };
@@ -516,6 +518,9 @@ export default function Materiais() {
       .map((m) => ({ ...m, produtos: [...m.produtos] }))
       .sort((a, b) => b.necessidadeKg - a.necessidadeKg);
   }, [planningEntries, products]);
+
+  // Mantém ref atualizada para o auto-sync usar sempre o valor mais recente
+  mpNecessidadeRef.current = mpNecessidade;
 
   // Summary KPIs
   const totalNecessidade = mpNecessidade.reduce((s, m) => s + m.necessidadeKg, 0);
