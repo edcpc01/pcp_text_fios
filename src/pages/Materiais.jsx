@@ -202,19 +202,19 @@ function PaCard({ product, stock, onSaveStock, editable }) {
   const estoqueKg = stock?.estoqueKg ?? 0;
 
   return (
-    <div className="bg-brand-card border border-brand-border rounded-2xl p-4 card-hover" style={{ borderTop: '2px solid #8b5cf6' }}>
-      <div className="flex items-start justify-between gap-2 mb-3">
+    <div className="bg-brand-card border border-brand-border rounded-2xl p-3 sm:p-4 card-hover" style={{ borderTop: '2px solid #8b5cf6' }}>
+      <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-bold text-brand-muted uppercase tracking-widest mb-0.5">Produto Acabado</p>
-          <p className="text-sm font-semibold text-white truncate">{product.nome}</p>
-          <p className="text-[11px] font-mono text-brand-muted mt-0.5">Cód. {product.codigoMicrodata || '—'}</p>
+          <p className="text-[8px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest mb-0.5">Produto Acabado</p>
+          <p className="text-xs sm:text-sm font-semibold text-white truncate" title={product.nome}>{product.nome}</p>
+          <p className="text-[10px] sm:text-[11px] font-mono text-brand-muted mt-0.5">Cód. {product.codigoMicrodata || '—'}</p>
         </div>
-        <span className="text-[9px] font-bold px-2 py-1 rounded-lg bg-violet-500/10 text-violet-400 shrink-0">
+        <span className="text-[8px] sm:text-[9px] font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-violet-500/10 text-violet-400 shrink-0">
           {product.composicao || product.type || '—'}
         </span>
       </div>
-      <div className="bg-brand-surface rounded-xl p-3 text-center">
-        <p className="text-[9px] text-brand-muted uppercase tracking-widest mb-1">Estoque (Microdata)</p>
+      <div className="bg-brand-surface rounded-xl p-2 sm:p-3 text-center">
+        <p className="text-[8px] sm:text-[9px] text-brand-muted uppercase tracking-widest mb-1">Estoque (Microdata)</p>
         <InlineEdit
           value={estoqueKg}
           label={editable ? "Clique para editar o estoque de PA" : "Estoque atual"}
@@ -223,7 +223,7 @@ function PaCard({ product, stock, onSaveStock, editable }) {
         />
       </div>
       {product.comprimentoEnrolamento && (
-        <p className="text-[10px] text-brand-muted mt-2 text-center">
+        <p className="text-[8px] sm:text-[10px] text-brand-muted mt-2 text-center">
           {product.tituloDtex} dtex · {product.comprimentoEnrolamento}m/bobina
         </p>
       )}
@@ -675,12 +675,14 @@ export default function Materiais() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-brand-border">
-                    <th className="text-left px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Produto</th>
-                    <th className="text-right px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Planejado</th>
-                    <th className="text-left px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">MP 1</th>
-                    <th className="text-right px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Qtd MP 1</th>
-                    <th className="text-left px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest hidden md:table-cell">MP 2</th>
-                    <th className="text-right px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest hidden md:table-cell">Qtd MP 2</th>
+                    <th className="text-left px-3 sm:px-5 py-2 sm:py-3 text-[9px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest">Produto</th>
+                    <th className="text-right px-3 sm:px-5 py-2 sm:py-3 text-[9px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest">Planejado</th>
+                    <th className="text-left px-3 sm:px-5 py-2 sm:py-3 text-[9px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest">MP 1</th>
+                    <th className="text-right px-3 sm:px-5 py-2 sm:py-3 text-[9px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest">Qtd MP 1</th>
+                    <th className="text-left px-3 sm:px-5 py-2 sm:py-3 text-[9px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest hidden sm:table-cell">MP 2</th>
+                    <th className="text-right px-3 sm:px-5 py-2 sm:py-3 text-[9px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest hidden sm:table-cell">Qtd MP 2</th>
+                    <th className="text-left px-3 sm:px-5 py-2 sm:py-3 text-[9px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest hidden lg:table-cell">MP 3</th>
+                    <th className="text-right px-3 sm:px-5 py-2 sm:py-3 text-[9px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest hidden lg:table-cell">Qtd MP 3</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -708,25 +710,33 @@ export default function Materiais() {
                         const useNewFormat = product && ['mp1', 'mp2', 'mp3'].some((k) => product[k]?.descricao);
                         const mp1 = useNewFormat ? product?.mp1 : product?.alma;
                         const mp2 = useNewFormat ? product?.mp2 : product?.efeito;
+                        const mp3 = useNewFormat ? product?.mp3 : null;
 
                         const mp1Desc = mp1?.descricao || '—';
                         const mp1Pct  = mp1?.composicaoPct || 0;
                         const mp2Desc = mp2?.descricao || '—';
                         const mp2Pct  = mp2?.composicaoPct || 0;
+                        const mp3Desc = mp3?.descricao || '—';
+                        const mp3Pct  = mp3?.composicaoPct || 0;
 
                         return (
                           <tr key={row.productName} className={`border-b border-brand-border/50 hover:bg-brand-surface/50 transition-colors ${i % 2 === 0 ? '' : 'bg-brand-surface/20'}`}>
-                            <td className="px-5 py-3 text-white font-medium">{row.productName}</td>
-                            <td className="px-5 py-3 text-right font-mono text-brand-cyan">{fmtKg(row.totalKg)}</td>
-                            <td className="px-5 py-3 text-brand-muted text-xs">{mp1Desc}</td>
-                            <td className="px-5 py-3 text-right font-mono text-white">
+                            <td className="px-3 sm:px-5 py-2 sm:py-3 text-white font-medium text-xs sm:text-sm">{row.productName}</td>
+                            <td className="px-3 sm:px-5 py-2 sm:py-3 text-right font-mono text-brand-cyan text-xs sm:text-sm">{fmtKg(row.totalKg)}</td>
+                            <td className="px-3 sm:px-5 py-2 sm:py-3 text-brand-muted text-[8px] sm:text-xs">{mp1Desc}</td>
+                            <td className="px-3 sm:px-5 py-2 sm:py-3 text-right font-mono text-white text-xs sm:text-sm">
                               {mp1Pct > 0 ? fmtKg(row.totalKg * mp1Pct / 100) : '—'}
-                              {mp1Pct > 0 && <span className="text-brand-muted text-[10px] ml-1">({mp1Pct}%)</span>}
+                              {mp1Pct > 0 && <span className="text-brand-muted text-[8px] sm:text-[10px] ml-0.5 sm:ml-1">({mp1Pct}%)</span>}
                             </td>
-                            <td className="px-5 py-3 text-brand-muted text-xs hidden md:table-cell">{mp2Desc !== '—' ? mp2Desc : '—'}</td>
-                            <td className="px-5 py-3 text-right font-mono text-white hidden md:table-cell">
+                            <td className="px-3 sm:px-5 py-2 sm:py-3 text-brand-muted text-[8px] sm:text-xs hidden sm:table-cell">{mp2Desc !== '—' ? mp2Desc : '—'}</td>
+                            <td className="px-3 sm:px-5 py-2 sm:py-3 text-right font-mono text-white text-xs sm:text-sm hidden sm:table-cell">
                               {mp2Pct > 0 ? fmtKg(row.totalKg * mp2Pct / 100) : '—'}
-                              {mp2Pct > 0 && <span className="text-brand-muted text-[10px] ml-1">({mp2Pct}%)</span>}
+                              {mp2Pct > 0 && <span className="text-brand-muted text-[8px] sm:text-[10px] ml-0.5 sm:ml-1">({mp2Pct}%)</span>}
+                            </td>
+                            <td className="px-3 sm:px-5 py-2 sm:py-3 text-brand-muted text-[8px] sm:text-xs hidden lg:table-cell">{mp3Desc !== '—' ? mp3Desc : '—'}</td>
+                            <td className="px-3 sm:px-5 py-2 sm:py-3 text-right font-mono text-white text-xs sm:text-sm hidden lg:table-cell">
+                              {mp3Pct > 0 ? fmtKg(row.totalKg * mp3Pct / 100) : '—'}
+                              {mp3Pct > 0 && <span className="text-brand-muted text-[8px] sm:text-[10px] ml-0.5 sm:ml-1">({mp3Pct}%)</span>}
                             </td>
                           </tr>
                         );
@@ -749,24 +759,24 @@ export default function Materiais() {
           </span>
         </h2>
 
-        {productsWithCode.length === 0 ? (
-          <div className="bg-brand-card border border-brand-border rounded-2xl p-12 text-center">
-            <Package size={32} className="text-brand-muted mx-auto mb-3 opacity-30" />
-            <p className="text-brand-muted text-sm">Nenhum produto cadastrado ainda.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {productsWithCode.map((product) => (
-              <PaCard
-                key={product.id}
-                product={product}
-                stock={paStock[product.id]}
-                onSaveStock={saveFinishedGoodStock}
-                editable={!isSupervisor}
-              />
-            ))}
-          </div>
-        )}
+       {productsWithCode.length === 0 ? (
+           <div className="bg-brand-card border border-brand-border rounded-2xl p-12 text-center">
+             <Package size={32} className="text-brand-muted mx-auto mb-3 opacity-30" />
+             <p className="text-brand-muted text-sm">Nenhum produto cadastrado ainda.</p>
+           </div>
+         ) : (
+           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+             {productsWithCode.map((product) => (
+               <PaCard
+                 key={product.id}
+                 product={product}
+                 stock={paStock[product.id]}
+                 onSaveStock={saveFinishedGoodStock}
+                 editable={!isSupervisor}
+               />
+             ))}
+           </div>
+         )}
       </div>
 
     </div>

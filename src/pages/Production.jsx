@@ -39,49 +39,49 @@ function ProductRow({ item, rank }) {
   return (
     <tr className="group hover:bg-white/[0.025] transition-colors border-b border-brand-border">
       {/* Rank */}
-      <td className="pl-6 pr-2 py-4 w-8">
-        <span className="text-xs font-mono text-brand-muted/60">{rank}</span>
+      <td className="pl-3 sm:pl-6 pr-1 sm:pr-2 py-2 sm:py-4 w-6 sm:w-8">
+        <span className="text-[8px] sm:text-xs font-mono text-brand-muted/60">{rank}</span>
       </td>
 
       {/* Produto */}
-      <td className="px-4 py-4">
+      <td className="px-2 sm:px-4 py-2 sm:py-4 min-w-[120px] sm:min-w-fit">
         <div>
-          <span className="text-sm font-semibold text-white">{item.name}</span>
+          <span className="text-xs sm:text-sm font-semibold text-white block truncate">{item.name}</span>
           {item.machine && (
-            <span className="ml-2 text-[10px] text-brand-muted/60">{item.machine}</span>
+            <span className="text-[8px] sm:text-[10px] text-brand-muted/60">{item.machine}</span>
           )}
         </div>
       </td>
 
       {/* Planejado */}
-      <td className="px-4 py-4 text-right">
-        <span className="text-sm font-mono text-white">
+      <td className="px-2 sm:px-4 py-2 sm:py-4 text-right">
+        <span className="text-xs sm:text-sm font-mono text-white">
           {item.planned.toLocaleString('pt-BR')}
         </span>
-        <span className="text-[10px] text-brand-muted/60 ml-1">kg</span>
+        <span className="text-[8px] sm:text-[10px] text-brand-muted/60 ml-0.5">kg</span>
       </td>
 
       {/* Realizado */}
-      <td className="px-4 py-4 text-right">
-        <span className={`text-sm font-mono font-semibold ${colors.text}`}>
+      <td className="px-2 sm:px-4 py-2 sm:py-4 text-right">
+        <span className={`text-xs sm:text-sm font-mono font-semibold ${colors.text}`}>
           {item.actual.toLocaleString('pt-BR')}
         </span>
-        <span className="text-[10px] text-brand-muted/60 ml-1">kg</span>
+        <span className="text-[8px] sm:text-[10px] text-brand-muted/60 ml-0.5">kg</span>
       </td>
 
       {/* Barra de aderência */}
-      <td className="px-4 py-4 min-w-[140px]">
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1">
+      <td className="px-2 sm:px-4 py-2 sm:py-4 min-w-[120px] sm:min-w-[140px]">
+        <div className="space-y-1">
+          <div className="flex items-center justify-between gap-1">
+            <div className="flex items-center gap-0.5">
               <AdherenceIcon pct={pct} />
-              <span className={`text-xs font-mono font-bold ${colors.text}`}>{pct}%</span>
+              <span className={`text-[8px] sm:text-xs font-mono font-bold ${colors.text}`}>{pct}%</span>
             </div>
-            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${badge.cls}`}>
+            <span className={`text-[7px] sm:text-[10px] font-medium px-1 sm:px-1.5 py-0.5 rounded-full border ${badge.cls}`}>
               {badge.label}
             </span>
           </div>
-          <div className="h-1.5 bg-brand-surface/80 rounded-full overflow-hidden">
+          <div className="h-1 sm:h-1.5 bg-brand-surface/80 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-700 ${colors.bar}`}
               style={{ width: `${barWidth}%` }}
@@ -91,9 +91,9 @@ function ProductRow({ item, rank }) {
       </td>
 
       {/* Desvio */}
-      <td className="px-4 py-4 text-right pr-6">
+      <td className="px-2 sm:px-4 py-2 sm:py-4 text-right pr-3 sm:pr-6">
         {item.planned > 0 && (
-          <span className={`text-xs font-mono ${item.actual >= item.planned ? 'text-emerald-400' : 'text-red-400'}`}>
+          <span className={`text-[8px] sm:text-xs font-mono ${item.actual >= item.planned ? 'text-emerald-400' : 'text-red-400'}`}>
             {item.actual >= item.planned ? '+' : ''}
             {(item.actual - item.planned).toLocaleString('pt-BR')} kg
           </span>
@@ -565,7 +565,7 @@ export default function Production() {
       </div>
 
       {/* ─── Tabela ────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto w-full">
         {sortedData.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-16">
             <div className="w-12 h-12 rounded-full bg-brand-surface/40 flex items-center justify-center mb-3">
@@ -575,34 +575,34 @@ export default function Production() {
             <p className="text-xs text-brand-muted/60 mt-1">Sincronize com o Microdata ou aguarde dados do agente</p>
           </div>
         ) : (
-          <table className="w-full border-collapse">
+          <table className="w-full border-collapse min-w-full">
             <thead>
               <tr className="sticky top-0 z-10 bg-brand-bg/95 backdrop-blur-sm border-b border-brand-border">
-                <th className="pl-6 pr-2 py-3 text-left w-8">
-                  <span className="text-[10px] font-semibold text-brand-muted uppercase tracking-wider">#</span>
+                <th className="pl-3 sm:pl-6 pr-2 py-3 text-left w-6 sm:w-8">
+                  <span className="text-[9px] sm:text-[10px] font-semibold text-brand-muted uppercase tracking-wider">#</span>
                 </th>
-                <th className="px-4 py-3 text-left">
-                  <button onClick={() => setSortBy('name')} className="text-[10px] font-semibold text-brand-muted uppercase tracking-wider hover:text-white transition-colors">
+                <th className="px-2 sm:px-4 py-3 text-left min-w-[120px] sm:min-w-fit">
+                  <button onClick={() => setSortBy('name')} className="text-[9px] sm:text-[10px] font-semibold text-brand-muted uppercase tracking-wider hover:text-white transition-colors">
                     {viewMode === 'product' ? 'Produto' : viewMode === 'machine' ? 'Máquina' : 'Data'}
                   </button>
                 </th>
-                <th className="px-4 py-3 text-right">
-                  <button onClick={() => setSortBy('planned')} className="text-[10px] font-semibold text-brand-muted uppercase tracking-wider hover:text-white transition-colors">
+                <th className="px-2 sm:px-4 py-3 text-right min-w-[80px] sm:min-w-fit">
+                  <button onClick={() => setSortBy('planned')} className="text-[9px] sm:text-[10px] font-semibold text-brand-muted uppercase tracking-wider hover:text-white transition-colors">
                     Planejado
                   </button>
                 </th>
-                <th className="px-4 py-3 text-right">
-                  <button onClick={() => setSortBy('actual')} className="text-[10px] font-semibold text-brand-muted uppercase tracking-wider hover:text-white transition-colors">
+                <th className="px-2 sm:px-4 py-3 text-right min-w-[80px] sm:min-w-fit">
+                  <button onClick={() => setSortBy('actual')} className="text-[9px] sm:text-[10px] font-semibold text-brand-muted uppercase tracking-wider hover:text-white transition-colors">
                     Realizado
                   </button>
                 </th>
-                <th className="px-4 py-3 min-w-[180px]">
-                  <button onClick={() => setSortBy('pct')} className="text-[10px] font-semibold text-brand-muted uppercase tracking-wider hover:text-white transition-colors">
+                <th className="px-2 sm:px-4 py-3 min-w-[120px] sm:min-w-[180px]">
+                  <button onClick={() => setSortBy('pct')} className="text-[9px] sm:text-[10px] font-semibold text-brand-muted uppercase tracking-wider hover:text-white transition-colors">
                     Aderência
                   </button>
                 </th>
-                <th className="px-4 py-3 text-right pr-6">
-                  <span className="text-[10px] font-semibold text-brand-muted uppercase tracking-wider">Desvio</span>
+                <th className="px-2 sm:px-4 py-3 text-right pr-3 sm:pr-6 min-w-[70px] sm:min-w-fit">
+                  <span className="text-[9px] sm:text-[10px] font-semibold text-brand-muted uppercase tracking-wider">Desvio</span>
                 </th>
               </tr>
             </thead>
@@ -615,37 +615,37 @@ export default function Production() {
             {/* Footer de totais */}
             <tfoot>
               <tr className="border-t-2 border-white/[0.08] bg-brand-card/60">
-                <td colSpan={2} className="pl-6 py-4">
-                  <span className="text-xs font-bold text-brand-muted uppercase tracking-wider">
+                <td colSpan={2} className="pl-3 sm:pl-6 py-3 sm:py-4">
+                  <span className="text-[9px] sm:text-xs font-bold text-brand-muted uppercase tracking-wider">
                     Total — {sortedData.length} {viewMode === 'product' ? 'produtos' : viewMode === 'machine' ? 'máquinas' : 'dias'}
                   </span>
                 </td>
-                <td className="px-4 py-4 text-right">
-                  <span className="text-sm font-mono font-bold text-white">
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-right">
+                  <span className="text-xs sm:text-sm font-mono font-bold text-white">
                     {sortedData.reduce((s, i) => s + i.planned, 0).toLocaleString('pt-BR')}
-                    <span className="text-xs font-normal text-brand-muted ml-1">kg</span>
+                    <span className="text-[8px] sm:text-xs font-normal text-brand-muted ml-1">kg</span>
                   </span>
                 </td>
-                <td className="px-4 py-4 text-right">
-                  <span className={`text-sm font-mono font-bold ${globalColors.text}`}>
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-right">
+                  <span className={`text-xs sm:text-sm font-mono font-bold ${globalColors.text}`}>
                     {sortedData.reduce((s, i) => s + i.actual, 0).toLocaleString('pt-BR')}
-                    <span className="text-xs font-normal text-brand-muted ml-1">kg</span>
+                    <span className="text-[8px] sm:text-xs font-normal text-brand-muted ml-1">kg</span>
                   </span>
                 </td>
-                <td className="px-4 py-4">
-                  <div className="flex items-center gap-2">
+                <td className="px-2 sm:px-4 py-3 sm:py-4">
+                  <div className="flex items-center gap-1 sm:gap-2">
                     <AdherenceIcon pct={globalPct} />
-                    <span className={`text-sm font-mono font-bold ${globalColors.text}`}>{globalPct}%</span>
-                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${getStatusBadge(globalPct).cls}`}>
+                    <span className={`text-xs sm:text-sm font-mono font-bold ${globalColors.text}`}>{globalPct}%</span>
+                    <span className={`text-[8px] sm:text-[10px] font-medium px-1.5 sm:px-2 py-0.5 rounded-full border ${getStatusBadge(globalPct).cls}`}>
                       {getStatusBadge(globalPct).label}
                     </span>
                   </div>
                 </td>
-                <td className="px-4 py-4 text-right pr-6">
+                <td className="px-2 sm:px-4 py-3 sm:py-4 text-right pr-3 sm:pr-6">
                   {(() => {
                     const totalDev = sortedData.reduce((s, i) => s + i.actual - i.planned, 0);
                     return (
-                      <span className={`text-xs font-mono font-bold ${totalDev >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <span className={`text-[8px] sm:text-xs font-mono font-bold ${totalDev >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {totalDev >= 0 ? '+' : ''}{totalDev.toLocaleString('pt-BR')} kg
                       </span>
                     );

@@ -177,24 +177,24 @@ function MatrixCell({ entry, date, machine, isCurrentDay, onClick, onDragStart, 
       onDragStart={(e) => onDragStart && onDragStart(e, entry)}
       onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
       onDrop={(e) => onDrop && onDrop(e, machine, date)}
-      className={`border border-brand-border/40 min-w-[56px] w-[56px] transition-all duration-100 ${onClick ? 'cursor-pointer hover:brightness-125' : ''}`}
+      className={`border border-brand-border/40 min-w-[40px] md:min-w-[50px] w-[40px] md:w-[50px] transition-all duration-100 ${onClick ? 'cursor-pointer hover:brightness-125' : ''}`}
       style={ct
         ? { background: ct.bg, borderColor: ct.border }
         : { background: isCurrentDay ? 'rgba(34,211,238,0.04)' : 'transparent' }}>
-      <div className="h-[52px] flex flex-col items-center justify-center gap-0.5 px-1">
+      <div className="h-[40px] md:h-[52px] flex flex-col items-center justify-center gap-0.5 px-0.5">
         {entry ? (
           entry.cellType === 'producao' ? (<>
-            <span className="text-[11px] font-mono font-black leading-none" style={{ color: ct.text }}>
+            <span className="text-[8px] md:text-[11px] font-mono font-black leading-none" style={{ color: ct.text }}>
               {entry.planned >= 1000 ? `${(entry.planned / 1000).toFixed(1)}k` : entry.planned}
             </span>
-            <span className="text-[9px] font-bold" style={{ color: ct.text, opacity: 0.8 }}>{entry.quality || 'A'}</span>
+            <span className="text-[7px] md:text-[9px] font-bold" style={{ color: ct.text, opacity: 0.8 }}>{entry.quality || 'A'}</span>
           </>) : (
-            <span className="text-[8px] font-black uppercase text-center leading-tight px-0.5" style={{ color: ct.text, opacity: 0.9 }}>
+            <span className="text-[7px] md:text-[8px] font-black uppercase text-center leading-tight px-0.5" style={{ color: ct.text, opacity: 0.9 }}>
               {entry.cellType === 'parada_np' ? 'P.N.P' : entry.cellType === 'parada_p' ? 'P.Prog' : 'Manut.'}
             </span>
           )
         ) : (
-          onClick ? <Plus size={9} className="text-brand-border/40" /> : null
+          onClick ? <Plus size={8} className="text-brand-border/40 md:hidden" /> : null
         )}
       </div>
     </td>
@@ -375,29 +375,29 @@ export default function Planning() {
       </div>
 
       {/* Matrix */}
-      <div className="flex-1 overflow-auto">
-        <table className="border-collapse w-max min-w-full">
+      <div className="flex-1 overflow-auto w-full">
+        <table className="border-collapse w-full min-w-fit">
           <thead>
             <tr className="sticky top-0 z-20 bg-brand-bg/95 backdrop-blur-sm">
-              <th className="sticky left-0 z-30 bg-brand-bg border border-brand-border/40 px-3 md:px-4 py-2.5 md:py-3 text-left min-w-[110px] shadow-[4px_0_12px_rgba(0,0,0,0.4)]">
-                <span className="text-[9px] md:text-[10px] font-bold text-brand-muted uppercase tracking-wider">Máquina</span>
+              <th className="sticky left-0 z-30 bg-brand-bg border border-brand-border/40 px-2 md:px-3 lg:px-4 py-2 md:py-2.5 lg:py-3 text-left min-w-[80px] md:min-w-[100px] lg:min-w-[110px] shadow-[4px_0_12px_rgba(0,0,0,0.4)]">
+                <span className="text-[8px] md:text-[9px] lg:text-[10px] font-bold text-brand-muted uppercase tracking-wider">Máquina</span>
               </th>
               {days.map((date) => {
                 const today = isToday(date);
                 const isSun = new Date(date + 'T12:00:00').getDay() === 0;
                 return (
                   <th key={date}
-                    className="border border-brand-border/40 min-w-[54px] w-[54px] py-1.5 md:py-2 px-0.5 text-center"
+                    className="border border-brand-border/40 min-w-[40px] md:min-w-[50px] w-[40px] md:w-[50px] py-1 md:py-1.5 lg:py-2 px-0.5 text-center"
                     style={today ? { background: 'rgba(34,211,238,0.06)', borderColor: 'rgba(34,211,238,0.25)' } : {}}>
                     <div className="flex flex-col items-center gap-0">
-                      <span className={`text-[8px] md:text-[9px] font-medium uppercase ${isSun ? 'text-red-400/80' : 'text-brand-muted'}`}>{getWeekday(date)}</span>
-                      <span className={`text-[10px] md:text-[11px] font-mono font-bold leading-none ${today ? 'text-brand-cyan' : isSun ? 'text-red-400/60' : 'text-brand-muted'}`}>{date.split('-')[2]}</span>
+                      <span className={`text-[7px] md:text-[8px] lg:text-[9px] font-medium uppercase ${isSun ? 'text-red-400/80' : 'text-brand-muted'}`}>{getWeekday(date)}</span>
+                      <span className={`text-[9px] md:text-[10px] lg:text-[11px] font-mono font-bold leading-none ${today ? 'text-brand-cyan' : isSun ? 'text-red-400/60' : 'text-brand-muted'}`}>{date.split('-')[2]}</span>
                     </div>
                   </th>
                 );
               })}
-              <th className="sticky right-0 z-30 bg-brand-bg border border-brand-border/40 px-2 md:px-3 py-2.5 md:py-3 min-w-[70px] md:min-w-[80px] text-right shadow-[-4px_0_12px_rgba(0,0,0,0.4)]">
-                <span className="text-[9px] md:text-[10px] font-bold text-brand-muted uppercase tracking-wider">Total</span>
+              <th className="sticky right-0 z-30 bg-brand-bg border border-brand-border/40 px-1.5 md:px-2 lg:px-3 py-2 md:py-2.5 lg:py-3 min-w-[55px] md:min-w-[70px] lg:min-w-[80px] text-right shadow-[-4px_0_12px_rgba(0,0,0,0.4)]">
+                <span className="text-[8px] md:text-[9px] lg:text-[10px] font-bold text-brand-muted uppercase tracking-wider">Total</span>
               </th>
             </tr>
           </thead>
@@ -414,10 +414,10 @@ export default function Planning() {
                 }
                 rows.push(
                   <tr key={`${machine._factory}-${machine.id}`} className="group hover:bg-white/[0.01]">
-                    <td className="sticky left-0 z-10 bg-brand-bg group-hover:bg-brand-surface/20 border border-brand-border/40 px-3 md:px-4 py-0 transition-colors shadow-[4px_0_12px_rgba(0,0,0,0.4)]">
-                      <div className="py-1 md:py-2 min-w-[100px]">
-                        <span className="text-[11px] md:text-xs font-bold text-white block truncate leading-tight">{machine.id}</span>
-                        <span className="text-[9px] md:text-[10px] text-brand-muted block truncate leading-tight mt-0.5">{machine.name}</span>
+                    <td className="sticky left-0 z-10 bg-brand-bg group-hover:bg-brand-surface/20 border border-brand-border/40 px-2 md:px-3 lg:px-4 py-0 transition-colors shadow-[4px_0_12px_rgba(0,0,0,0.4)]">
+                      <div className="py-1 md:py-1.5 lg:py-2 min-w-[70px] md:min-w-[90px] lg:min-w-[100px]">
+                        <span className="text-[9px] md:text-xs lg:text-sm font-bold text-white block truncate leading-tight">{machine.id}</span>
+                        <span className="text-[8px] md:text-[9px] lg:text-[10px] text-brand-muted block truncate leading-tight mt-0.5">{machine.name}</span>
                       </div>
                     </td>
                     {days.map((date) => (
@@ -432,9 +432,9 @@ export default function Planning() {
                         onDrop={!isSupervisor ? handleDrop : undefined}
                       />
                     ))}
-                    <td className="sticky right-0 z-10 bg-brand-bg group-hover:bg-brand-surface/20 border border-brand-border/40 px-2 md:px-3 transition-colors text-right shadow-[-4px_0_12px_rgba(0,0,0,0.4)]">
-                      <span className="text-[11px] md:text-xs font-mono font-bold text-brand-cyan">{(machineTotals[machine.id] || 0).toLocaleString('pt-BR')}</span>
-                      <span className="text-[9px] md:text-[10px] text-brand-muted ml-0.5">kg</span>
+                    <td className="sticky right-0 z-10 bg-brand-bg group-hover:bg-brand-surface/20 border border-brand-border/40 px-1.5 md:px-2 lg:px-3 transition-colors text-right shadow-[-4px_0_12px_rgba(0,0,0,0.4)]">
+                      <span className="text-[9px] md:text-xs lg:text-sm font-mono font-bold text-brand-cyan">{(machineTotals[machine.id] || 0).toLocaleString('pt-BR')}</span>
+                      <span className="text-[7px] md:text-[8px] lg:text-[10px] text-brand-muted ml-0.5">kg</span>
                     </td>
                   </tr>
                 );
@@ -443,8 +443,8 @@ export default function Planning() {
             })()}
             {/* Total row */}
             <tr className="border-t-2 border-brand-border">
-              <td className="sticky left-0 z-10 bg-brand-surface border border-brand-border/40 px-3 md:px-4 py-1.5 md:py-2.5 shadow-[4px_0_12px_rgba(0,0,0,0.4)]">
-                <span className="text-[9px] md:text-[10px] font-bold text-brand-muted uppercase tracking-wider">Total</span>
+              <td className="sticky left-0 z-10 bg-brand-surface border border-brand-border/40 px-2 md:px-3 lg:px-4 py-1 md:py-1.5 lg:py-2.5 shadow-[4px_0_12px_rgba(0,0,0,0.4)]">
+                <span className="text-[8px] md:text-[9px] lg:text-[10px] font-bold text-brand-muted uppercase tracking-wider">Total</span>
               </td>
               {days.map((date) => {
                 const dayTotal = machineList.reduce((s, m) => {
@@ -454,15 +454,15 @@ export default function Planning() {
                 return (
                   <td key={date} className="border border-brand-border/40 bg-brand-surface text-center"
                     style={isToday(date) ? { background: 'rgba(34,211,238,0.04)' } : {}}>
-                    <span className="text-[9px] md:text-[10px] font-mono text-brand-muted">
+                    <span className="text-[7px] md:text-[8px] lg:text-[10px] font-mono text-brand-muted">
                       {dayTotal > 0 ? (dayTotal >= 1000 ? `${(dayTotal / 1000).toFixed(1)}k` : dayTotal) : '—'}
                     </span>
                   </td>
                 );
               })}
-              <td className="sticky right-0 z-10 bg-brand-surface border border-brand-border/40 px-2 md:px-3 text-right shadow-[-4px_0_12px_rgba(0,0,0,0.4)]">
-                <span className="text-[12px] md:text-sm font-mono font-bold text-brand-cyan">{grandTotal.toLocaleString('pt-BR')}</span>
-                <span className="text-[9px] md:text-[10px] text-brand-muted ml-0.5">kg</span>
+              <td className="sticky right-0 z-10 bg-brand-surface border border-brand-border/40 px-1.5 md:px-2 lg:px-3 text-right shadow-[-4px_0_12px_rgba(0,0,0,0.4)]">
+                <span className="text-[10px] md:text-[11px] lg:text-sm font-mono font-bold text-brand-cyan">{grandTotal.toLocaleString('pt-BR')}</span>
+                <span className="text-[7px] md:text-[8px] lg:text-[10px] text-brand-muted ml-0.5">kg</span>
               </td>
             </tr>
           </tbody>
