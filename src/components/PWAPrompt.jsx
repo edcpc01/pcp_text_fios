@@ -168,13 +168,13 @@ function OfflineBanner() {
   );
 }
 
-// Proteção anti-loop: não mostra o banner nos primeiros 10s após um reload de atualização
+// Proteção anti-loop: suprime o banner por 60s após um reload de atualização
 const JUST_UPDATED_KEY = 'pwa-just-updated';
+const SUPPRESS_MS = 60_000;
 function wasJustUpdated() {
   const t = localStorage.getItem(JUST_UPDATED_KEY);
   if (!t) return false;
-  const elapsed = Date.now() - parseInt(t, 10);
-  if (elapsed < 15_000) return true;
+  if (Date.now() - parseInt(t, 10) < SUPPRESS_MS) return true;
   localStorage.removeItem(JUST_UPDATED_KEY);
   return false;
 }
@@ -199,19 +199,16 @@ export default function PWAPrompt() {
 
   const {
     needRefresh: [needRefresh],
-    updateServiceWorker,
   } = useRegisterSW({
     onNeedRefresh() {
-      // Não mostra banner se acabou de recarregar por uma atualização
-      if (!wasJustUpdated()) {
-        setShowUpdate(true);
-      }
+      if (!wasJustUpdated()) setShowUpdate(true);
     },
     onRegistered(r) {
       if (r) {
-        // Aguarda 5s antes de checar para não disparar logo após o reload
-        setTimeout(() => r.update(), 5_000);
-        setInterval(() => r.update(), 60_000);
+        // Polling apenas a cada 10 minutos — não logo após o carregamento
+        // para não disparar needRefresh imediatamente após um update
+        const interval = setInterval(() => r.update(), 10 * 60_000);
+        return () => clearInterval(interval);
       }
     },
     onRegisterError(err) {
@@ -296,13 +293,19 @@ export default function PWAPrompt() {
     localStorage.setItem(DISMISS_KEY, Date.now().toString());
   };
 
-  const handleUpdate = async () => {
-    // Marca que acabou de atualizar para suprimir o banner no próximo load
+  const handleUpdate = () => {
+    // Suprime o banner por 60s após o reload para evitar loop
     localStorage.setItem(JUST_UPDATED_KEY, Date.now().toString());
-    // updateServiceWorker(true) faz SKIP_WAITING + reload internamente
-    await updateServiceWorker(true);
-    // Fallback caso o reload não tenha ocorrido
-    window.location.reload();
+    setShowUpdate(false);
+
+    // Envia SKIP_WAITING diretamente ao SW em espera e recarrega
+    navigator.serviceWorker.getRegistration().then((reg) => {
+      if (reg?.waiting) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+    }).finally(() => {
+      window.location.reload();
+    });
   };
 
   return (
