@@ -1,4 +1,4 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, deleteApp } from 'firebase/app';
 import {
   getFirestore,
   collection, doc, getDoc, setDoc, deleteDoc,
@@ -79,14 +79,24 @@ export async function updateUserName(uid, name) {
 }
 
 export async function createUserByAdmin(email, password, name, role) {
-  // Cria a conta no Firebase Auth
-  const cred = await createUserWithEmailAndPassword(auth, email, password);
-  // Salva perfil no Firestore
-  await setDoc(doc(db, 'users', cred.user.uid), {
-    email, name, role,
-    createdAt: Timestamp.now(),
-  });
-  return cred.user;
+  // Usa um app secundário para NÃO deslogar o admin ao criar a conta
+  const secondaryApp = initializeApp(firebaseConfig, `admin-create-${Date.now()}`);
+  const secondaryAuth = getAuth(secondaryApp);
+  try {
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+    // Salva perfil completo no Firestore (usando db do app principal — não afeta a sessão)
+    await setDoc(doc(db, 'users', cred.user.uid), {
+      email,
+      name,
+      role,
+      factory: 'all',
+      createdAt: Timestamp.now(),
+    });
+    await firebaseSignOut(secondaryAuth);
+    return cred.user;
+  } finally {
+    await deleteApp(secondaryApp);
+  }
 }
 
 // ─── Planning Entries ─────────────────────────────────────────────────────────
