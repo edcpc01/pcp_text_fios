@@ -216,18 +216,32 @@ export default function PWAPrompt() {
       return () => clearTimeout(timer);
     }
 
-    // Para outros (Android/Chrome), captura o beforeinstallprompt
+    // ── Captura Android/Chrome ──
+    const showInstallPrompt = () => {
+      // Mostra com um leve delay para não ser intrusivo no carregamento
+      const timer = setTimeout(() => setShowInstall(true), 3000);
+      return () => clearTimeout(timer);
+    };
+
+    // Caso já tenha sido capturado globalmente (em index.html) antes do componente montar
+    if (window.pwaDeferredPrompt) {
+      deferredPrompt.current = window.pwaDeferredPrompt;
+      return showInstallPrompt();
+    }
+
+    // Caso contrário, escuta o evento (ou captura se disparar agora)
     const handler = (e) => {
       e.preventDefault();
       deferredPrompt.current = e;
-      // Mostra após 3s
-      setTimeout(() => setShowInstall(true), 3000);
+      window.pwaDeferredPrompt = e; // Sincroniza com global
+      showInstallPrompt();
     };
 
     window.addEventListener('beforeinstallprompt', handler);
     window.addEventListener('appinstalled', () => {
       setShowInstall(false);
       deferredPrompt.current = null;
+      window.pwaDeferredPrompt = null;
       localStorage.setItem(DISMISS_KEY, Date.now().toString());
     });
 
