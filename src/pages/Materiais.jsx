@@ -244,10 +244,10 @@ function DateRangeFilter({ dateRange, setDateRange, showPicker, setShowPicker, m
     <div className="flex bg-brand-surface border border-brand-border rounded-lg p-1 relative">
       <div className="flex items-center space-x-1">
         <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-brand-card rounded text-brand-muted hover:text-white transition-colors">
-          <ChevronLeft size={18} />
+          <ChevronLeft size={15} />
         </button>
         <span
-          className="text-sm font-medium text-white px-3 capitalize min-w-[140px] text-center cursor-pointer select-none hover:text-brand-cyan transition-colors"
+          className="text-xs sm:text-sm font-medium text-white px-2 capitalize min-w-[100px] sm:min-w-[140px] text-center cursor-pointer select-none hover:text-brand-cyan transition-colors"
           onDoubleClick={() => setShowPicker(true)}
           title="Duplo clique para filtrar período específico"
         >
@@ -256,7 +256,7 @@ function DateRangeFilter({ dateRange, setDateRange, showPicker, setShowPicker, m
             : monthLabel}
         </span>
         <button onClick={() => changeMonth(1)} className="p-1 hover:bg-brand-card rounded text-brand-muted hover:text-white transition-colors">
-          <ChevronRight size={18} />
+          <ChevronRight size={15} />
         </button>
       </div>
 
@@ -535,13 +535,13 @@ export default function Materiais() {
   const productsWithCode = products.filter((p) => p.codigoMicrodata || p.nome);
 
   return (
-    <div className="p-6 space-y-8 animate-fade-in">
+    <div className="p-4 sm:p-6 space-y-6 sm:space-y-8 animate-fade-in overflow-x-hidden">
 
       {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-3">
         <div>
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
-            <FlaskConical size={20} className="text-brand-cyan" />
+          <h1 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+            <FlaskConical size={18} className="text-brand-cyan shrink-0" />
             Estoque Matéria Prima e Produto Acabado
           </h1>
           <p className="text-[10px] text-brand-muted mt-0.5 uppercase tracking-widest font-black">
@@ -551,7 +551,7 @@ export default function Materiais() {
             {' · '}{factory === 'all' ? 'Todas as Unidades' : (factory === 'matriz' ? 'Matriz' : 'Filial')}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Input fallback browsers sem File System Access API */}
           <input ref={fallbackInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFallbackFile} />
 
@@ -560,12 +560,12 @@ export default function Materiais() {
               <button
                 onClick={() => handleSync(mpNecessidade)}
                 disabled={importing}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all shadow-sm
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all
                   ${importing
                     ? 'bg-brand-surface border-brand-border text-brand-muted cursor-wait opacity-60'
-                    : 'bg-brand-cyan/10 border-brand-cyan/20 text-brand-cyan hover:bg-brand-cyan/20 active:scale-95 shadow-[0_0_12px_rgba(34,211,238,0.08)]'}`}
+                    : 'bg-brand-cyan/10 border-brand-cyan/20 text-brand-cyan hover:bg-brand-cyan/20 active:scale-95'}`}
               >
-                {importing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                {importing ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
                 {importing ? 'Sincronizando...' : lastAutoSync ? `Sincronizado ${lastAutoSync}` : 'Sincronizar Estoque'}
               </button>
               <button
@@ -573,24 +573,9 @@ export default function Materiais() {
                 title="Redefinir arquivo CSV de estoque"
                 className="p-2 rounded-xl bg-white/5 border border-brand-border text-brand-muted hover:text-white transition-all active:scale-95"
               >
-                <FolderOpen size={15} />
+                <FolderOpen size={14} />
               </button>
             </>
-          )}
-
-          {syncResult && (
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[11px] font-medium ${
-              syncResult.error
-                ? 'bg-red-500/10 border-red-500/20 text-red-400'
-                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-            }`}>
-              <span>
-                {syncResult.error
-                  ? syncResult.error
-                  : `${syncResult.mp} MP · ${syncResult.pa} PA · ${syncResult.skipped} ignorados`}
-              </span>
-              <button onClick={() => setSyncResult(null)} className="opacity-60 hover:opacity-100"><X size={12} /></button>
-            </div>
           )}
 
           <DateRangeFilter
@@ -601,6 +586,21 @@ export default function Materiais() {
             monthLabel={monthLabel}
           />
         </div>
+
+        {syncResult && (
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[11px] font-medium ${
+            syncResult.error
+              ? 'bg-red-500/10 border-red-500/20 text-red-400'
+              : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+          }`}>
+            <span className="flex-1 min-w-0 truncate">
+              {syncResult.error
+                ? syncResult.error
+                : `${syncResult.mp} MP · ${syncResult.pa} PA · ${syncResult.skipped} ignorados`}
+            </span>
+            <button onClick={() => setSyncResult(null)} className="opacity-60 hover:opacity-100 shrink-0"><X size={12} /></button>
+          </div>
+        )}
       </div>
 
       {/* ── KPI Summary ── */}

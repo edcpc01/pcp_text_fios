@@ -386,7 +386,7 @@ export default function Production() {
   const attentionCount = activeData.filter((i) => i.pct >= 70 && i.pct < 85).length;
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col h-full min-h-0 overflow-x-hidden">
 
       {/* ─── Toast de resultado do sync ──────────────────────────────── */}
       {syncResult && (
@@ -407,27 +407,27 @@ export default function Production() {
       )}
 
       {/* ─── Header ────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border shrink-0">
-        <div>
-          <h1 className="text-xl font-bold text-white flex items-center gap-2 tracking-tight">
-            <TrendingUp size={20} className="text-brand-cyan" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-brand-border shrink-0 gap-2">
+        <div className="min-w-0">
+          <h1 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2 tracking-tight">
+            <TrendingUp size={18} className="text-brand-cyan shrink-0" />
             Produção Realizada
           </h1>
           <p className="text-[10px] text-brand-muted mt-0.5 uppercase tracking-widest font-black">
             {monthLabel} · {factory === 'all' ? 'Todas as Unidades' : (factory === 'matriz' ? 'Matriz' : 'Filial')}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Navegação de mês */}
           <div className="flex items-center gap-1 bg-brand-surface/50 rounded-xl p-1 border border-brand-border">
             <button onClick={() => changeMonth(-1)} className="p-1.5 hover:bg-white/[0.06] rounded-xl transition-colors text-brand-muted hover:text-white">
-              <ChevronLeft size={16} />
+              <ChevronLeft size={15} />
             </button>
-            <span className="text-xs font-bold text-white px-3 min-w-[100px] text-center capitalize">
+            <span className="text-xs font-bold text-white px-2 min-w-[90px] text-center capitalize">
               {new Date(month.year, month.month).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
             </span>
             <button onClick={() => changeMonth(1)} className="p-1.5 hover:bg-white/[0.06] rounded-xl transition-colors text-brand-muted hover:text-white">
-              <ChevronRight size={16} />
+              <ChevronRight size={15} />
             </button>
           </div>
 
@@ -437,9 +437,9 @@ export default function Production() {
           <button
             onClick={handleSync}
             disabled={syncing}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/20 text-brand-cyan text-xs font-bold rounded-xl transition-all disabled:opacity-50 active:scale-95 shadow-[0_0_15px_rgba(34,211,238,0.1)]"
+            className="flex items-center gap-1.5 px-3 py-2 bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/20 text-brand-cyan text-xs font-bold rounded-xl transition-all disabled:opacity-50 active:scale-95"
           >
-            <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
+            <RefreshCw size={13} className={syncing ? 'animate-spin' : ''} />
             {syncing ? 'Sincronizando...' : lastAutoSync ? `Sincronizado ${lastAutoSync}` : 'Sincronizar'}
           </button>
 
@@ -448,13 +448,13 @@ export default function Production() {
             title="Redefinir arquivo CSV configurado"
             className="p-2 rounded-xl bg-white/5 border border-brand-border text-brand-muted hover:text-white transition-all active:scale-95"
           >
-            <FolderOpen size={16} />
+            <FolderOpen size={15} />
           </button>
         </div>
       </div>
 
       {/* ─── KPI Cards ─────────────────────────────────────────────────── */}
-      <div className="px-6 py-4 grid grid-cols-2 lg:grid-cols-4 gap-3 border-b border-brand-border shrink-0">
+      <div className="px-4 sm:px-6 py-3 sm:py-4 grid grid-cols-2 lg:grid-cols-4 gap-3 border-b border-brand-border shrink-0">
         {/* Aderência global */}
         <div className={`rounded-xl p-3.5 border ${globalColors.bg} border-brand-border`}>
           <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-1">Aderência Geral</p>
@@ -505,7 +505,7 @@ export default function Production() {
       </div>
 
       {/* ─── Toolbar ───────────────────────────────────────────────────── */}
-      <div className="px-6 py-3 flex items-center gap-3 border-b border-brand-border shrink-0 flex-wrap">
+      <div className="px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-3 border-b border-brand-border shrink-0 flex-wrap">
         {/* View mode */}
         <div className="flex gap-1 bg-brand-surface/40 rounded-xl p-1 border border-brand-border">
           {[
