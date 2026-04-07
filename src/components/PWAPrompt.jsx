@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Download, WifiOff, RefreshCw, X, Zap, Share } from 'lucide-react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
@@ -168,6 +168,17 @@ function OfflineBanner() {
   );
 }
 
+// Proteção anti-loop: não mostra o banner nos primeiros 10s após um reload de atualização
+const JUST_UPDATED_KEY = 'pwa-just-updated';
+function wasJustUpdated() {
+  const t = localStorage.getItem(JUST_UPDATED_KEY);
+  if (!t) return false;
+  const elapsed = Date.now() - parseInt(t, 10);
+  if (elapsed < 15_000) return true;
+  localStorage.removeItem(JUST_UPDATED_KEY);
+  return false;
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function PWAPrompt() {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
@@ -185,20 +196,21 @@ export default function PWAPrompt() {
 
   // ── Atualização ─────────────────────────────────────────────────────────────
   const [showUpdate, setShowUpdate] = useState(false);
-  const swRegistrationRef = useRef(null);
 
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
   } = useRegisterSW({
     onNeedRefresh() {
-      setShowUpdate(true);
+      // Não mostra banner se acabou de recarregar por uma atualização
+      if (!wasJustUpdated()) {
+        setShowUpdate(true);
+      }
     },
     onRegistered(r) {
-      swRegistrationRef.current = r;
       if (r) {
-        // Verifica atualizações imediatamente e depois a cada 60s
-        r.update();
+        // Aguarda 5s antes de checar para não disparar logo após o reload
+        setTimeout(() => r.update(), 5_000);
         setInterval(() => r.update(), 60_000);
       }
     },
@@ -207,9 +219,8 @@ export default function PWAPrompt() {
     },
   });
 
-  // Exibe update banner se needRefresh mudar externamente
   useEffect(() => {
-    if (needRefresh) setShowUpdate(true);
+    if (needRefresh && !wasJustUpdated()) setShowUpdate(true);
   }, [needRefresh]);
 
   // ── Online/Offline ──────────────────────────────────────────────────────────
@@ -286,20 +297,11 @@ export default function PWAPrompt() {
   };
 
   const handleUpdate = async () => {
-    const reg = swRegistrationRef.current;
-
-    if (reg?.waiting) {
-      // Aguarda o novo SW tomar o controle, depois recarrega
-      await new Promise((resolve) => {
-        navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true });
-        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-      });
-    } else {
-      // Fallback: tenta pelo vite-plugin-pwa
-      try { await updateServiceWorker(true); } catch { /* ignore */ }
-    }
-
-    // Recarrega para usar o novo SW (a página vai recarregar, então setShowUpdate é desnecessário)
+    // Marca que acabou de atualizar para suprimir o banner no próximo load
+    localStorage.setItem(JUST_UPDATED_KEY, Date.now().toString());
+    // updateServiceWorker(true) faz SKIP_WAITING + reload internamente
+    await updateServiceWorker(true);
+    // Fallback caso o reload não tenha ocorrido
     window.location.reload();
   };
 
