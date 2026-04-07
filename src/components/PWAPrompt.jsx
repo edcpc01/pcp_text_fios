@@ -157,31 +157,48 @@ export default function PWAPrompt() {
   const [showUpdate,    setShowUpdate]    = useState(false);
   const [showInstall,   setShowInstall]   = useState(false);
   const [showIOSInstall,setShowIOSInstall]= useState(false);
-  const deferredPrompt = useRef(null);
+  const deferredPrompt  = useRef(null);
+  // Rastreia se o SW mudou enquanto o app estava em background
+  const swUpdatedInBg   = useRef(false);
 
   // ── Detecção de atualização do Service Worker ─────────────────────────────
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
 
-    // 1) controllerchange: novo SW assumiu o controle enquanto a página estava aberta
-    const onControllerChange = () => setShowUpdate(true);
+    // 1) controllerchange: novo SW assumiu o controle
+    //    - Se a página está visível → mostra banner
+    //    - Se está em background → marca flag; ao voltar ao foreground recarrega silenciosamente
+    const onControllerChange = () => {
+      if (document.visibilityState === 'visible') {
+        setShowUpdate(true);
+      } else {
+        swUpdatedInBg.current = true;
+      }
+    };
     navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
 
-    // 2) Verifica na registration: novo SW em waiting OU updatefound futuro
+    // 2) Ao voltar ao foreground: se o SW mudou em background, recarrega direto
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && swUpdatedInBg.current) {
+        window.location.reload();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    // 3) Verifica na registration: novo SW em waiting OU updatefound futuro
     const watchRegistration = (reg) => {
       if (!reg) return;
 
-      // Se já há um SW esperando ao carregar a página
+      // SW já estava esperando quando a página abriu
       if (reg.waiting && navigator.serviceWorker.controller) {
         setShowUpdate(true);
       }
 
-      // Monitora futuras atualizações encontradas
+      // Monitora futuras atualizações
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
         if (!newWorker) return;
         newWorker.addEventListener('statechange', () => {
-          // Novo SW instalado e esperando + página já tinha um controller → nova versão disponível
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
             setShowUpdate(true);
           }
@@ -193,6 +210,7 @@ export default function PWAPrompt() {
 
     return () => {
       navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, []);
 
