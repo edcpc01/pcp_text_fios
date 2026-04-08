@@ -63,13 +63,16 @@ export async function getUserRole(uid, firebaseUser = null) {
     const ref = doc(db, 'users', uid);
     const snap = await getDoc(ref);
 
+    // Sempre sincroniza name/email do Firebase Auth → Firestore
+    const derivedName  = firebaseUser?.displayName || firebaseUser?.email?.split('@')[0] || '';
+    const derivedEmail = firebaseUser?.email || '';
+
     if (snap.exists()) {
       const data = snap.data();
-      // Preenche campos faltando (sem sobrescrever role/factory)
+      // Sobrescreve name/email com os valores do Auth (Google sempre tem esses campos)
       const updates = {};
-      const derivedName = firebaseUser?.displayName || firebaseUser?.email?.split('@')[0] || '';
-      if (!data.name  && derivedName)            updates.name  = derivedName;
-      if (!data.email && firebaseUser?.email)    updates.email = firebaseUser.email;
+      if (derivedName  && data.name  !== derivedName)  updates.name  = derivedName;
+      if (derivedEmail && data.email !== derivedEmail) updates.email = derivedEmail;
       if (Object.keys(updates).length > 0) {
         await setDoc(ref, updates, { merge: true });
       }
@@ -77,9 +80,7 @@ export async function getUserRole(uid, firebaseUser = null) {
     }
 
     // Documento não existe — cria com todos os dados disponíveis
-    const name  = firebaseUser?.displayName || firebaseUser?.email?.split('@')[0] || '';
-    const email = firebaseUser?.email || '';
-    await setDoc(ref, { role: 'planner', factory: 'all', createdAt: Timestamp.now(), name, email });
+    await setDoc(ref, { role: 'planner', factory: 'all', createdAt: Timestamp.now(), name: derivedName, email: derivedEmail });
     return 'planner';
   } catch (err) {
     console.warn('[Firebase] getUserRole failed:', err.message);

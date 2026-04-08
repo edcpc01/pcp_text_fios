@@ -649,10 +649,16 @@ export default function Admin() {
                             style={{ background: `${role.color}20`, color: role.color }}>
                             {(u.name || u.email || '?')[0].toUpperCase()}
                           </div>
-                          <span className="text-sm text-white font-medium">{u.name || '—'}</span>
+                          <div>
+                            <span className="text-sm text-white font-medium">
+                              {u.name || <span className="text-brand-muted italic text-xs">Aguardando login</span>}
+                            </span>
+                          </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-brand-muted">{u.email || '—'}</td>
+                      <td className="px-4 py-3 text-sm text-brand-muted">
+                        {u.email || <span className="italic text-xs">—</span>}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
                           <Icon size={12} style={{ color: role.color }} />
