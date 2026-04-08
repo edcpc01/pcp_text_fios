@@ -375,7 +375,7 @@ export default function Materiais() {
     for (const product of products) {
       const match = findInCsv(product.codigoMicrodata, product.nome);
       if (match) {
-        await saveFinishedGoodStock(product.id, { productName: product.nome, estoqueKg: match.stockKg, lots: match.lots || [] });
+        await saveFinishedGoodStock(product.id, { productName: product.nome, codigoMicrodata: product.codigoMicrodata || null, estoqueKg: match.stockKg, lots: match.lots || [] });
         pa++;
       }
     }

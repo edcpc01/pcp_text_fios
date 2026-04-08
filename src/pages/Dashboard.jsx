@@ -127,7 +127,7 @@ export default function Dashboard() {
     .slice(0, 8);
 
   const topPas = Object.entries(paStock)
-    .map(([k, v]) => ({ id: k, name: v.productName || k, kg: v.estoqueKg || 0 }))
+    .map(([k, v]) => ({ id: k, code: v.codigoMicrodata || k, name: v.productName || k, kg: v.estoqueKg || 0 }))
     .filter((v) => v.kg > 0)
     .sort((a, b) => b.kg - a.kg)
     .slice(0, 8);
@@ -296,7 +296,7 @@ export default function Dashboard() {
               {topPas.map((pa) => (
                 <div key={pa.id} className="flex items-center justify-between bg-brand-surface rounded-lg px-3 py-2 border border-brand-border/50">
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] text-brand-muted font-mono">{pa.id}</p>
+                    <p className="text-[10px] text-brand-muted font-mono">{pa.code}</p>
                     <p className="text-xs text-white truncate" title={pa.name}>{pa.name}</p>
                   </div>
                   <span className="font-mono font-bold text-brand-agent text-sm ml-3 shrink-0">{fmtKg(pa.kg)}</span>
