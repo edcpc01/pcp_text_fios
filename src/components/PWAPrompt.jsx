@@ -268,9 +268,26 @@ export default function PWAPrompt() {
   }
 
   // ── Handlers ─────────────────────────────────────────────────────────────
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     setShowUpdate(false);
-    window.location.reload();
+    if (!('serviceWorker' in navigator)) { window.location.reload(); return; }
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg?.waiting) {
+        // Diz ao SW em espera para assumir o controle imediatamente
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        // controllerchange vai disparar e acionar o reload; fallback após 1.5s
+        const fallback = setTimeout(() => window.location.reload(), 1500);
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          clearTimeout(fallback);
+          window.location.reload();
+        }, { once: true });
+      } else {
+        window.location.reload();
+      }
+    } catch {
+      window.location.reload();
+    }
   };
 
   const handleInstall = async () => {
