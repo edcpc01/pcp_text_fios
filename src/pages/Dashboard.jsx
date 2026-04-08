@@ -48,7 +48,7 @@ export default function Dashboard() {
   const { entriesMap, setEntriesFromArray } = usePlanningStore();
   const { records, setRecords } = useProductionStore();
 
-  const yearMonth  = getYearMonth();
+  const yearMonth = getYearMonth();
   const monthLabel = getMonthLabel(month.year, month.month);
 
   // ── Firebase subscriptions ────────────────────────────────────────────────
@@ -59,8 +59,8 @@ export default function Dashboard() {
   }, [factory, yearMonth]);
 
   // ── Stock (Materiais) ─────────────────────────────────────────────────────
-  const [rawStock, setRawStock]  = useState({});
-  const [paStock,  setPaStock]   = useState({});
+  const [rawStock, setRawStock] = useState({});
+  const [paStock, setPaStock] = useState({});
   useEffect(() => {
     const u1 = subscribeRawMaterialStock(setRawStock);
     const u2 = subscribeFinishedGoodsStock(setPaStock);
@@ -68,7 +68,7 @@ export default function Dashboard() {
   }, []);
 
   // ── Date range filter ─────────────────────────────────────────────────────
-  const [dateRange, setDateRange]     = useState({ start: '', end: '' });
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [showDatePicker, setShowDatePicker] = useState(false);
   useEffect(() => { setDateRange({ start: '', end: '' }); setShowDatePicker(false); }, [yearMonth]);
 
@@ -80,7 +80,7 @@ export default function Dashboard() {
   const allEntries = Object.values(entriesMap);
   const basePlanning = allEntries.filter(
     (e) => (e.cellType === 'producao' || !e.cellType) &&
-           (factory === 'all' || e.factory === factory),
+      (factory === 'all' || e.factory === factory),
   );
 
   const activePlanning = hasRange
@@ -105,7 +105,7 @@ export default function Dashboard() {
 
   // Aderência = realizado / planejado D-1
   const adherence = plannedD1 > 0 ? Math.round((totalActual / plannedD1) * 100) : 0;
-  const adColor   = adherence >= 90 ? '#10b981' : adherence >= 80 ? '#f59e0b' : '#ef4444';
+  const adColor = adherence >= 90 ? '#10b981' : adherence >= 80 ? '#f59e0b' : '#ef4444';
 
   // ── Mix de produtos ───────────────────────────────────────────────────────
   const productMix = useMemo(() => {
@@ -224,7 +224,7 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Mix de Produtos — largura total, linhas */}
+      {/* Mix de Produtos Planejados — largura total, linhas */}
       <div className="bg-brand-card border border-brand-border rounded-2xl p-5" style={{ borderTop: '2px solid #f97316' }}>
         <h3 className="text-xs font-bold text-brand-muted uppercase tracking-widest mb-4 flex items-center gap-2">
           <Package size={13} className="text-brand-orange" /> Mix de Produtos
