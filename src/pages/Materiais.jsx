@@ -159,13 +159,17 @@ function MpCard({ mp, stock, onSaveStock, editable }) {
       </div>
 
       {/* Valores */}
-      <div className="grid grid-cols-2 gap-3 text-center">
+      <div className="grid grid-cols-3 gap-2 text-center">
         <div className="bg-brand-surface rounded-xl p-2.5">
-          <p className="text-[9px] text-brand-muted uppercase tracking-widest mb-1">Necessidade</p>
-          <p className="text-base font-mono font-bold text-white">{fmtKg(mp.necessidadeKg)}</p>
+          <p className="text-[9px] text-brand-muted uppercase tracking-widest mb-1 leading-tight">Necessidade do Mês</p>
+          <p className="text-sm font-mono font-bold text-white">{fmtKg(mp.necessidadeKg)}</p>
         </div>
         <div className="bg-brand-surface rounded-xl p-2.5">
-          <p className="text-[9px] text-brand-muted uppercase tracking-widest mb-1">Estoque (Microdata)</p>
+          <p className="text-[9px] text-brand-muted uppercase tracking-widest mb-1 leading-tight">Necessidade Atual</p>
+          <p className="text-sm font-mono font-bold text-brand-cyan">{fmtKg(mp.necessidadeAtualKg)}</p>
+        </div>
+        <div className="bg-brand-surface rounded-xl p-2.5">
+          <p className="text-[9px] text-brand-muted uppercase tracking-widest mb-1 leading-tight">Estoque (Microdata)</p>
           <InlineEdit
             value={estoque}
             label={editable ? "Clique para editar o estoque" : "Estoque atual"}
@@ -464,13 +468,15 @@ export default function Materiais() {
 
   // Build MP necessity map
   const mpNecessidade = useMemo(() => {
-    const map = {}; // { code: { descricao, codigoMicrodata, necessidadeKg, produtos: Set } }
+    const today = new Date().toISOString().split('T')[0];
+    const map = {}; // { code: { descricao, codigoMicrodata, necessidadeKg, necessidadeAtualKg, produtos: Set } }
 
     planningEntries.forEach((entry) => {
       const product = products.find((p) => p.id === entry.product || p.nome === entry.productName);
       if (!product) return;
       const kg = entry.planned || 0;
       if (kg === 0) return;
+      const isFromToday = entry.date >= today;
 
       // Helper to accumulate a single MP
       const accumulate = (mp, pct) => {
@@ -482,10 +488,13 @@ export default function Materiais() {
             codigoMicrodata: mp.codigoMicrodata || '',
             descricao: mp.descricao || code,
             necessidadeKg: 0,
+            necessidadeAtualKg: 0,
             produtos: new Set(),
           };
         }
-        map[code].necessidadeKg += kg * (pct / 100);
+        const kgMp = kg * (pct / 100);
+        map[code].necessidadeKg += kgMp;
+        if (isFromToday) map[code].necessidadeAtualKg += kgMp;
         map[code].produtos.add(product.nome || product.id);
       };
 
@@ -505,9 +514,10 @@ export default function Materiais() {
         if (!product.alma && !product.efeito) {
           const code = product.id;
           if (!map[code]) {
-            map[code] = { codigoMicrodata: '', descricao: product.nome || product.id, necessidadeKg: 0, produtos: new Set() };
+            map[code] = { codigoMicrodata: '', descricao: product.nome || product.id, necessidadeKg: 0, necessidadeAtualKg: 0, produtos: new Set() };
           }
           map[code].necessidadeKg += kg;
+          if (isFromToday) map[code].necessidadeAtualKg += kg;
           map[code].produtos.add(product.nome || product.id);
         }
       }
