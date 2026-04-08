@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus, Download, RefreshCw, AlertTriangle, FolderOpen, X } from 'lucide-react';
-import { useAppStore, useProductionStore, usePlanningStore, useAdminStore, MACHINES } from '../hooks/useStore';
+import { useAppStore, useProductionStore, usePlanningStore, useAdminStore, useAuthStore, MACHINES } from '../hooks/useStore';
 import { subscribeProductionRecords, subscribePlanningEntries, saveProductionRecord } from '../services/firebase';
 import { getMonthLabel, getDaysInMonth, isSunday } from '../utils/dates';
 import { seedDemoData } from '../utils/seedData';
@@ -113,6 +113,8 @@ export default function Production() {
   const { entriesMap, setEntriesFromArray } = usePlanningStore();
   const entries = Object.values(entriesMap);
   const { products } = useAdminStore();
+  const { user } = useAuthStore();
+  const isSupervisor = user?.role === 'supervisor';
 
   const [viewMode, setViewMode] = useState('product'); // 'product' | 'machine' | 'daily'
   const [sortBy, setSortBy] = useState('planned'); // 'planned' | 'actual' | 'pct' | 'name'
@@ -434,22 +436,26 @@ export default function Production() {
           {/* Input fallback para browsers sem File System Access API */}
           <input ref={fallbackInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFallbackFile} />
 
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="flex items-center gap-1.5 px-3 py-2 bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/20 text-brand-cyan text-xs font-bold rounded-xl transition-all disabled:opacity-50 active:scale-95"
-          >
-            <RefreshCw size={13} className={syncing ? 'animate-spin' : ''} />
-            {syncing ? 'Sincronizando...' : lastAutoSync ? `Sincronizado ${lastAutoSync}` : 'Sincronizar'}
-          </button>
+          {!isSupervisor && (
+            <>
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                className="flex items-center gap-1.5 px-3 py-2 bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/20 text-brand-cyan text-xs font-bold rounded-xl transition-all disabled:opacity-50 active:scale-95"
+              >
+                <RefreshCw size={13} className={syncing ? 'animate-spin' : ''} />
+                {syncing ? 'Sincronizando...' : lastAutoSync ? `Sincronizado ${lastAutoSync}` : 'Sincronizar'}
+              </button>
 
-          <button
-            onClick={handleResetFile}
-            title="Redefinir arquivo CSV configurado"
-            className="p-2 rounded-xl bg-white/5 border border-brand-border text-brand-muted hover:text-white transition-all active:scale-95"
-          >
-            <FolderOpen size={15} />
-          </button>
+              <button
+                onClick={handleResetFile}
+                title="Redefinir arquivo CSV configurado"
+                className="p-2 rounded-xl bg-white/5 border border-brand-border text-brand-muted hover:text-white transition-all active:scale-95"
+              >
+                <FolderOpen size={15} />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
