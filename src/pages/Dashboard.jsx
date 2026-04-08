@@ -227,7 +227,7 @@ export default function Dashboard() {
       {/* Mix de Produtos Planejados — largura total, linhas */}
       <div className="bg-brand-card border border-brand-border rounded-2xl p-5" style={{ borderTop: '2px solid #f97316' }}>
         <h3 className="text-xs font-bold text-brand-muted uppercase tracking-widest mb-4 flex items-center gap-2">
-          <Package size={13} className="text-brand-orange" /> Mix de Produtos
+          <Package size={13} className="text-brand-orange" /> Mix de Produtos Planejados
         </h3>
         {productMix.length > 0 ? (
           <div className="space-y-3">
