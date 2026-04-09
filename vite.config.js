@@ -6,14 +6,13 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // injectManifest: usa nosso SW customizado (src/sw.js).
-      // O Workbox injeta o __WB_MANIFEST nele em build time.
-      strategies: 'injectManifest',
-      srcDir: 'src',
-      filename: 'sw.js',
-      // registerType 'autoUpdate' não é usado com injectManifest;
-      // o skipWaiting está no próprio sw.js.
-      devOptions: { enabled: true, type: 'module' },
+      // autoUpdate: o SW gerado pelo Workbox chama skipWaiting() + clients.claim()
+      // automaticamente via o módulo virtual 'virtual:pwa-register'.
+      registerType: 'autoUpdate',
+      // injectRegister: null → registramos manualmente no main.jsx para ter
+      // controle total e garantir que o módulo virtual seja importado.
+      injectRegister: null,
+      devOptions: { enabled: true },
       includeAssets: ['favicon.svg', 'favicon-32.png', 'apple-touch-icon.png', 'robots.txt'],
       manifest: {
         name: 'Corradi — Planejamento de Produção',
@@ -40,6 +39,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // skipWaiting e clientsClaim são injetados automaticamente pelo Workbox
+        // quando registerType: 'autoUpdate' é usado.
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/firestore\.googleapis\.com\/.*/i,
