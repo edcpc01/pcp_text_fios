@@ -119,7 +119,7 @@ function MpCard({ mp, stock, onSaveStock, editable }) {
   const estoque = stock?.estoqueKg ?? 0;
   const { label, color, icon: StatusIcon, bg } = statusInfo(estoque, mp.necessidadeKg);
   const pct = mp.necessidadeKg > 0 ? Math.min(100, Math.round((estoque / mp.necessidadeKg) * 100)) : 100;
-  const saldo = estoque - mp.necessidadeKg;
+  const saldo = estoque - mp.necessidadeAtualKg;
 
   return (
     <div
