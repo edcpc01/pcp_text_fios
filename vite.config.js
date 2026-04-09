@@ -6,8 +6,14 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      devOptions: { enabled: true },
+      // injectManifest: usa nosso SW customizado (src/sw.js).
+      // O Workbox injeta o __WB_MANIFEST nele em build time.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
+      // registerType 'autoUpdate' não é usado com injectManifest;
+      // o skipWaiting está no próprio sw.js.
+      devOptions: { enabled: true, type: 'module' },
       includeAssets: ['favicon.svg', 'favicon-32.png', 'apple-touch-icon.png', 'robots.txt'],
       manifest: {
         name: 'Corradi — Planejamento de Produção',
