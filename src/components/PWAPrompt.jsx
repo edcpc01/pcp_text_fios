@@ -153,64 +153,42 @@ function OfflineBanner() {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function PWAPrompt() {
-  const [isOffline,     setIsOffline]     = useState(!navigator.onLine);
-  const [showUpdate,    setShowUpdate]    = useState(false);
-  const [showInstall,   setShowInstall]   = useState(false);
-  const [showIOSInstall,setShowIOSInstall]= useState(false);
-  const deferredPrompt  = useRef(null);
-  // Rastreia se o SW mudou enquanto o app estava em background
-  const swUpdatedInBg   = useRef(false);
+  const [isOffline,      setIsOffline]      = useState(!navigator.onLine);
+  const [showUpdate,     setShowUpdate]     = useState(false);
+  const [showInstall,    setShowInstall]    = useState(false);
+  const [showIOSInstall, setShowIOSInstall] = useState(false);
+  const deferredPrompt = useRef(null);
 
   // ── Detecção de atualização do Service Worker ─────────────────────────────
+  // Com registerType: 'autoUpdate', o SW chama skipWaiting() automaticamente.
+  // Isso dispara 'controllerchange' quando o NOVO SW assume o controle.
+  // Só então mostramos o banner — o update JÁ ACONTECEU, basta recarregar.
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
 
-    // 1) controllerchange: novo SW assumiu o controle
-    //    - Se a página está visível → mostra banner
-    //    - Se está em background → marca flag; ao voltar ao foreground recarrega silenciosamente
+    let shown = false;
+
     const onControllerChange = () => {
-      if (document.visibilityState === 'visible') {
+      // Novo SW já está ativo! Mostra o banner pedindo reload.
+      if (!shown) {
+        shown = true;
         setShowUpdate(true);
-      } else {
-        swUpdatedInBg.current = true;
       }
     };
+
     navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
 
-    // 2) Ao voltar ao foreground: se o SW mudou em background, recarrega direto
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && swUpdatedInBg.current) {
+    // Ao voltar ao foreground com update pendente: recarrega direto, sem perguntar
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible' && shown) {
         window.location.reload();
       }
     };
-    document.addEventListener('visibilitychange', onVisibilityChange);
-
-    // 3) Verifica na registration: novo SW em waiting OU updatefound futuro
-    const watchRegistration = (reg) => {
-      if (!reg) return;
-
-      // SW já estava esperando quando a página abriu
-      if (reg.waiting && navigator.serviceWorker.controller) {
-        setShowUpdate(true);
-      }
-
-      // Monitora futuras atualizações
-      reg.addEventListener('updatefound', () => {
-        const newWorker = reg.installing;
-        if (!newWorker) return;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            setShowUpdate(true);
-          }
-        });
-      });
-    };
-
-    navigator.serviceWorker.getRegistration().then(watchRegistration);
+    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
       navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);
 
@@ -268,26 +246,10 @@ export default function PWAPrompt() {
   }
 
   // ── Handlers ─────────────────────────────────────────────────────────────
-  const handleUpdate = async () => {
-    setShowUpdate(false);
-    if (!('serviceWorker' in navigator)) { window.location.reload(); return; }
-    try {
-      const reg = await navigator.serviceWorker.getRegistration();
-      if (reg?.waiting) {
-        // Diz ao SW em espera para assumir o controle imediatamente
-        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-        // controllerchange vai disparar e acionar o reload; fallback após 1.5s
-        const fallback = setTimeout(() => window.location.reload(), 1500);
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          clearTimeout(fallback);
-          window.location.reload();
-        }, { once: true });
-      } else {
-        window.location.reload();
-      }
-    } catch {
-      window.location.reload();
-    }
+  // O novo SW já está ativo (autoUpdate + controllerchange disparou).
+  // Basta recarregar a página — sem SKIP_WAITING, sem fallbacks.
+  const handleUpdate = () => {
+    window.location.reload();
   };
 
   const handleInstall = async () => {
