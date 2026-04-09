@@ -3,7 +3,7 @@ import {
   TrendingUp, TrendingDown, Minus, Activity, Package,
   Calendar, ChevronLeft, ChevronRight, FlaskConical,
 } from 'lucide-react';
-import { useAppStore, usePlanningStore, useProductionStore } from '../hooks/useStore';
+import { useAppStore, usePlanningStore, useProductionStore, useAdminStore } from '../hooks/useStore';
 import {
   subscribeProductionRecords, subscribePlanningEntries,
   subscribeRawMaterialStock, subscribeFinishedGoodsStock,
@@ -47,6 +47,7 @@ export default function Dashboard() {
   const { factory, month, getYearMonth, changeMonth } = useAppStore();
   const { entriesMap, setEntriesFromArray } = usePlanningStore();
   const { records, setRecords } = useProductionStore();
+  const { products: productList } = useAdminStore();
 
   const yearMonth = getYearMonth();
   const monthLabel = getMonthLabel(month.year, month.month);
@@ -107,15 +108,38 @@ export default function Dashboard() {
   const adherence = plannedD1 > 0 ? Math.round((totalActual / plannedD1) * 100) : 0;
   const adColor = adherence >= 90 ? '#10b981' : adherence >= 80 ? '#f59e0b' : '#ef4444';
 
-  // ── Mix de produtos ───────────────────────────────────────────────────────
-  const productMix = useMemo(() => {
-    const map = {};
-    activePlanning.forEach((e) => {
-      if (!map[e.productName]) map[e.productName] = 0;
-      map[e.productName] += e.planned || 0;
+  // ── Mix de produtos agrupado por cliente ─────────────────────────────────
+  const productMixByClient = useMemo(() => {
+    // Lookup: product ID → cliente
+    const clienteById = {};
+    const clienteByName = {};
+    productList.forEach((p) => {
+      const cliente = p.cliente || '';
+      if (p.id)             clienteById[p.id]             = cliente;
+      if (p.nome)           clienteByName[p.nome]         = cliente;
+      if (p.name)           clienteByName[p.name]         = cliente;
     });
-    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 8);
-  }, [activePlanning]);
+
+    // Agrupa por cliente → por produto
+    const clientMap = {}; // { cliente: { products: { name: kg }, total: kg } }
+    activePlanning.forEach((e) => {
+      const pName  = e.productName || 'Sem nome';
+      const rawC   = clienteById[e.product] ?? clienteByName[e.productName] ?? '';
+      const cliente = rawC || 'Sem Cliente';
+      if (!clientMap[cliente]) clientMap[cliente] = { products: {}, total: 0 };
+      if (!clientMap[cliente].products[pName]) clientMap[cliente].products[pName] = 0;
+      clientMap[cliente].products[pName] += e.planned || 0;
+      clientMap[cliente].total            += e.planned || 0;
+    });
+
+    return Object.entries(clientMap)
+      .sort((a, b) => b[1].total - a[1].total)
+      .map(([cliente, data]) => ({
+        cliente,
+        total: data.total,
+        products: Object.entries(data.products).sort((a, b) => b[1] - a[1]),
+      }));
+  }, [activePlanning, productList]);
 
   // ── Stock totals ──────────────────────────────────────────────────────────
   const totalMpKg = Object.values(rawStock).reduce((s, v) => s + (v.estoqueKg || 0), 0);
@@ -224,25 +248,56 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Mix de Produtos Planejados — largura total, linhas */}
+      {/* Mix de Produtos por Cliente */}
       <div className="bg-brand-card border border-brand-border rounded-2xl p-5" style={{ borderTop: '2px solid #f97316' }}>
         <h3 className="text-xs font-bold text-brand-muted uppercase tracking-widest mb-4 flex items-center gap-2">
           <Package size={13} className="text-brand-orange" /> Mix de Produtos Planejados
         </h3>
-        {productMix.length > 0 ? (
-          <div className="space-y-3">
-            {productMix.map(([name, val]) => {
-              const pct = totalPlanned > 0 ? Math.round((val / totalPlanned) * 100) : 0;
+        {productMixByClient.length > 0 ? (
+          <div className="space-y-5">
+            {productMixByClient.map(({ cliente, total, products }) => {
+              const clientePct = totalPlanned > 0 ? Math.round((total / totalPlanned) * 100) : 0;
+              const COLORS = ['#f97316','#22d3ee','#8b5cf6','#10b981','#f59e0b','#ec4899','#6366f1','#14b8a6'];
+              const barColor = COLORS[productMixByClient.findIndex((c) => c.cliente === cliente) % COLORS.length];
               return (
-                <div key={name}>
-                  <div className="flex justify-between text-xs mb-1.5">
-                    <span className="text-white font-medium" title={name}>{name}</span>
-                    <span className="text-brand-muted font-mono whitespace-nowrap ml-4">
-                      {val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val} kg ({pct}%)
-                    </span>
+                <div key={cliente}>
+                  {/* Cliente header */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: barColor }} />
+                      <span className="text-xs font-bold text-white uppercase tracking-wide">{cliente}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-bold" style={{ color: barColor }}>
+                        {total >= 1000 ? `${(total / 1000).toFixed(1)}k` : Math.round(total)} kg
+                      </span>
+                      <span className="text-[10px] text-brand-muted font-mono">({clientePct}%)</span>
+                    </div>
                   </div>
-                  <div className="h-1.5 bg-brand-surface rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: '#f97316' }} />
+                  {/* Subtotal bar do cliente */}
+                  <div className="h-1 bg-brand-surface rounded-full overflow-hidden mb-3">
+                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${clientePct}%`, background: barColor }} />
+                  </div>
+                  {/* Produtos do cliente */}
+                  <div className="space-y-2 pl-4">
+                    {products.map(([name, val]) => {
+                      const pct = totalPlanned > 0 ? Math.round((val / totalPlanned) * 100) : 0;
+                      return (
+                        <div key={name}>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-slate-300 font-medium truncate pr-4" title={name}>{name}</span>
+                            <span className="text-brand-muted font-mono whitespace-nowrap shrink-0">
+                              {val >= 1000 ? `${(val / 1000).toFixed(1)}k` : Math.round(val)} kg
+                              <span className="ml-1 text-[10px] opacity-60">({pct}%)</span>
+                            </span>
+                          </div>
+                          <div className="h-1 bg-brand-surface rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-700"
+                              style={{ width: `${pct}%`, background: barColor, opacity: 0.6 }} />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
