@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, TrendingUp, FlaskConical,
-  Bot, LogOut, Settings, ChevronDown, X, Menu, LineChart,
+  Bot, LogOut, Settings, ChevronDown, X, Menu, LineChart, RefreshCw,
 } from 'lucide-react';
 import { useAuthStore, useAppStore, FACTORIES } from '../hooks/useStore';
 import { signOut } from '../services/firebase';
@@ -111,6 +111,16 @@ export default function Layout({ children }) {
                 </>
               )}
             </div>
+
+            {/* Hard reload */}
+            <button
+              onClick={() => window.location.reload(true)}
+              title="Buscar atualização (Ctrl+Shift+R)"
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all bg-white/5 text-brand-muted border-brand-border hover:text-white"
+            >
+              <RefreshCw size={14} />
+              <span>Atualizar</span>
+            </button>
 
             {/* Agent — desktop */}
             <button onClick={toggleAgent}

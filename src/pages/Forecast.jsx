@@ -12,7 +12,7 @@ import {
 function getNextMonths(n = 4) {
   const result = [];
   const now = new Date();
-  for (let i = 1; i <= n; i++) {
+  for (let i = 0; i < n; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
     const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     const label = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
