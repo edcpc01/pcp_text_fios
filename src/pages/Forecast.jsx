@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, Save, Search } from 'lucide-react';
+import { Trash2, Save, Search } from 'lucide-react';
+import { useAdminStore } from '../hooks/useStore';
 import {
-  subscribeRawMaterialStock,
   subscribeForecast,
   saveForecastEntry,
   deleteForecastEntry,
@@ -32,7 +32,7 @@ const MONTHS = getNextMonths(4);
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Forecast() {
-  const [rawStock, setRawStock]     = useState({});
+  const { products } = useAdminStore();
   const [forecastList, setForecast] = useState([]);
 
   // ── Add row state ──
@@ -43,23 +43,22 @@ export default function Forecast() {
   const [saving, setSaving]           = useState(false);
 
   useEffect(() => {
-    const u1 = subscribeRawMaterialStock(setRawStock);
-    const u2 = subscribeForecast(setForecast);
-    return () => { u1(); u2(); };
+    const u = subscribeForecast(setForecast);
+    return () => u();
   }, []);
 
-  // ── Lookup by code ──
+  // ── Lookup by code (produto acabado cadastrado no Admin) ──
   function handleLookup() {
     const code = inputCode.trim();
     if (!code) return;
 
-    // Busca por codigoMicrodata ou code no mapa de estoque
-    const entry = Object.values(rawStock).find(
-      (v) => String(v.code).trim() === code || String(v.codigoMicrodata || '').trim() === code,
+    // Busca pelo codigoMicrodata do produto (campo B2)
+    const product = products.find(
+      (p) => String(p.codigoMicrodata || '').trim() === code,
     );
 
-    if (entry) {
-      setFound({ code, descricao: entry.descricao || code });
+    if (product) {
+      setFound({ code, descricao: product.descricao || product.nome || code });
       setNotFound(false);
     } else {
       setFound(null);
