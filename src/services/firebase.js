@@ -328,6 +328,28 @@ export async function saveProductionRecord(record) {
   }, { merge: true });
 }
 
+// ─── Forecast ─────────────────────────────────────────────────────────────────
+export function subscribeForecast(callback) {
+  return onSnapshot(
+    collection(db, 'forecast'),
+    (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    (err) => console.error('[Firestore] subscribeForecast:', err.code),
+  );
+}
+
+export async function saveForecastEntry(code, data) {
+  const safeId = String(code).replace(/[^a-zA-Z0-9_-]/g, '_');
+  await setDoc(doc(db, 'forecast', safeId), {
+    ...data,
+    code,
+    updatedAt: Timestamp.now(),
+  }, { merge: true });
+}
+
+export async function deleteForecastEntry(id) {
+  await deleteDoc(doc(db, 'forecast', id));
+}
+
 // ─── Agent Logs ───────────────────────────────────────────────────────────────
 export async function saveAgentLog(log) {
   await setDoc(doc(collection(db, 'agent_logs')), { ...log, timestamp: Timestamp.now() });

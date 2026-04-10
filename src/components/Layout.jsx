@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, TrendingUp, FlaskConical,
-  Bot, LogOut, Settings, ChevronDown, X, Menu,
+  Bot, LogOut, Settings, ChevronDown, X, Menu, LineChart,
 } from 'lucide-react';
 import { useAuthStore, useAppStore, FACTORIES } from '../hooks/useStore';
 import { signOut } from '../services/firebase';
@@ -25,6 +25,7 @@ export default function Layout({ children }) {
     { to: '/',           icon: LayoutDashboard, label: 'Dashboard'    },
     { to: '/production', icon: TrendingUp,      label: 'Realizado'    },
     { to: '/materiais',  icon: FlaskConical,    label: 'Materiais'    },
+    { to: '/forecast',   icon: LineChart,       label: 'Forecast'     },
     { to: '/planning',   icon: CalendarDays,    label: 'Planejamento' },
     ...(isAdmin ? [{ to: '/admin', icon: Settings, label: 'Cadastros' }] : []),
   ];
