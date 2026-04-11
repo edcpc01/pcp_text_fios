@@ -430,27 +430,47 @@ export default function Materiais() {
     return () => { unsubMp(); unsubPa(); };
   }, []);
 
-  // ─── Auto-sync estoque (a cada 5 min, sem interação do usuário) ─────────────
+  // ─── Auto-sync estoque nos horários 8h, 12h e 16h ────────────────────────
   const [lastAutoSync, setLastAutoSync] = useState(null);
-  const AUTO_SYNC_INTERVAL = 5 * 60 * 1000;
+  const SYNC_HOURS = [8, 12, 16];
+  const LAST_SYNC_KEY = 'estoque-last-sync';
   // Ref para acessar mpNecessidade atual no interval sem criar nova closure
   const mpNecessidadeRef = useRef([]);
 
   useEffect(() => {
-    const autoSync = async () => {
+    const autoSync = async (force = false) => {
       if (importing) return;
       const file = await readSavedFile(CSV_HANDLE_KEY);
       if (!file) return;
+
+      // Verifica se é hora de sincronizar
+      if (!force) {
+        const now        = new Date();
+        const currentH   = now.getHours();
+        const todayStr   = now.toISOString().split('T')[0];
+        const isTargetH  = SYNC_HOURS.includes(currentH);
+        if (!isTargetH) return;
+
+        // Evita re-sync no mesmo horário (chave: "YYYY-MM-DD_HH")
+        const lastKey = localStorage.getItem(LAST_SYNC_KEY);
+        const thisKey = `${todayStr}_${String(currentH).padStart(2, '0')}`;
+        if (lastKey === thisKey) return;
+
+        localStorage.setItem(LAST_SYNC_KEY, thisKey);
+      }
+
       try {
         const text = await file.text();
-        // Chama processEstoqueText com o mpNecessidade atual via ref
         await processEstoqueText(text, mpNecessidadeRef.current);
         setLastAutoSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
       } catch { /* falha silenciosa */ }
     };
 
+    // Tenta sync imediato na montagem (caso esteja dentro de um horário alvo)
     autoSync();
-    const interval = setInterval(autoSync, AUTO_SYNC_INTERVAL);
+
+    // Verifica a cada minuto se chegou num horário alvo
+    const interval = setInterval(() => autoSync(), 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 

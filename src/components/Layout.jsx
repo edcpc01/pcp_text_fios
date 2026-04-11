@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, TrendingUp, FlaskConical,
   Bot, LogOut, Settings, ChevronDown, X, Menu, LineChart, RefreshCw,
 } from 'lucide-react';
 import { useAuthStore, useAppStore, FACTORIES } from '../hooks/useStore';
-import { signOut } from '../services/firebase';
+import { signOut, subscribeForecast, subscribeFinishedGoodsStock } from '../services/firebase';
 import AgentPanel from './AgentPanel';
 import PWAPrompt from './PWAPrompt';
 
@@ -18,6 +18,62 @@ export default function Layout({ children }) {
 
   const currentFactory = FACTORIES.find((f) => f.id === factory) || FACTORIES[0];
   const isAdmin = user?.role === 'admin';
+
+  // ── Alertas de ruptura de forecast ───────────────────────────────────────
+  const [criticalCount, setCriticalCount] = useState(0);
+  const prevCriticalRef = useRef(0);
+
+  useEffect(() => {
+    const currentYM = (() => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    })();
+
+    let forecastList = [];
+    let paStockMap   = {};
+
+    function recalc() {
+      const paByCode = {};
+      Object.values(paStockMap).forEach((v) => {
+        if (v.codigoMicrodata) paByCode[v.codigoMicrodata] = v.estoqueKg || 0;
+      });
+
+      let critical = 0;
+      forecastList.forEach((item) => {
+        const forecastKg = item.months?.[currentYM] || 0;
+        if (forecastKg <= 0) return;
+        const estoqueKg = paByCode[item.code] || 0;
+        const delta     = estoqueKg - forecastKg;
+        // crítico = déficit > 30% do forecast
+        if (delta < -(forecastKg * 0.3)) critical++;
+      });
+
+      setCriticalCount((prev) => {
+        if (critical > 0 && critical !== prevCriticalRef.current) {
+          // Dispara notificação PWA se permissão concedida
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            new Notification('⚠️ Alerta de Ruptura — PCP Fios', {
+              body: `${critical} produto${critical > 1 ? 's' : ''} com estoque crítico para ${currentYM}`,
+              icon: '/icons/icon-192.png',
+              tag: 'ruptura-forecast',
+            });
+          }
+        }
+        prevCriticalRef.current = critical;
+        return critical;
+      });
+    }
+
+    const unsubF = subscribeForecast((list) => { forecastList = list; recalc(); });
+    const unsubP = subscribeFinishedGoodsStock((map) => { paStockMap = map; recalc(); });
+
+    // Solicita permissão de notificação silenciosamente
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+
+    return () => { unsubF(); unsubP(); };
+  }, []);
 
   const handleLogout = async () => { await signOut(); logout(); navigate('/'); };
 
@@ -83,13 +139,18 @@ export default function Layout({ children }) {
             {NAV.map(({ to, icon: Icon, label }) => (
               <NavLink key={to} to={to} end={to === '/'}
                 className={({ isActive }) =>
-                  `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap border
+                  `relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap border
                   ${isActive
                     ? 'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/20'
                     : 'text-brand-muted hover:text-white hover:bg-white/5 border-transparent'}`
                 }>
                 <Icon size={14} />
                 <span>{label}</span>
+                {to === '/' && criticalCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                    {criticalCount}
+                  </span>
+                )}
               </NavLink>
             ))}
           </nav>
@@ -185,9 +246,14 @@ export default function Layout({ children }) {
             onClick={() => { if (agentOpen) closeAgent(); }}>
             {({ isActive }) => (
               <>
-                <div className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all
+                <div className={`relative w-8 h-8 flex items-center justify-center rounded-xl transition-all
                   ${isActive ? 'bg-brand-cyan/10' : ''}`}>
                   <Icon size={18} />
+                  {to === '/' && criticalCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 px-0.5 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center leading-none">
+                      {criticalCount}
+                    </span>
+                  )}
                 </div>
                 <span className="leading-none">{label.split(' ')[0]}</span>
               </>

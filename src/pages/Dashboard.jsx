@@ -9,6 +9,7 @@ import {
   subscribeRawMaterialStock, subscribeFinishedGoodsStock,
   subscribeForecast,
 } from '../services/firebase';
+import AdherenceChart from '../components/AdherenceChart';
 import { getMonthLabel } from '../utils/dates';
 
 function KpiCard({ label, value, unit, sub, trend, accentColor, icon: Icon }) {
@@ -187,13 +188,39 @@ export default function Dashboard() {
       planejadoByCode[prod.codigoMicrodata] = (planejadoByCode[prod.codigoMicrodata] || 0) + (e.planned || 0);
     });
 
+    // Planejado por produto por dia (hoje em diante), para projeção de cobertura
+    const dailyByCode = {}; // codigoMicrodata → [{date, kg}] sorted asc
+    Object.values(entriesMap).forEach((e) => {
+      if (!((e.cellType === 'producao' || !e.cellType) && (factory === 'all' || e.factory === factory))) return;
+      if (e.date < today) return;
+      const prod = productList.find((p) => p.id === e.product);
+      if (!prod?.codigoMicrodata) return;
+      const code = prod.codigoMicrodata;
+      if (!dailyByCode[code]) dailyByCode[code] = [];
+      dailyByCode[code].push({ date: e.date, kg: e.planned || 0 });
+    });
+    // Ordena cada produto por data
+    Object.values(dailyByCode).forEach((arr) => arr.sort((a, b) => a.date.localeCompare(b.date)));
+
     return forecastList
       .map((item) => {
         const forecastKg        = item.months?.[yearMonth] || 0;
         const estoqueKg         = paStockByCode[item.code] || 0;
         const planejadoRestante = planejadoByCode[item.code] || 0;
         const delta             = estoqueKg - forecastKg;
-        return { code: item.code, descricao: item.descricao, forecastKg, estoqueKg, planejadoRestante, delta };
+
+        // Projeção de cobertura: acumula estoque + produção dia a dia
+        let coverageDate = null;
+        if (delta < 0) {
+          let acc = estoqueKg;
+          const days = dailyByCode[item.code] || [];
+          for (const day of days) {
+            acc += day.kg;
+            if (acc >= forecastKg) { coverageDate = day.date; break; }
+          }
+        }
+
+        return { code: item.code, descricao: item.descricao, forecastKg, estoqueKg, planejadoRestante, delta, coverageDate };
       })
       .filter((r) => r.forecastKg > 0)
       .sort((a, b) => b.delta - a.delta);
@@ -290,6 +317,9 @@ export default function Dashboard() {
           sub="realizado ÷ planejado D-1"
         />
       </div>
+
+      {/* Aderência Histórica */}
+      <AdherenceChart factory={factory} currentAdherence={adherence} currentMonth={yearMonth} />
 
       {/* Mix de Produtos por Cliente */}
       <div className="bg-brand-card border border-brand-border rounded-2xl p-5" style={{ borderTop: '2px solid #f97316' }}>
@@ -437,7 +467,8 @@ export default function Dashboard() {
                     <th className="text-right px-4 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest whitespace-nowrap">Planejado (hoje→fim)</th>
                     <th className="text-right px-4 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest whitespace-nowrap">Forecast Mês</th>
                     <th className="text-right px-4 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest whitespace-nowrap">Estoque Atual</th>
-                    <th className="text-right px-5 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Delta</th>
+                    <th className="text-right px-4 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Delta</th>
+                    <th className="text-right px-5 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest whitespace-nowrap">Cobertura</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -445,6 +476,11 @@ export default function Dashboard() {
                     const isOk       = row.delta >= 0;
                     const isWarning  = row.delta < 0 && row.delta >= -(row.forecastKg * 0.3);
                     const deltaColor = isOk ? '#10b981' : isWarning ? '#f59e0b' : '#ef4444';
+                    const coverageLabel = isOk
+                      ? <span className="text-xs text-green-400 font-medium">Coberto ✓</span>
+                      : row.coverageDate
+                        ? <span className="text-xs font-mono text-amber-400">{row.coverageDate.split('-').reverse().slice(0, 2).join('/')}</span>
+                        : <span className="text-xs text-red-400">Insuf. no mês</span>;
                     return (
                       <tr key={row.code} className="border-b border-brand-border/40 hover:bg-white/[0.02] transition-colors">
                         <td className="px-5 py-3">
@@ -460,12 +496,13 @@ export default function Dashboard() {
                         <td className="px-4 py-3 text-right font-mono font-bold text-brand-agent text-sm whitespace-nowrap">
                           {fmtKg(row.estoqueKg)}
                         </td>
-                        <td className="px-5 py-3 text-right whitespace-nowrap">
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
                           <span className="font-mono font-bold text-sm px-2.5 py-1 rounded-lg"
                             style={{ color: deltaColor, backgroundColor: `${deltaColor}18` }}>
                             {row.delta > 0 ? '+' : ''}{fmtKg(row.delta)}
                           </span>
                         </td>
+                        <td className="px-5 py-3 text-right whitespace-nowrap">{coverageLabel}</td>
                       </tr>
                     );
                   })}
@@ -507,16 +544,27 @@ export default function Dashboard() {
                 const deltaColor = isOk ? '#10b981' : isWarning ? '#f59e0b' : '#ef4444';
                 return (
                   <div key={row.code} className="bg-brand-surface border border-brand-border rounded-xl overflow-hidden">
-                    {/* Nome + delta badge */}
-                    <div className="flex items-start justify-between gap-2 px-3 py-2.5 border-b border-brand-border/50">
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-white leading-tight truncate" title={row.descricao}>{row.descricao}</p>
-                        <p className="text-[10px] font-mono text-brand-muted mt-0.5">Cód. {row.code}</p>
+                    {/* Nome + delta badge + cobertura */}
+                    <div className="px-3 py-2.5 border-b border-brand-border/50">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-white leading-tight truncate" title={row.descricao}>{row.descricao}</p>
+                          <p className="text-[10px] font-mono text-brand-muted mt-0.5">Cód. {row.code}</p>
+                        </div>
+                        <span className="shrink-0 font-mono font-bold text-xs px-2 py-1 rounded-lg whitespace-nowrap"
+                          style={{ color: deltaColor, backgroundColor: `${deltaColor}18` }}>
+                          {row.delta > 0 ? '+' : ''}{fmtKg(row.delta)}
+                        </span>
                       </div>
-                      <span className="shrink-0 font-mono font-bold text-xs px-2 py-1 rounded-lg whitespace-nowrap"
-                        style={{ color: deltaColor, backgroundColor: `${deltaColor}18` }}>
-                        {row.delta > 0 ? '+' : ''}{fmtKg(row.delta)}
-                      </span>
+                      {/* Projeção de cobertura */}
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <span className="text-[9px] text-brand-muted uppercase tracking-widest">Cobertura:</span>
+                        {isOk
+                          ? <span className="text-[10px] font-medium text-green-400">Coberto ✓</span>
+                          : row.coverageDate
+                            ? <span className="text-[10px] font-mono text-amber-400">{row.coverageDate.split('-').reverse().slice(0, 2).join('/')}</span>
+                            : <span className="text-[10px] text-red-400">Insuficiente no mês</span>}
+                      </div>
                     </div>
                     {/* Métricas */}
                     <div className="grid grid-cols-3 divide-x divide-brand-border/50">

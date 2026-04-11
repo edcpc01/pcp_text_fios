@@ -1,7 +1,7 @@
 import { initializeApp, deleteApp } from 'firebase/app';
 import {
   getFirestore,
-  collection, doc, getDoc, setDoc, deleteDoc,
+  collection, doc, getDoc, getDocs, setDoc, deleteDoc,
   query, where, orderBy, onSnapshot, Timestamp,
   initializeFirestore, memoryLocalCache,
 } from 'firebase/firestore';
@@ -348,6 +348,29 @@ export async function saveForecastEntry(code, data) {
 
 export async function deleteForecastEntry(id) {
   await deleteDoc(doc(db, 'forecast', id));
+}
+
+// ─── Historical Adherence ─────────────────────────────────────────────────────
+// Busca totais de planejado e realizado de um mês específico (one-shot, não subscribe)
+export async function fetchMonthSummary(factory, yearMonth) {
+  const [year, month] = yearMonth.split('-').map(Number);
+  const start = Timestamp.fromDate(new Date(year, month - 1, 1));
+  const end   = Timestamp.fromDate(new Date(year, month,     0, 23, 59, 59));
+
+  const factories = factory === 'all' ? ['matriz', 'filial'] : [factory];
+  let totalPlanned = 0;
+  let totalActual  = 0;
+
+  await Promise.all(factories.map(async (f) => {
+    const qP = query(collection(db, 'planning_entries'),   where('factory', '==', f), where('date', '>=', start), where('date', '<=', end));
+    const qR = query(collection(db, 'production_records'), where('factory', '==', f), where('date', '>=', start), where('date', '<=', end));
+    const [snapP, snapR] = await Promise.all([getDocs(qP), getDocs(qR)]);
+    snapP.forEach((d) => { const e = d.data(); if (e.cellType === 'producao' || !e.cellType) totalPlanned += e.planned || 0; });
+    snapR.forEach((d) => { totalActual += d.data().actual || 0; });
+  }));
+
+  const adherence = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : null;
+  return { yearMonth, totalPlanned: Math.round(totalPlanned), totalActual: Math.round(totalActual), adherence };
 }
 
 // ─── Agent Logs ───────────────────────────────────────────────────────────────
