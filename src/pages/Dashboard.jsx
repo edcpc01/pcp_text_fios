@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   TrendingUp, TrendingDown, Minus, Activity, Package,
-  Calendar, ChevronLeft, ChevronRight, FlaskConical,
+  Calendar, ChevronLeft, ChevronRight, FlaskConical, BarChart2,
 } from 'lucide-react';
 import { useAppStore, usePlanningStore, useProductionStore, useAdminStore } from '../hooks/useStore';
 import {
   subscribeProductionRecords, subscribePlanningEntries,
   subscribeRawMaterialStock, subscribeFinishedGoodsStock,
+  subscribeForecast,
 } from '../services/firebase';
 import { getMonthLabel } from '../utils/dates';
 
@@ -66,6 +67,13 @@ export default function Dashboard() {
     const u1 = subscribeRawMaterialStock(setRawStock);
     const u2 = subscribeFinishedGoodsStock(setPaStock);
     return () => { u1(); u2(); };
+  }, []);
+
+  // ── Forecast ──────────────────────────────────────────────────────────────
+  const [forecastList, setForecastList] = useState([]);
+  useEffect(() => {
+    const u = subscribeForecast(setForecastList);
+    return () => u();
   }, []);
 
   // ── Date range filter ─────────────────────────────────────────────────────
@@ -155,6 +163,28 @@ export default function Dashboard() {
     .filter((v) => v.kg > 0)
     .sort((a, b) => b.kg - a.kg)
     .slice(0, 8);
+
+  // ── Forecast Delta ────────────────────────────────────────────────────────
+  // Monta lookup: codigoMicrodata → estoqueKg do paStock
+  const paStockByCode = useMemo(() => {
+    const map = {};
+    Object.values(paStock).forEach((v) => {
+      if (v.codigoMicrodata) map[v.codigoMicrodata] = v.estoqueKg || 0;
+    });
+    return map;
+  }, [paStock]);
+
+  const forecastDelta = useMemo(() => {
+    return forecastList
+      .map((item) => {
+        const forecastKg = item.months?.[yearMonth] || 0;
+        const estoqueKg  = paStockByCode[item.code] || 0;
+        const delta      = forecastKg - estoqueKg;
+        return { code: item.code, descricao: item.descricao, forecastKg, estoqueKg, delta };
+      })
+      .filter((r) => r.forecastKg > 0)
+      .sort((a, b) => b.delta - a.delta);
+  }, [forecastList, paStockByCode, yearMonth]);
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
@@ -363,6 +393,93 @@ export default function Dashboard() {
           )}
         </div>
 
+      </div>
+
+      {/* Forecast vs Estoque */}
+      <div className="bg-brand-card border border-brand-border rounded-2xl overflow-hidden"
+        style={{ borderTop: '2px solid #06b6d4' }}>
+
+        {/* Cabeçalho */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-4">
+          <h3 className="text-xs font-bold text-brand-muted uppercase tracking-widest flex items-center gap-2">
+            <BarChart2 size={13} className="text-brand-cyan" /> Forecast vs Estoque
+          </h3>
+          <span className="text-[10px] font-bold text-brand-cyan bg-brand-cyan/10 border border-brand-cyan/20 px-2 py-1 rounded-lg capitalize">
+            {monthLabel}
+          </span>
+        </div>
+
+        {forecastDelta.length === 0 ? (
+          <p className="text-brand-muted text-sm text-center py-8 px-5">
+            Nenhum forecast cadastrado para {monthLabel}. Acesse a página Forecast para adicionar.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-brand-border bg-brand-surface/50">
+                  <th className="text-left px-5 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Produto</th>
+                  <th className="text-right px-4 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest whitespace-nowrap">Forecast Mês</th>
+                  <th className="text-right px-4 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest whitespace-nowrap">Estoque Atual</th>
+                  <th className="text-right px-5 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Delta</th>
+                </tr>
+              </thead>
+              <tbody>
+                {forecastDelta.map((row) => {
+                  const isOk      = row.delta <= 0;
+                  const isWarning = row.delta > 0 && row.delta <= row.forecastKg * 0.3;
+                  const deltaColor = isOk ? '#10b981' : isWarning ? '#f59e0b' : '#ef4444';
+                  return (
+                    <tr key={row.code} className="border-b border-brand-border/40 hover:bg-white/[0.02] transition-colors">
+                      <td className="px-5 py-3">
+                        <p className="text-xs font-semibold text-white leading-tight truncate max-w-[220px]" title={row.descricao}>{row.descricao}</p>
+                        <p className="text-[10px] font-mono text-brand-muted mt-0.5">Cód. {row.code}</p>
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-white text-sm whitespace-nowrap">
+                        {fmtKg(row.forecastKg)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-brand-agent text-sm whitespace-nowrap">
+                        {fmtKg(row.estoqueKg)}
+                      </td>
+                      <td className="px-5 py-3 text-right whitespace-nowrap">
+                        <span
+                          className="font-mono font-bold text-sm px-2.5 py-1 rounded-lg"
+                          style={{ color: deltaColor, backgroundColor: `${deltaColor}18` }}
+                        >
+                          {row.delta > 0 ? '+' : ''}{fmtKg(row.delta)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {/* Totais */}
+              <tfoot>
+                <tr className="border-t border-brand-border bg-brand-surface">
+                  <td className="px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Total</td>
+                  <td className="px-4 py-3 text-right font-mono font-bold text-white text-sm">
+                    {fmtKg(forecastDelta.reduce((s, r) => s + r.forecastKg, 0))}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono font-bold text-brand-agent text-sm">
+                    {fmtKg(forecastDelta.reduce((s, r) => s + r.estoqueKg, 0))}
+                  </td>
+                  <td className="px-5 py-3 text-right">
+                    {(() => {
+                      const totalDelta = forecastDelta.reduce((s, r) => s + r.delta, 0);
+                      const c = totalDelta <= 0 ? '#10b981' : '#ef4444';
+                      return (
+                        <span className="font-mono font-bold text-sm px-2.5 py-1 rounded-lg"
+                          style={{ color: c, backgroundColor: `${c}18` }}>
+                          {totalDelta > 0 ? '+' : ''}{fmtKg(totalDelta)}
+                        </span>
+                      );
+                    })()}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
       </div>
 
     </div>
