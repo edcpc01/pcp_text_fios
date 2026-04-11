@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Trash2, Save, Search } from 'lucide-react';
+import { Trash2, Save, Search, Pencil, Check, X } from 'lucide-react';
 import { useAdminStore } from '../hooks/useStore';
 import {
   subscribeForecast,
@@ -41,6 +41,26 @@ export default function Forecast() {
   const [notFound, setNotFound]       = useState(false);
   const [inputMonths, setInputMonths] = useState({});     // { ym: kg }
   const [saving, setSaving]           = useState(false);
+
+  // ── Row edit state ──
+  const [editingRowId, setEditingRowId] = useState(null);
+  const [editDraft, setEditDraft]       = useState({});   // { ym: kg }
+
+  function startEditRow(item) {
+    setEditingRowId(item.id);
+    const draft = {};
+    MONTHS.forEach(({ ym }) => { draft[ym] = item.months?.[ym] ?? 0; });
+    setEditDraft(draft);
+  }
+
+  function cancelEditRow() { setEditingRowId(null); setEditDraft({}); }
+
+  async function saveEditRow(item) {
+    const months = { ...(item.months || {}), ...editDraft };
+    await saveForecastEntry(item.code, { code: item.code, descricao: item.descricao, months });
+    setEditingRowId(null);
+    setEditDraft({});
+  }
 
   useEffect(() => {
     const u = subscribeForecast(setForecast);
@@ -241,33 +261,69 @@ export default function Forecast() {
                   </tr>
                 </thead>
                 <tbody>
-                  {forecastList.map((item) => (
-                    <tr key={item.id} className="border-b border-brand-border/50 hover:bg-white/[0.02] transition-colors">
-                      <td className="px-5 py-3 font-mono text-[11px] text-brand-muted whitespace-nowrap">
-                        {item.code}
-                      </td>
-                      <td className="px-4 py-3 text-white font-medium max-w-[220px] truncate" title={item.descricao}>
-                        {item.descricao}
-                      </td>
-                      {MONTHS.map(({ ym }) => (
-                        <td key={ym} className="px-4 py-3 text-center">
-                          <EditableCell
-                            value={item.months?.[ym] || 0}
-                            onSave={(v) => handleCellEdit(item, ym, v)}
-                          />
+                  {forecastList.map((item) => {
+                    const isEditing = editingRowId === item.id;
+                    return (
+                      <tr key={item.id}
+                        className={`border-b border-brand-border/50 transition-colors
+                          ${isEditing ? 'bg-brand-cyan/5' : 'hover:bg-white/[0.02]'}`}>
+                        <td className="px-5 py-3 font-mono text-[11px] text-brand-muted whitespace-nowrap">
+                          {item.code}
                         </td>
-                      ))}
-                      <td className="px-3 py-3 text-center">
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="p-1.5 text-brand-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-                          title="Remover"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        <td className="px-4 py-3 text-white font-medium max-w-[220px] truncate" title={item.descricao}>
+                          {item.descricao}
+                        </td>
+                        {MONTHS.map(({ ym }) => (
+                          <td key={ym} className="px-4 py-3 text-center">
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.1"
+                                className="bg-brand-surface text-white text-sm rounded-lg border border-brand-cyan/40 px-2 py-1 w-24 font-mono text-center focus:outline-none focus:border-brand-cyan"
+                                value={editDraft[ym] ?? ''}
+                                onChange={(e) => setEditDraft((p) => ({ ...p, [ym]: parseFloat(e.target.value.replace(',', '.')) || 0 }))}
+                              />
+                            ) : (
+                              <EditableCell
+                                value={item.months?.[ym] || 0}
+                                onSave={(v) => handleCellEdit(item, ym, v)}
+                              />
+                            )}
+                          </td>
+                        ))}
+                        <td className="px-3 py-3 text-center whitespace-nowrap">
+                          {isEditing ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <button onClick={() => saveEditRow(item)}
+                                className="p-1.5 text-brand-success hover:text-green-300 hover:bg-green-500/10 rounded-lg transition-all"
+                                title="Salvar">
+                                <Check size={14} />
+                              </button>
+                              <button onClick={cancelEditRow}
+                                className="p-1.5 text-brand-muted hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                                title="Cancelar">
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center gap-1">
+                              <button onClick={() => startEditRow(item)}
+                                className="p-1.5 text-brand-muted hover:text-brand-cyan hover:bg-brand-cyan/10 rounded-lg transition-all"
+                                title="Editar">
+                                <Pencil size={13} />
+                              </button>
+                              <button onClick={() => handleDelete(item.id)}
+                                className="p-1.5 text-brand-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                title="Remover">
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-brand-border bg-brand-surface">
@@ -287,36 +343,74 @@ export default function Forecast() {
 
             {/* ── Mobile: cards por produto ── */}
             <div className="sm:hidden px-4 pb-4 space-y-3">
-              {forecastList.map((item) => (
-                <div key={item.id} className="bg-brand-surface border border-brand-border rounded-xl overflow-hidden">
-                  {/* Header do card */}
-                  <div className="flex items-start justify-between px-3 py-2.5 border-b border-brand-border/50">
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-white leading-tight truncate" title={item.descricao}>{item.descricao}</p>
-                      <p className="text-[10px] font-mono text-brand-muted mt-0.5">Cód. {item.code}</p>
-                    </div>
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      className="shrink-0 p-1.5 text-brand-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all ml-2"
-                      title="Remover"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                  {/* Volumes por mês */}
-                  <div className="grid grid-cols-2 divide-x divide-brand-border/50">
-                    {MONTHS.map(({ ym, label }, i) => (
-                      <div key={ym} className={`px-3 py-2.5 text-center ${i >= 2 ? 'border-t border-brand-border/50' : ''}`}>
-                        <p className="text-[9px] text-brand-muted uppercase tracking-widest mb-1.5 capitalize">{label}</p>
-                        <EditableCell
-                          value={item.months?.[ym] || 0}
-                          onSave={(v) => handleCellEdit(item, ym, v)}
-                        />
+              {forecastList.map((item) => {
+                const isEditing = editingRowId === item.id;
+                return (
+                  <div key={item.id}
+                    className={`border rounded-xl overflow-hidden transition-colors
+                      ${isEditing ? 'bg-brand-cyan/5 border-brand-cyan/30' : 'bg-brand-surface border-brand-border'}`}>
+                    {/* Header do card */}
+                    <div className="flex items-start justify-between px-3 py-2.5 border-b border-brand-border/50">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-white leading-tight truncate" title={item.descricao}>{item.descricao}</p>
+                        <p className="text-[10px] font-mono text-brand-muted mt-0.5">Cód. {item.code}</p>
                       </div>
-                    ))}
+                      <div className="flex items-center gap-1 shrink-0 ml-2">
+                        {isEditing ? (
+                          <>
+                            <button onClick={() => saveEditRow(item)}
+                              className="p-1.5 text-brand-success hover:text-green-300 hover:bg-green-500/10 rounded-lg transition-all"
+                              title="Salvar">
+                              <Check size={14} />
+                            </button>
+                            <button onClick={cancelEditRow}
+                              className="p-1.5 text-brand-muted hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                              title="Cancelar">
+                              <X size={14} />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button onClick={() => startEditRow(item)}
+                              className="p-1.5 text-brand-muted hover:text-brand-cyan hover:bg-brand-cyan/10 rounded-lg transition-all"
+                              title="Editar">
+                              <Pencil size={13} />
+                            </button>
+                            <button onClick={() => handleDelete(item.id)}
+                              className="p-1.5 text-brand-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                              title="Remover">
+                              <Trash2 size={13} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {/* Volumes por mês */}
+                    <div className="grid grid-cols-2 divide-x divide-brand-border/50">
+                      {MONTHS.map(({ ym, label }, i) => (
+                        <div key={ym} className={`px-3 py-2.5 text-center ${i >= 2 ? 'border-t border-brand-border/50' : ''}`}>
+                          <p className="text-[9px] text-brand-muted uppercase tracking-widest mb-1.5 capitalize">{label}</p>
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              className="bg-brand-surface text-white text-xs rounded-lg border border-brand-cyan/40 px-2 py-1 w-full font-mono text-center focus:outline-none focus:border-brand-cyan"
+                              value={editDraft[ym] ?? ''}
+                              onChange={(e) => setEditDraft((p) => ({ ...p, [ym]: parseFloat(e.target.value.replace(',', '.')) || 0 }))}
+                            />
+                          ) : (
+                            <EditableCell
+                              value={item.months?.[ym] || 0}
+                              onSave={(v) => handleCellEdit(item, ym, v)}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {/* Total mobile */}
               <div className="bg-brand-surface border border-brand-border rounded-xl overflow-hidden">
                 <div className="px-3 py-2 border-b border-brand-border/50">
