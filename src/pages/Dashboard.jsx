@@ -192,7 +192,7 @@ export default function Dashboard() {
         const forecastKg        = item.months?.[yearMonth] || 0;
         const estoqueKg         = paStockByCode[item.code] || 0;
         const planejadoRestante = planejadoByCode[item.code] || 0;
-        const delta             = forecastKg - estoqueKg;
+        const delta             = estoqueKg - forecastKg;
         return { code: item.code, descricao: item.descricao, forecastKg, estoqueKg, planejadoRestante, delta };
       })
       .filter((r) => r.forecastKg > 0)
@@ -442,8 +442,8 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                   {forecastDelta.map((row) => {
-                    const isOk       = row.delta <= 0;
-                    const isWarning  = row.delta > 0 && row.delta <= row.forecastKg * 0.3;
+                    const isOk       = row.delta >= 0;
+                    const isWarning  = row.delta < 0 && row.delta >= -(row.forecastKg * 0.3);
                     const deltaColor = isOk ? '#10b981' : isWarning ? '#f59e0b' : '#ef4444';
                     return (
                       <tr key={row.code} className="border-b border-brand-border/40 hover:bg-white/[0.02] transition-colors">
@@ -485,7 +485,7 @@ export default function Dashboard() {
                     <td className="px-5 py-3 text-right">
                       {(() => {
                         const totalDelta = forecastDelta.reduce((s, r) => s + r.delta, 0);
-                        const c = totalDelta <= 0 ? '#10b981' : '#ef4444';
+                        const c = totalDelta >= 0 ? '#10b981' : '#ef4444';
                         return (
                           <span className="font-mono font-bold text-sm px-2.5 py-1 rounded-lg"
                             style={{ color: c, backgroundColor: `${c}18` }}>
