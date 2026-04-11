@@ -21,6 +21,21 @@ export default function Layout({ children }) {
 
   const handleLogout = async () => { await signOut(); logout(); navigate('/'); };
 
+  const handleHardReload = async () => {
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+    } finally {
+      window.location.reload();
+    }
+  };
+
   const NAV = [
     { to: '/',           icon: LayoutDashboard, label: 'Dashboard'    },
     { to: '/production', icon: TrendingUp,      label: 'Realizado'    },
@@ -114,22 +129,22 @@ export default function Layout({ children }) {
 
             {/* Hard reload */}
             <button
-              onClick={() => window.location.reload(true)}
+              onClick={handleHardReload}
               title="Buscar atualização (Ctrl+Shift+R)"
-              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all bg-white/5 text-brand-muted border-brand-border hover:text-white"
+              className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 rounded-lg text-sm font-medium border transition-all bg-white/5 text-brand-muted border-brand-border hover:text-white"
             >
               <RefreshCw size={14} />
-              <span>Atualizar</span>
+              <span className="hidden md:inline">Atualizar</span>
             </button>
 
-            {/* Agent — desktop */}
+            {/* Agent */}
             <button onClick={toggleAgent}
-              className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all
+              className={`flex items-center gap-1.5 px-2 md:px-3 py-1.5 rounded-lg text-sm font-medium border transition-all
                 ${agentOpen
                   ? 'bg-purple-500/10 text-purple-400 border-purple-500/30'
                   : 'bg-white/5 text-brand-muted border-brand-border hover:text-white'}`}>
               <Bot size={14} />
-              <span>Agente</span>
+              <span className="hidden md:inline">Agente</span>
               {agentOpen && <span className="w-1.5 h-1.5 rounded-full bg-purple-400 pulse-dot" />}
             </button>
 
@@ -161,7 +176,7 @@ export default function Layout({ children }) {
       {/* ── Mobile Bottom Tab Bar ── */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-brand-surface border-t border-brand-border
         flex items-stretch safe-area-bottom">
-        {NAV.slice(0, 5).map(({ to, icon: Icon, label }) => (
+        {NAV.map(({ to, icon: Icon, label }) => (
           <NavLink key={to} to={to} end={to === '/'}
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors
@@ -179,18 +194,6 @@ export default function Layout({ children }) {
             )}
           </NavLink>
         ))}
-
-        {/* Agente — mobile */}
-        <button onClick={toggleAgent}
-          className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors
-            ${agentOpen ? 'text-purple-400' : 'text-brand-muted'}`}>
-          <div className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all
-            ${agentOpen ? 'bg-purple-500/10' : ''}`}>
-            <Bot size={18} />
-            {agentOpen && <span className="absolute top-2 right-0 w-1.5 h-1.5 rounded-full bg-purple-400" />}
-          </div>
-          <span className="leading-none">Agente</span>
-        </button>
       </nav>
 
       {/* ── Agent Panel — mobile full screen overlay ── */}
