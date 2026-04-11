@@ -121,21 +121,21 @@ export default function Forecast() {
   }));
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 animate-fade-in">
 
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-white">Forecast de Matéria-Prima</h1>
-        <p className="text-sm text-brand-muted mt-0.5">Necessidade dos próximos 4 meses por fio</p>
+        <h1 className="text-lg sm:text-xl font-bold text-white">Forecast de Matéria-Prima</h1>
+        <p className="text-xs sm:text-sm text-brand-muted mt-0.5">Necessidade dos próximos 4 meses por fio</p>
       </div>
 
       {/* ── Adicionar item ── */}
-      <div className="bg-brand-card border border-brand-border rounded-2xl p-5 space-y-4"
+      <div className="bg-brand-card border border-brand-border rounded-2xl p-4 sm:p-5 space-y-3 sm:space-y-4"
         style={{ borderTop: '2px solid #06b6d4' }}>
         <p className="text-xs font-bold text-brand-muted uppercase tracking-widest">Adicionar / Atualizar</p>
 
         {/* Busca por código */}
-        <div className="flex gap-2 items-end flex-wrap">
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-end flex-wrap">
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-brand-muted uppercase font-bold tracking-widest">
               Cód. Microdata
@@ -143,7 +143,7 @@ export default function Forecast() {
             <div className="flex gap-1">
               <input
                 className="bg-brand-surface text-white text-sm rounded-lg border border-brand-border px-3 py-2
-                  focus:outline-none focus:border-brand-cyan w-40 font-mono"
+                  focus:outline-none focus:border-brand-cyan w-36 sm:w-40 font-mono"
                 placeholder="Ex: 181714"
                 value={inputCode}
                 onChange={(e) => { setInputCode(e.target.value); setFound(null); setNotFound(false); }}
@@ -161,7 +161,7 @@ export default function Forecast() {
           </div>
 
           {found && (
-            <div className="bg-brand-surface border border-brand-border rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-0 truncate">
+            <div className="bg-brand-surface border border-brand-border rounded-lg px-3 py-2 text-sm text-white min-w-0 truncate">
               <span className="text-brand-muted text-xs font-mono mr-2">{found.code}</span>
               {found.descricao}
             </div>
@@ -173,30 +173,31 @@ export default function Forecast() {
 
         {/* Inputs de volume por mês */}
         {found && (
-          <div className="flex flex-wrap gap-3 items-end">
-            {MONTHS.map(({ ym, label }) => (
-              <div key={ym} className="flex flex-col gap-1">
-                <label className="text-[10px] text-brand-muted uppercase font-bold tracking-widest capitalize">
-                  {label}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  placeholder="kg"
-                  className="bg-brand-surface text-white text-sm rounded-lg border border-brand-border px-3 py-2
-                    focus:outline-none focus:border-brand-cyan w-28 font-mono"
-                  value={inputMonths[ym] ?? ''}
-                  onChange={(e) => handleMonthChange(ym, e.target.value)}
-                />
-              </div>
-            ))}
-
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3">
+              {MONTHS.map(({ ym, label }) => (
+                <div key={ym} className="flex flex-col gap-1">
+                  <label className="text-[10px] text-brand-muted uppercase font-bold tracking-widest capitalize">
+                    {label}
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    placeholder="kg"
+                    className="bg-brand-surface text-white text-sm rounded-lg border border-brand-border px-3 py-2
+                      focus:outline-none focus:border-brand-cyan w-full sm:w-28 font-mono"
+                    value={inputMonths[ym] ?? ''}
+                    onChange={(e) => handleMonthChange(ym, e.target.value)}
+                  />
+                </div>
+              ))}
+            </div>
             <button
               onClick={handleAdd}
               disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand-cyan text-brand-bg
-                font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 self-end"
+              className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-brand-cyan text-brand-bg
+                font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               <Save size={14} />
               {saving ? 'Salvando...' : 'Salvar'}
@@ -208,8 +209,8 @@ export default function Forecast() {
       {/* ── Tabela de forecast ── */}
       <div className="bg-brand-card border border-brand-border rounded-2xl overflow-hidden"
         style={{ borderTop: '2px solid #8b5cf6' }}>
-        <div className="p-5 pb-0">
-          <p className="text-xs font-bold text-brand-muted uppercase tracking-widest mb-4">
+        <div className="px-4 sm:px-5 pt-4 sm:pt-5 pb-0">
+          <p className="text-xs font-bold text-brand-muted uppercase tracking-widest mb-3 sm:mb-4">
             Forecast — próximos 4 meses
           </p>
         </div>
@@ -219,69 +220,122 @@ export default function Forecast() {
             Nenhum forecast cadastrado. Adicione um item acima.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-brand-border">
-                  <th className="text-left px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">
-                    Cód.
-                  </th>
-                  <th className="text-left px-4 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">
-                    Descrição
-                  </th>
-                  {MONTHS.map(({ ym, label }) => (
-                    <th key={ym} className="text-center px-4 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest capitalize whitespace-nowrap">
-                      {label}
+          <>
+            {/* ── Desktop: tabela ── */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm min-w-[560px]">
+                <thead>
+                  <tr className="border-b border-brand-border">
+                    <th className="text-left px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">
+                      Cód.
                     </th>
+                    <th className="text-left px-4 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">
+                      Descrição
+                    </th>
+                    {MONTHS.map(({ ym, label }) => (
+                      <th key={ym} className="text-center px-4 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest capitalize whitespace-nowrap">
+                        {label}
+                      </th>
+                    ))}
+                    <th className="w-10" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {forecastList.map((item) => (
+                    <tr key={item.id} className="border-b border-brand-border/50 hover:bg-white/[0.02] transition-colors">
+                      <td className="px-5 py-3 font-mono text-[11px] text-brand-muted whitespace-nowrap">
+                        {item.code}
+                      </td>
+                      <td className="px-4 py-3 text-white font-medium max-w-[220px] truncate" title={item.descricao}>
+                        {item.descricao}
+                      </td>
+                      {MONTHS.map(({ ym }) => (
+                        <td key={ym} className="px-4 py-3 text-center">
+                          <EditableCell
+                            value={item.months?.[ym] || 0}
+                            onSave={(v) => handleCellEdit(item, ym, v)}
+                          />
+                        </td>
+                      ))}
+                      <td className="px-3 py-3 text-center">
+                        <button
+                          onClick={() => handleDelete(item.id)}
+                          className="p-1.5 text-brand-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                          title="Remover"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </td>
+                    </tr>
                   ))}
-                  <th className="w-10" />
-                </tr>
-              </thead>
-              <tbody>
-                {forecastList.map((item) => (
-                  <tr key={item.id} className="border-b border-brand-border/50 hover:bg-white/[0.02] transition-colors">
-                    <td className="px-5 py-3 font-mono text-[11px] text-brand-muted whitespace-nowrap">
-                      {item.code}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-brand-border bg-brand-surface">
+                    <td colSpan={2} className="px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">
+                      Total
                     </td>
-                    <td className="px-4 py-3 text-white font-medium max-w-[220px] truncate" title={item.descricao}>
-                      {item.descricao}
-                    </td>
-                    {MONTHS.map(({ ym }) => (
-                      <td key={ym} className="px-4 py-3 text-center">
+                    {totalByMonth.map(({ ym, total }) => (
+                      <td key={ym} className="px-4 py-3 text-center font-mono font-bold text-brand-cyan text-sm">
+                        {fmtKg(total)}
+                      </td>
+                    ))}
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* ── Mobile: cards por produto ── */}
+            <div className="sm:hidden px-4 pb-4 space-y-3">
+              {forecastList.map((item) => (
+                <div key={item.id} className="bg-brand-surface border border-brand-border rounded-xl overflow-hidden">
+                  {/* Header do card */}
+                  <div className="flex items-start justify-between px-3 py-2.5 border-b border-brand-border/50">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-white leading-tight truncate" title={item.descricao}>{item.descricao}</p>
+                      <p className="text-[10px] font-mono text-brand-muted mt-0.5">Cód. {item.code}</p>
+                    </div>
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      className="shrink-0 p-1.5 text-brand-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all ml-2"
+                      title="Remover"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                  {/* Volumes por mês */}
+                  <div className="grid grid-cols-2 divide-x divide-brand-border/50">
+                    {MONTHS.map(({ ym, label }, i) => (
+                      <div key={ym} className={`px-3 py-2.5 text-center ${i >= 2 ? 'border-t border-brand-border/50' : ''}`}>
+                        <p className="text-[9px] text-brand-muted uppercase tracking-widest mb-1.5 capitalize">{label}</p>
                         <EditableCell
                           value={item.months?.[ym] || 0}
                           onSave={(v) => handleCellEdit(item, ym, v)}
                         />
-                      </td>
+                      </div>
                     ))}
-                    <td className="px-3 py-3 text-center">
-                      <button
-                        onClick={() => handleDelete(item.id)}
-                        className="p-1.5 text-brand-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-                        title="Remover"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              {/* Totais */}
-              <tfoot>
-                <tr className="border-t border-brand-border bg-brand-surface">
-                  <td colSpan={2} className="px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">
-                    Total
-                  </td>
-                  {totalByMonth.map(({ ym, total }) => (
-                    <td key={ym} className="px-4 py-3 text-center font-mono font-bold text-brand-cyan text-sm">
-                      {fmtKg(total)}
-                    </td>
-                  ))}
-                  <td />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                  </div>
+                </div>
+              ))}
+              {/* Total mobile */}
+              <div className="bg-brand-surface border border-brand-border rounded-xl overflow-hidden">
+                <div className="px-3 py-2 border-b border-brand-border/50">
+                  <p className="text-[10px] font-bold text-brand-muted uppercase tracking-widest">Total</p>
+                </div>
+                <div className="grid grid-cols-2 divide-x divide-brand-border/50">
+                  {totalByMonth.map(({ ym, total }, i) => {
+                    const label = MONTHS.find((m) => m.ym === ym)?.label || ym;
+                    return (
+                      <div key={ym} className={`px-3 py-2.5 text-center ${i >= 2 ? 'border-t border-brand-border/50' : ''}`}>
+                        <p className="text-[9px] text-brand-muted uppercase tracking-widest mb-1 capitalize">{label}</p>
+                        <p className="text-sm font-mono font-bold text-brand-cyan">{fmtKg(total)}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>

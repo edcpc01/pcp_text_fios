@@ -175,16 +175,29 @@ export default function Dashboard() {
   }, [paStock]);
 
   const forecastDelta = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+
+    // Planejado de hoje até fim do mês por codigoMicrodata
+    const planejadoByCode = {};
+    Object.values(entriesMap).forEach((e) => {
+      if (!((e.cellType === 'producao' || !e.cellType) && (factory === 'all' || e.factory === factory))) return;
+      if (e.date < today) return;
+      const prod = productList.find((p) => p.id === e.product);
+      if (!prod?.codigoMicrodata) return;
+      planejadoByCode[prod.codigoMicrodata] = (planejadoByCode[prod.codigoMicrodata] || 0) + (e.planned || 0);
+    });
+
     return forecastList
       .map((item) => {
-        const forecastKg = item.months?.[yearMonth] || 0;
-        const estoqueKg  = paStockByCode[item.code] || 0;
-        const delta      = forecastKg - estoqueKg;
-        return { code: item.code, descricao: item.descricao, forecastKg, estoqueKg, delta };
+        const forecastKg        = item.months?.[yearMonth] || 0;
+        const estoqueKg         = paStockByCode[item.code] || 0;
+        const planejadoRestante = planejadoByCode[item.code] || 0;
+        const delta             = forecastKg - estoqueKg;
+        return { code: item.code, descricao: item.descricao, forecastKg, estoqueKg, planejadoRestante, delta };
       })
       .filter((r) => r.forecastKg > 0)
       .sort((a, b) => b.delta - a.delta);
-  }, [forecastList, paStockByCode, yearMonth]);
+  }, [forecastList, paStockByCode, yearMonth, entriesMap, factory, productList]);
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
@@ -400,7 +413,7 @@ export default function Dashboard() {
         style={{ borderTop: '2px solid #06b6d4' }}>
 
         {/* Cabeçalho */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-4">
+        <div className="flex items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 pb-3 sm:pb-4">
           <h3 className="text-xs font-bold text-brand-muted uppercase tracking-widest flex items-center gap-2">
             <BarChart2 size={13} className="text-brand-cyan" /> Forecast vs Estoque
           </h3>
@@ -414,71 +427,147 @@ export default function Dashboard() {
             Nenhum forecast cadastrado para {monthLabel}. Acesse a página Forecast para adicionar.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-brand-border bg-brand-surface/50">
-                  <th className="text-left px-5 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Produto</th>
-                  <th className="text-right px-4 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest whitespace-nowrap">Forecast Mês</th>
-                  <th className="text-right px-4 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest whitespace-nowrap">Estoque Atual</th>
-                  <th className="text-right px-5 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Delta</th>
-                </tr>
-              </thead>
-              <tbody>
-                {forecastDelta.map((row) => {
-                  const isOk      = row.delta <= 0;
-                  const isWarning = row.delta > 0 && row.delta <= row.forecastKg * 0.3;
-                  const deltaColor = isOk ? '#10b981' : isWarning ? '#f59e0b' : '#ef4444';
-                  return (
-                    <tr key={row.code} className="border-b border-brand-border/40 hover:bg-white/[0.02] transition-colors">
-                      <td className="px-5 py-3">
-                        <p className="text-xs font-semibold text-white leading-tight truncate max-w-[220px]" title={row.descricao}>{row.descricao}</p>
+          <>
+            {/* ── Desktop: tabela ── */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-brand-border bg-brand-surface/50">
+                    <th className="text-left px-5 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Produto</th>
+                    <th className="text-right px-4 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest whitespace-nowrap">Planejado (hoje→fim)</th>
+                    <th className="text-right px-4 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest whitespace-nowrap">Forecast Mês</th>
+                    <th className="text-right px-4 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest whitespace-nowrap">Estoque Atual</th>
+                    <th className="text-right px-5 py-2.5 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Delta</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {forecastDelta.map((row) => {
+                    const isOk       = row.delta <= 0;
+                    const isWarning  = row.delta > 0 && row.delta <= row.forecastKg * 0.3;
+                    const deltaColor = isOk ? '#10b981' : isWarning ? '#f59e0b' : '#ef4444';
+                    return (
+                      <tr key={row.code} className="border-b border-brand-border/40 hover:bg-white/[0.02] transition-colors">
+                        <td className="px-5 py-3">
+                          <p className="text-xs font-semibold text-white leading-tight truncate max-w-[220px]" title={row.descricao}>{row.descricao}</p>
+                          <p className="text-[10px] font-mono text-brand-muted mt-0.5">Cód. {row.code}</p>
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono font-bold text-brand-cyan text-sm whitespace-nowrap">
+                          {fmtKg(row.planejadoRestante)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono font-bold text-white text-sm whitespace-nowrap">
+                          {fmtKg(row.forecastKg)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono font-bold text-brand-agent text-sm whitespace-nowrap">
+                          {fmtKg(row.estoqueKg)}
+                        </td>
+                        <td className="px-5 py-3 text-right whitespace-nowrap">
+                          <span className="font-mono font-bold text-sm px-2.5 py-1 rounded-lg"
+                            style={{ color: deltaColor, backgroundColor: `${deltaColor}18` }}>
+                            {row.delta > 0 ? '+' : ''}{fmtKg(row.delta)}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-brand-border bg-brand-surface">
+                    <td className="px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Total</td>
+                    <td className="px-4 py-3 text-right font-mono font-bold text-brand-cyan text-sm">
+                      {fmtKg(forecastDelta.reduce((s, r) => s + r.planejadoRestante, 0))}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono font-bold text-white text-sm">
+                      {fmtKg(forecastDelta.reduce((s, r) => s + r.forecastKg, 0))}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono font-bold text-brand-agent text-sm">
+                      {fmtKg(forecastDelta.reduce((s, r) => s + r.estoqueKg, 0))}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      {(() => {
+                        const totalDelta = forecastDelta.reduce((s, r) => s + r.delta, 0);
+                        const c = totalDelta <= 0 ? '#10b981' : '#ef4444';
+                        return (
+                          <span className="font-mono font-bold text-sm px-2.5 py-1 rounded-lg"
+                            style={{ color: c, backgroundColor: `${c}18` }}>
+                            {totalDelta > 0 ? '+' : ''}{fmtKg(totalDelta)}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* ── Mobile: cards ── */}
+            <div className="md:hidden px-4 pb-4 space-y-3">
+              {forecastDelta.map((row) => {
+                const isOk       = row.delta <= 0;
+                const isWarning  = row.delta > 0 && row.delta <= row.forecastKg * 0.3;
+                const deltaColor = isOk ? '#10b981' : isWarning ? '#f59e0b' : '#ef4444';
+                return (
+                  <div key={row.code} className="bg-brand-surface border border-brand-border rounded-xl overflow-hidden">
+                    {/* Nome + delta badge */}
+                    <div className="flex items-start justify-between gap-2 px-3 py-2.5 border-b border-brand-border/50">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-white leading-tight truncate" title={row.descricao}>{row.descricao}</p>
                         <p className="text-[10px] font-mono text-brand-muted mt-0.5">Cód. {row.code}</p>
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono font-bold text-white text-sm whitespace-nowrap">
-                        {fmtKg(row.forecastKg)}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono font-bold text-brand-agent text-sm whitespace-nowrap">
-                        {fmtKg(row.estoqueKg)}
-                      </td>
-                      <td className="px-5 py-3 text-right whitespace-nowrap">
-                        <span
-                          className="font-mono font-bold text-sm px-2.5 py-1 rounded-lg"
-                          style={{ color: deltaColor, backgroundColor: `${deltaColor}18` }}
-                        >
-                          {row.delta > 0 ? '+' : ''}{fmtKg(row.delta)}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              {/* Totais */}
-              <tfoot>
-                <tr className="border-t border-brand-border bg-brand-surface">
-                  <td className="px-5 py-3 text-[10px] font-bold text-brand-muted uppercase tracking-widest">Total</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-white text-sm">
-                    {fmtKg(forecastDelta.reduce((s, r) => s + r.forecastKg, 0))}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-brand-agent text-sm">
-                    {fmtKg(forecastDelta.reduce((s, r) => s + r.estoqueKg, 0))}
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    {(() => {
-                      const totalDelta = forecastDelta.reduce((s, r) => s + r.delta, 0);
-                      const c = totalDelta <= 0 ? '#10b981' : '#ef4444';
-                      return (
-                        <span className="font-mono font-bold text-sm px-2.5 py-1 rounded-lg"
-                          style={{ color: c, backgroundColor: `${c}18` }}>
-                          {totalDelta > 0 ? '+' : ''}{fmtKg(totalDelta)}
-                        </span>
-                      );
-                    })()}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                      </div>
+                      <span className="shrink-0 font-mono font-bold text-xs px-2 py-1 rounded-lg whitespace-nowrap"
+                        style={{ color: deltaColor, backgroundColor: `${deltaColor}18` }}>
+                        {row.delta > 0 ? '+' : ''}{fmtKg(row.delta)}
+                      </span>
+                    </div>
+                    {/* Métricas */}
+                    <div className="grid grid-cols-3 divide-x divide-brand-border/50">
+                      <div className="px-2.5 py-2 text-center">
+                        <p className="text-[9px] text-brand-muted uppercase tracking-widest leading-tight mb-1">Planejado</p>
+                        <p className="text-xs font-mono font-bold text-brand-cyan">{fmtKg(row.planejadoRestante)}</p>
+                      </div>
+                      <div className="px-2.5 py-2 text-center">
+                        <p className="text-[9px] text-brand-muted uppercase tracking-widest leading-tight mb-1">Forecast</p>
+                        <p className="text-xs font-mono font-bold text-white">{fmtKg(row.forecastKg)}</p>
+                      </div>
+                      <div className="px-2.5 py-2 text-center">
+                        <p className="text-[9px] text-brand-muted uppercase tracking-widest leading-tight mb-1">Estoque</p>
+                        <p className="text-xs font-mono font-bold text-brand-agent">{fmtKg(row.estoqueKg)}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {/* Total mobile */}
+              {(() => {
+                const totalDelta = forecastDelta.reduce((s, r) => s + r.delta, 0);
+                const c = totalDelta <= 0 ? '#10b981' : '#ef4444';
+                return (
+                  <div className="bg-brand-surface border border-brand-border rounded-xl overflow-hidden">
+                    <div className="flex items-center justify-between px-3 py-2.5 border-b border-brand-border/50">
+                      <span className="text-[10px] font-bold text-brand-muted uppercase tracking-widest">Total</span>
+                      <span className="font-mono font-bold text-xs px-2 py-1 rounded-lg"
+                        style={{ color: c, backgroundColor: `${c}18` }}>
+                        {totalDelta > 0 ? '+' : ''}{fmtKg(totalDelta)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 divide-x divide-brand-border/50">
+                      <div className="px-2.5 py-2 text-center">
+                        <p className="text-[9px] text-brand-muted uppercase tracking-widest leading-tight mb-1">Planejado</p>
+                        <p className="text-xs font-mono font-bold text-brand-cyan">{fmtKg(forecastDelta.reduce((s, r) => s + r.planejadoRestante, 0))}</p>
+                      </div>
+                      <div className="px-2.5 py-2 text-center">
+                        <p className="text-[9px] text-brand-muted uppercase tracking-widest leading-tight mb-1">Forecast</p>
+                        <p className="text-xs font-mono font-bold text-white">{fmtKg(forecastDelta.reduce((s, r) => s + r.forecastKg, 0))}</p>
+                      </div>
+                      <div className="px-2.5 py-2 text-center">
+                        <p className="text-[9px] text-brand-muted uppercase tracking-widest leading-tight mb-1">Estoque</p>
+                        <p className="text-xs font-mono font-bold text-brand-agent">{fmtKg(forecastDelta.reduce((s, r) => s + r.estoqueKg, 0))}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </>
         )}
       </div>
 
