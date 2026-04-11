@@ -502,8 +502,8 @@ export default function Dashboard() {
             {/* ── Mobile: cards ── */}
             <div className="md:hidden px-4 pb-4 space-y-3">
               {forecastDelta.map((row) => {
-                const isOk       = row.delta <= 0;
-                const isWarning  = row.delta > 0 && row.delta <= row.forecastKg * 0.3;
+                const isOk       = row.delta >= 0;
+                const isWarning  = row.delta < 0 && row.delta >= -(row.forecastKg * 0.3);
                 const deltaColor = isOk ? '#10b981' : isWarning ? '#f59e0b' : '#ef4444';
                 return (
                   <div key={row.code} className="bg-brand-surface border border-brand-border rounded-xl overflow-hidden">
@@ -539,7 +539,7 @@ export default function Dashboard() {
               {/* Total mobile */}
               {(() => {
                 const totalDelta = forecastDelta.reduce((s, r) => s + r.delta, 0);
-                const c = totalDelta <= 0 ? '#10b981' : '#ef4444';
+                const c = totalDelta >= 0 ? '#10b981' : '#ef4444';
                 return (
                   <div className="bg-brand-surface border border-brand-border rounded-xl overflow-hidden">
                     <div className="flex items-center justify-between px-3 py-2.5 border-b border-brand-border/50">
