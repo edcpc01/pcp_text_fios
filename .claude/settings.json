@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vite:*)",
+      "Bash(cmd.exe /c \"npx vite build\")",
+      "Bash(cmd.exe /c \"npm run build\")",
+      "Bash(cmd.exe //c \"npm run build 2>&1\")",
+      "Bash(where.exe node:*)",
+      "Bash(where.exe npm:*)",
+      "Read(//c/Program Files/**)"
+    ]
+  }
+}

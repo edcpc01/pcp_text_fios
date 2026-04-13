@@ -179,24 +179,30 @@ export default function Production() {
     setSyncing(false);
   };
 
+  // No mobile, showOpenFilePicker envia o PWA para background causando tela preta ao retornar.
+  // Sempre usa o input[type=file] em dispositivos móveis.
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
   const handleSync = async () => {
     if (syncing) return;
     setSyncing(true);
     setSyncResult(null);
 
-    // Tenta File System Access API; se não suportado, usa input[type=file]
-    if (window.showOpenFilePicker) {
-      try {
-        const file = await pickOrReuseFile(CSV_HANDLE_KEY);
-        if (!file) { setSyncing(false); return; }
-        const text = await file.text();
-        await processCSVText(text);
-      } catch (err) {
-        setSyncResult({ error: err.message });
-        setSyncing(false);
-      }
-    } else {
+    // Mobile: usa sempre o input fallback para evitar a transição de background/foreground do PWA
+    if (!window.showOpenFilePicker || isMobile) {
       fallbackInputRef.current?.click();
+      return;
+    }
+
+    // Desktop: File System Access API (suporta handle persistente para auto-sync)
+    try {
+      const file = await pickOrReuseFile(CSV_HANDLE_KEY);
+      if (!file) { setSyncing(false); return; }
+      const text = await file.text();
+      await processCSVText(text);
+    } catch (err) {
+      setSyncResult({ error: err.message });
+      setSyncing(false);
     }
   };
 
@@ -378,9 +384,10 @@ export default function Production() {
     return b.planned - a.planned; // default
   });
 
-  // KPIs globais — derivados do byProduct já consolidado
-  const totalPlanned = byProduct.reduce((s, p) => s + p.planned, 0);
-  const totalActual  = byProduct.reduce((s, p) => s + p.actual, 0);
+  // KPIs globais — apenas produtos programados (planned > 0) entram no cálculo de aderência
+  const scheduledProducts = byProduct.filter(p => p.planned > 0);
+  const totalPlanned = scheduledProducts.reduce((s, p) => s + p.planned, 0);
+  const totalActual  = scheduledProducts.reduce((s, p) => s + p.actual, 0);
   const globalPct = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : 0;
   const globalColors = getAdherenceColor(globalPct);
 
@@ -570,7 +577,7 @@ export default function Production() {
         </div>
       </div>
 
-      {/* ─── Tabela ────────────────────────────────────────────────────── */}
+      {/* ─── Conteúdo ──────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-auto w-full">
         {sortedData.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-16">
@@ -580,8 +587,79 @@ export default function Production() {
             <p className="text-sm text-brand-muted">Nenhum registro de produção encontrado</p>
             <p className="text-xs text-brand-muted/60 mt-1">Sincronize com o Microdata ou aguarde dados do agente</p>
           </div>
-        ) : (
-          <table className="w-full border-collapse min-w-full">
+        ) : (<>
+
+          {/* ── Mobile: Cards ─────────────────────────────────────────── */}
+          <div className="sm:hidden divide-y divide-brand-border/40">
+            {sortedData.map((item, i) => {
+              const pct = item.planned > 0 ? Math.round((item.actual / item.planned) * 100) : 0;
+              const colors = getAdherenceColor(pct);
+              const badge  = getStatusBadge(pct);
+              const dev    = item.actual - item.planned;
+              return (
+                <div key={item.name} className="px-4 py-3.5">
+                  <div className="flex items-start justify-between gap-2 mb-2.5">
+                    <div className="flex items-start gap-2 min-w-0">
+                      <span className="text-[10px] font-mono text-brand-muted/50 mt-0.5 shrink-0">{i + 1}</span>
+                      <span className="text-sm font-semibold text-white leading-tight">{item.name}</span>
+                    </div>
+                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border shrink-0 ${badge.cls}`}>{badge.label}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-x-2 gap-y-0.5 mb-2.5">
+                    <div>
+                      <p className="text-[9px] text-brand-muted uppercase tracking-wider">Planejado</p>
+                      <p className="text-sm font-mono font-bold text-white">{item.planned.toLocaleString('pt-BR')}<span className="text-[9px] text-brand-muted ml-0.5">kg</span></p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-brand-muted uppercase tracking-wider">Realizado</p>
+                      <p className={`text-sm font-mono font-bold ${colors.text}`}>{item.actual.toLocaleString('pt-BR')}<span className="text-[9px] text-brand-muted ml-0.5">kg</span></p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-brand-muted uppercase tracking-wider">Desvio</p>
+                      <p className={`text-sm font-mono font-bold ${dev >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {dev >= 0 ? '+' : ''}{dev.toLocaleString('pt-BR')}<span className="text-[9px] text-brand-muted ml-0.5">kg</span>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1">
+                      <AdherenceIcon pct={pct} />
+                      <span className={`text-xs font-mono font-bold ${colors.text}`}>{pct}%</span>
+                    </div>
+                    <div className="h-1.5 bg-brand-surface/80 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${colors.bar}`} style={{ width: `${Math.min(pct, 120)}%` }} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {/* Footer totais mobile */}
+            <div className="px-4 py-3.5 border-t-2 border-white/[0.08] bg-brand-card/60">
+              <p className="text-[9px] font-bold text-brand-muted uppercase tracking-wider mb-2">
+                Total — {sortedData.length} {viewMode === 'product' ? 'produtos' : viewMode === 'machine' ? 'máquinas' : 'dias'}
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <p className="text-[9px] text-brand-muted uppercase">Planejado</p>
+                  <p className="text-sm font-mono font-bold text-white">{sortedData.reduce((s, i) => s + i.planned, 0).toLocaleString('pt-BR')}<span className="text-[9px] text-brand-muted ml-0.5">kg</span></p>
+                </div>
+                <div>
+                  <p className="text-[9px] text-brand-muted uppercase">Realizado</p>
+                  <p className={`text-sm font-mono font-bold ${globalColors.text}`}>{sortedData.reduce((s, i) => s + i.actual, 0).toLocaleString('pt-BR')}<span className="text-[9px] text-brand-muted ml-0.5">kg</span></p>
+                </div>
+                <div>
+                  <p className="text-[9px] text-brand-muted uppercase">Aderência</p>
+                  <div className="flex items-center gap-1">
+                    <AdherenceIcon pct={globalPct} />
+                    <p className={`text-sm font-mono font-bold ${globalColors.text}`}>{globalPct}%</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Desktop: Tabela ────────────────────────────────────────── */}
+          <table className="hidden sm:table w-full border-collapse min-w-full">
             <thead>
               <tr className="sticky top-0 z-10 bg-brand-bg/95 backdrop-blur-sm border-b border-brand-border">
                 <th className="pl-3 sm:pl-6 pr-2 py-3 text-left w-6 sm:w-8">
@@ -660,7 +738,7 @@ export default function Production() {
               </tr>
             </tfoot>
           </table>
-        )}
+        </>)}
       </div>
     </div>
   );

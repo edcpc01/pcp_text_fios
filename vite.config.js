@@ -39,6 +39,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Remove caches de versões anteriores ao ativar o novo SW
+        cleanupOutdatedCaches: true,
         // skipWaiting e clientsClaim são injetados automaticamente pelo Workbox
         // quando registerType: 'autoUpdate' é usado.
         runtimeCaching: [

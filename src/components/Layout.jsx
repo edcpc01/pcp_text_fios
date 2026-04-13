@@ -82,6 +82,8 @@ export default function Layout({ children }) {
   const handleLogout = async () => { await signOut(); logout(); navigate('/'); };
 
   const handleHardReload = async () => {
+    // Nuclear reload: desregistra SW + limpa caches + recarrega ignorando cache.
+    // Resolve casos em que o SW/HTML antigos ficaram presos referenciando bundles deletados.
     try {
       if ('serviceWorker' in navigator) {
         const regs = await navigator.serviceWorker.getRegistrations();
@@ -91,9 +93,8 @@ export default function Layout({ children }) {
         const keys = await caches.keys();
         await Promise.all(keys.map((k) => caches.delete(k)));
       }
-    } finally {
-      window.location.reload();
-    }
+    } catch (_) { /* ignore */ }
+    window.location.replace(window.location.origin + '/?nocache=' + Date.now());
   };
 
   const NAV = [

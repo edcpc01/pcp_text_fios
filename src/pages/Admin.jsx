@@ -520,7 +520,7 @@ export default function Admin() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto animate-fade-in">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto animate-fade-in">
       <div className="mb-6">
         <h1 className="text-xl font-bold text-white">Cadastros</h1>
         <p className="text-sm text-brand-muted mt-0.5">Configurações de base da produção</p>
@@ -564,7 +564,7 @@ export default function Admin() {
             ))}
           </div>
           <div className="bg-brand-card border border-brand-border rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-brand-border">
+            <div className="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-brand-border">
               <h2 className="text-sm font-semibold text-white">
                 {FACTORIES.find((f) => f.id === selectedFactory)?.name}
                 <span className="text-brand-muted font-normal ml-2">({machines[selectedFactory]?.length || 0})</span>
@@ -574,7 +574,26 @@ export default function Admin() {
                 <Plus size={12} /> Nova máquina
               </button>
             </div>
-            <table className="w-full">
+
+            {/* Mobile: cards */}
+            <div className="sm:hidden divide-y divide-brand-border/40">
+              {(machines[selectedFactory] || []).map((m) => (
+                <div key={m.id} className="flex items-center gap-3 px-4 py-3.5">
+                  <span className="text-xs font-mono text-brand-cyan font-bold w-12 shrink-0">{m.id}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white">{m.name}</p>
+                    <p className="text-xs text-brand-muted mt-0.5">{m.spindles} fusos · {m.efficiency}% eficiência</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => setModal({ type: 'machine', data: m, factory: selectedFactory })} className="p-1.5 text-brand-muted hover:text-brand-cyan hover:bg-brand-cyan/10 rounded-lg transition-all"><Pencil size={13} /></button>
+                    <button onClick={() => handleDeleteMachine(selectedFactory, m.id)} className="p-1.5 text-brand-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={13} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop: tabela */}
+            <table className="hidden sm:table w-full">
               <thead><tr className="border-b border-brand-border bg-brand-surface/50">
                 {['ID', 'Nome', 'Fusos', 'Eficiência', ''].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-[10px] font-bold text-brand-muted uppercase tracking-wider">{h}</th>
@@ -626,7 +645,42 @@ export default function Admin() {
           </div>
 
           <div className="bg-brand-card border border-brand-border rounded-2xl overflow-hidden">
-            <table className="w-full">
+
+            {/* Mobile: cards */}
+            <div className="sm:hidden divide-y divide-brand-border/40">
+              {users.length === 0 && (
+                <p className="text-center py-8 text-brand-muted text-sm">Nenhum usuário encontrado</p>
+              )}
+              {users.map((u) => {
+                const role = ROLES.find((r) => r.id === u.role) || ROLES[1];
+                const Icon = role.icon;
+                return (
+                  <div key={u.uid} className="flex items-center gap-3 px-4 py-3.5">
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                      style={{ background: `${role.color}20`, color: role.color }}>
+                      {(u.name || u.email || '?')[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">
+                        {u.name || <span className="text-brand-muted italic text-xs">Aguardando login</span>}
+                      </p>
+                      <p className="text-xs text-brand-muted truncate mt-0.5">{u.email || '—'}</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <Icon size={10} style={{ color: role.color }} />
+                        <span className="text-[10px] font-bold" style={{ color: role.color }}>{role.label}</span>
+                      </div>
+                    </div>
+                    <button onClick={() => setModal({ type: 'user', data: u })}
+                      className="p-1.5 text-brand-muted hover:text-brand-cyan hover:bg-brand-cyan/10 rounded-lg transition-all shrink-0">
+                      <Pencil size={13} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop: tabela */}
+            <table className="hidden sm:table w-full">
               <thead>
                 <tr className="border-b border-brand-border bg-brand-surface/50">
                   {['Nome', 'E-mail', 'Nível', ''].map((h) => (
@@ -649,11 +703,9 @@ export default function Admin() {
                             style={{ background: `${role.color}20`, color: role.color }}>
                             {(u.name || u.email || '?')[0].toUpperCase()}
                           </div>
-                          <div>
-                            <span className="text-sm text-white font-medium">
-                              {u.name || <span className="text-brand-muted italic text-xs">Aguardando login</span>}
-                            </span>
-                          </div>
+                          <span className="text-sm text-white font-medium">
+                            {u.name || <span className="text-brand-muted italic text-xs">Aguardando login</span>}
+                          </span>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-brand-muted">
@@ -667,8 +719,7 @@ export default function Admin() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1 justify-end">
-                          <button
-                            onClick={() => setModal({ type: 'user', data: u })}
+                          <button onClick={() => setModal({ type: 'user', data: u })}
                             className="p-1.5 text-brand-muted hover:text-brand-cyan hover:bg-brand-cyan/10 rounded-lg transition-all">
                             <Pencil size={13} />
                           </button>

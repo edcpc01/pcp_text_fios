@@ -384,23 +384,26 @@ export default function Materiais() {
     setImporting(false);
   };
 
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
   const handleSync = async (mpNecessidadeLocal) => {
     if (importing) return;
     setImporting(true);
     setSyncResult(null);
 
-    if (window.showOpenFilePicker) {
-      try {
-        const file = await pickOrReuseFile(CSV_HANDLE_KEY);
-        if (!file) { setImporting(false); return; }
-        const text = await file.text();
-        await processEstoqueText(text, mpNecessidadeLocal);
-      } catch (err) {
-        setSyncResult({ error: err.message });
-        setImporting(false);
-      }
-    } else {
+    if (!window.showOpenFilePicker || isMobile) {
       fallbackInputRef.current?.click();
+      return;
+    }
+
+    try {
+      const file = await pickOrReuseFile(CSV_HANDLE_KEY);
+      if (!file) { setImporting(false); return; }
+      const text = await file.text();
+      await processEstoqueText(text, mpNecessidadeLocal);
+    } catch (err) {
+      setSyncResult({ error: err.message });
+      setImporting(false);
     }
   };
 
