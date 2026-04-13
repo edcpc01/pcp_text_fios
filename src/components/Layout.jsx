@@ -78,18 +78,16 @@ export default function Layout({ children }) {
   const handleLogout = async () => { await signOut(); logout(); navigate('/'); };
 
   const handleHardReload = async () => {
+    // Apenas dispara verificação de atualização do SW e recarrega.
+    // NÃO desregistra o SW nem apaga caches — isso causa tela preta no mobile
+    // pois o app fica sem nada em cache enquanto tenta carregar pela rede.
     try {
       if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((r) => r.unregister()));
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) await reg.update(); // verifica se há novo SW disponível
       }
-      if ('caches' in window) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map((k) => caches.delete(k)));
-      }
-    } finally {
-      window.location.reload();
-    }
+    } catch { /* silent */ }
+    window.location.reload();
   };
 
   const NAV = [
