@@ -77,12 +77,20 @@ export default function Layout({ children }) {
 
   const handleLogout = async () => { await signOut(); logout(); navigate('/'); };
 
-  const handleHardReload = () => {
-    // Simples reload — o SW serve do cache e o app carrega instantaneamente.
-    // NÃO manipula o SW aqui: chamar reg.update() antes do reload deixa o SW
-    // em estado transitório (instalando novo precache) causando tela preta no mobile.
-    // O Workbox já verifica atualizações automaticamente a cada hora via registerSW.
-    window.location.reload();
+  const handleHardReload = async () => {
+    // Nuclear reload: desregistra SW + limpa caches + recarrega ignorando cache.
+    // Resolve casos em que o SW/HTML antigos ficaram presos referenciando bundles deletados.
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+    } catch (_) { /* ignore */ }
+    window.location.replace(window.location.origin + '/?nocache=' + Date.now());
   };
 
   const NAV = [

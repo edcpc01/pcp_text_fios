@@ -27,8 +27,39 @@
       });
     </script>
   </head>
-  <body>
+  <body style="background:#0c1222;color:#e2e8f0;margin:0;font-family:system-ui,sans-serif">
     <div id="root"></div>
+    <noscript style="display:block;padding:24px;text-align:center">Este app precisa de JavaScript.</noscript>
+    <script>
+      // Auto-recovery: se o app não montar em 8s, mostra botão para limpar cache/SW
+      window.__appMounted = false;
+      setTimeout(function () {
+        if (window.__appMounted) return;
+        var root = document.getElementById('root');
+        if (!root || root.childNodes.length > 0) return;
+        root.innerHTML =
+          '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center">' +
+          '<div style="max-width:420px">' +
+          '<div style="font-size:48px;margin-bottom:12px">⚠️</div>' +
+          '<h1 style="font-size:18px;font-weight:700;margin:0 0 8px">Falha ao carregar o app</h1>' +
+          '<p style="font-size:13px;color:#94a3b8;margin:0 0 16px">Cache desatualizado ou sem conexão.</p>' +
+          '<button id="__nuke" style="padding:10px 20px;background:#06b6d4;color:#0c1222;border:0;border-radius:12px;font-weight:700;cursor:pointer;font-size:13px">Limpar cache e recarregar</button>' +
+          '</div></div>';
+        document.getElementById('__nuke').onclick = async function () {
+          try {
+            if ('serviceWorker' in navigator) {
+              var regs = await navigator.serviceWorker.getRegistrations();
+              await Promise.all(regs.map(function (r) { return r.unregister(); }));
+            }
+            if ('caches' in window) {
+              var keys = await caches.keys();
+              await Promise.all(keys.map(function (k) { return caches.delete(k); }));
+            }
+          } catch (_) {}
+          location.replace(location.origin + '/?nocache=' + Date.now());
+        };
+      }, 8000);
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
