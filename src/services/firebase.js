@@ -361,11 +361,19 @@ export async function fetchMonthSummary(factory, yearMonth) {
   let totalPlanned = 0;
   let totalActual  = 0;
 
-  await Promise.all(factories.map(async (f) => {
+  // plannedProducts é compartilhado entre fábricas: produto planejado em 'matriz'
+  // pode ter produção registrada em 'filial' — ambos devem contar na aderência
+  const plannedProducts = new Set();
+
+  const snaps = await Promise.all(factories.map(async (f) => {
     const qP = query(collection(db, 'planning_entries'),   where('factory', '==', f), where('date', '>=', start), where('date', '<=', end));
     const qR = query(collection(db, 'production_records'), where('factory', '==', f), where('date', '>=', start), where('date', '<=', end));
     const [snapP, snapR] = await Promise.all([getDocs(qP), getDocs(qR)]);
-    const plannedProducts = new Set();
+    return { snapP, snapR };
+  }));
+
+  // 1ª passagem: soma planejado e coleta IDs de produtos programados (todas as fábricas)
+  snaps.forEach(({ snapP }) => {
     snapP.forEach((d) => {
       const e = d.data();
       if (e.cellType === 'producao' || !e.cellType) {
@@ -373,12 +381,15 @@ export async function fetchMonthSummary(factory, yearMonth) {
         if (e.product) plannedProducts.add(e.product);
       }
     });
-    // Conta apenas realizado de produtos que tiveram programação no mês
+  });
+
+  // 2ª passagem: conta realizado apenas para produtos que tiveram programação (em qualquer fábrica)
+  snaps.forEach(({ snapR }) => {
     snapR.forEach((d) => {
       const r = d.data();
       if (plannedProducts.has(r.product)) totalActual += r.actual || 0;
     });
-  }));
+  });
 
   const adherence = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : null;
   return { yearMonth, totalPlanned: Math.round(totalPlanned), totalActual: Math.round(totalActual), adherence };

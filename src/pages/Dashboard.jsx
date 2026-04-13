@@ -113,8 +113,14 @@ export default function Dashboard() {
   // Realizado até hoje (tudo sincronizado no período — usado no KPI de volume)
   const totalActual = Math.round(activeRecords.reduce((s, r) => s + (r.actual || 0), 0) * 100) / 100;
 
-  // Aderência = realizado apenas de produtos programados / planejado D-1
-  const plannedProductIds = new Set(activePlanning.map(e => e.product).filter(Boolean));
+  // Aderência = realizado apenas de produtos programados até D-1 / planejado D-1
+  // Usa o mesmo filtro de datas do plannedD1 para manter numerador e denominador consistentes
+  const plannedProductIds = new Set(
+    basePlanning
+      .filter(e => e.date && e.date <= yesterday)
+      .map(e => e.product)
+      .filter(Boolean),
+  );
   const actualScheduled = Math.round(
     activeRecords
       .filter(r => plannedProductIds.has(r.product))
