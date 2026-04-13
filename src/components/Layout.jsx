@@ -50,13 +50,15 @@ export default function Layout({ children }) {
 
       setCriticalCount((prev) => {
         if (critical > 0 && critical !== prevCriticalRef.current) {
-          // Dispara notificação PWA se permissão concedida
+          // Dispara notificação via SW (obrigatório em PWA standalone)
           if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-            new Notification('⚠️ Alerta de Ruptura — PCP Fios', {
-              body: `${critical} produto${critical > 1 ? 's' : ''} com estoque crítico para ${currentYM}`,
-              icon: '/icons/icon-192.png',
-              tag: 'ruptura-forecast',
-            });
+            const body = `${critical} produto${critical > 1 ? 's' : ''} com estoque crítico para ${currentYM}`;
+            const opts = { body, icon: '/icons/icon-192.png', tag: 'ruptura-forecast' };
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.ready
+                .then((reg) => reg.showNotification('Alerta de Ruptura — PCP Fios', opts))
+                .catch(() => {});
+            }
           }
         }
         prevCriticalRef.current = critical;
@@ -67,9 +69,11 @@ export default function Layout({ children }) {
     const unsubF = subscribeForecast((list) => { forecastList = list; recalc(); });
     const unsubP = subscribeFinishedGoodsStock((map) => { paStockMap = map; recalc(); });
 
-    // Solicita permissão de notificação silenciosamente
-    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => {});
+    // Solicita permissão de notificação apenas se SW estiver pronto (seguro em PWA standalone)
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.ready
+        .then(() => Notification.requestPermission())
+        .catch(() => {});
     }
 
     return () => { unsubF(); unsubP(); };
