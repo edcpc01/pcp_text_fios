@@ -192,10 +192,11 @@ export default function PWAPrompt() {
     };
     navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
 
-    // Ao voltar ao foreground com update pendente → recarrega com novo SW já estável
+    // Ao voltar ao foreground com update pendente → mostra banner (nunca recarrega silenciosamente)
+    // Reload silencioso causa tela preta quando o usuário volta de pickers de arquivo ou outras UIs nativas
     const onVisibility = () => {
-      if (document.visibilityState === 'visible' && reloadScheduled.current && !showUpdate) {
-        window.location.reload();
+      if (document.visibilityState === 'visible' && reloadScheduled.current) {
+        setShowUpdate(true);
       }
     };
     document.addEventListener('visibilitychange', onVisibility);

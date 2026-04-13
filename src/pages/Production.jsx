@@ -179,24 +179,30 @@ export default function Production() {
     setSyncing(false);
   };
 
+  // No mobile, showOpenFilePicker envia o PWA para background causando tela preta ao retornar.
+  // Sempre usa o input[type=file] em dispositivos móveis.
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
   const handleSync = async () => {
     if (syncing) return;
     setSyncing(true);
     setSyncResult(null);
 
-    // Tenta File System Access API; se não suportado, usa input[type=file]
-    if (window.showOpenFilePicker) {
-      try {
-        const file = await pickOrReuseFile(CSV_HANDLE_KEY);
-        if (!file) { setSyncing(false); return; }
-        const text = await file.text();
-        await processCSVText(text);
-      } catch (err) {
-        setSyncResult({ error: err.message });
-        setSyncing(false);
-      }
-    } else {
+    // Mobile: usa sempre o input fallback para evitar a transição de background/foreground do PWA
+    if (!window.showOpenFilePicker || isMobile) {
       fallbackInputRef.current?.click();
+      return;
+    }
+
+    // Desktop: File System Access API (suporta handle persistente para auto-sync)
+    try {
+      const file = await pickOrReuseFile(CSV_HANDLE_KEY);
+      if (!file) { setSyncing(false); return; }
+      const text = await file.text();
+      await processCSVText(text);
+    } catch (err) {
+      setSyncResult({ error: err.message });
+      setSyncing(false);
     }
   };
 
