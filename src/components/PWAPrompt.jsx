@@ -177,23 +177,24 @@ export default function PWAPrompt() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
 
-    // controllerchange: novo SW assumiu o controle → page já pode ser recarregada
+    // controllerchange: novo SW assumiu o controle → agenda reload ou mostra banner
     const onControllerChange = () => {
       if (reloadScheduled.current) return; // evita duplo reload
-      // Se estava em background, recarrega silenciosamente
-      if (document.visibilityState !== 'visible') {
-        reloadScheduled.current = true;
-        window.location.reload();
-        return;
+      reloadScheduled.current = true;
+
+      if (document.visibilityState === 'visible') {
+        // App aberto: mostra banner para o usuário decidir
+        setShowUpdate(true);
       }
-      // Se está visível, mostra o banner
-      setShowUpdate(true);
+      // Se em background: apenas marca. onVisibility recarrega quando o usuário voltar.
+      // NÃO chamamos window.location.reload() aqui pois pode causar tela preta
+      // se o novo SW ainda não terminou de cachear os assets.
     };
     navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
 
-    // Ao voltar ao foreground com update pendente
+    // Ao voltar ao foreground com update pendente → recarrega com novo SW já estável
     const onVisibility = () => {
-      if (document.visibilityState === 'visible' && reloadScheduled.current) {
+      if (document.visibilityState === 'visible' && reloadScheduled.current && !showUpdate) {
         window.location.reload();
       }
     };
