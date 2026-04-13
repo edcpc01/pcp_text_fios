@@ -378,9 +378,10 @@ export default function Production() {
     return b.planned - a.planned; // default
   });
 
-  // KPIs globais — derivados do byProduct já consolidado
-  const totalPlanned = byProduct.reduce((s, p) => s + p.planned, 0);
-  const totalActual  = byProduct.reduce((s, p) => s + p.actual, 0);
+  // KPIs globais — apenas produtos programados (planned > 0) entram no cálculo de aderência
+  const scheduledProducts = byProduct.filter(p => p.planned > 0);
+  const totalPlanned = scheduledProducts.reduce((s, p) => s + p.planned, 0);
+  const totalActual  = scheduledProducts.reduce((s, p) => s + p.actual, 0);
   const globalPct = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : 0;
   const globalColors = getAdherenceColor(globalPct);
 

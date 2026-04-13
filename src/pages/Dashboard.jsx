@@ -110,11 +110,17 @@ export default function Dashboard() {
       .reduce((s, e) => s + (e.planned || 0), 0),
   );
 
-  // Realizado até hoje (tudo sincronizado no período)
+  // Realizado até hoje (tudo sincronizado no período — usado no KPI de volume)
   const totalActual = Math.round(activeRecords.reduce((s, r) => s + (r.actual || 0), 0) * 100) / 100;
 
-  // Aderência = realizado / planejado D-1
-  const adherence = plannedD1 > 0 ? Math.round((totalActual / plannedD1) * 100) : 0;
+  // Aderência = realizado apenas de produtos programados / planejado D-1
+  const plannedProductIds = new Set(activePlanning.map(e => e.product).filter(Boolean));
+  const actualScheduled = Math.round(
+    activeRecords
+      .filter(r => plannedProductIds.has(r.product))
+      .reduce((s, r) => s + (r.actual || 0), 0) * 100,
+  ) / 100;
+  const adherence = plannedD1 > 0 ? Math.round((actualScheduled / plannedD1) * 100) : 0;
   const adColor = adherence >= 90 ? '#10b981' : adherence >= 80 ? '#f59e0b' : '#ef4444';
 
   // ── Mix de produtos agrupado por cliente ─────────────────────────────────
