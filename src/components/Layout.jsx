@@ -77,16 +77,11 @@ export default function Layout({ children }) {
 
   const handleLogout = async () => { await signOut(); logout(); navigate('/'); };
 
-  const handleHardReload = async () => {
-    // Apenas dispara verificação de atualização do SW e recarrega.
-    // NÃO desregistra o SW nem apaga caches — isso causa tela preta no mobile
-    // pois o app fica sem nada em cache enquanto tenta carregar pela rede.
-    try {
-      if ('serviceWorker' in navigator) {
-        const reg = await navigator.serviceWorker.getRegistration();
-        if (reg) await reg.update(); // verifica se há novo SW disponível
-      }
-    } catch { /* silent */ }
+  const handleHardReload = () => {
+    // Simples reload — o SW serve do cache e o app carrega instantaneamente.
+    // NÃO manipula o SW aqui: chamar reg.update() antes do reload deixa o SW
+    // em estado transitório (instalando novo precache) causando tela preta no mobile.
+    // O Workbox já verifica atualizações automaticamente a cada hora via registerSW.
     window.location.reload();
   };
 
