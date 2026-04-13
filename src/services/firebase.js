@@ -365,8 +365,19 @@ export async function fetchMonthSummary(factory, yearMonth) {
     const qP = query(collection(db, 'planning_entries'),   where('factory', '==', f), where('date', '>=', start), where('date', '<=', end));
     const qR = query(collection(db, 'production_records'), where('factory', '==', f), where('date', '>=', start), where('date', '<=', end));
     const [snapP, snapR] = await Promise.all([getDocs(qP), getDocs(qR)]);
-    snapP.forEach((d) => { const e = d.data(); if (e.cellType === 'producao' || !e.cellType) totalPlanned += e.planned || 0; });
-    snapR.forEach((d) => { totalActual += d.data().actual || 0; });
+    const plannedProducts = new Set();
+    snapP.forEach((d) => {
+      const e = d.data();
+      if (e.cellType === 'producao' || !e.cellType) {
+        totalPlanned += e.planned || 0;
+        if (e.product) plannedProducts.add(e.product);
+      }
+    });
+    // Conta apenas realizado de produtos que tiveram programação no mês
+    snapR.forEach((d) => {
+      const r = d.data();
+      if (plannedProducts.has(r.product)) totalActual += r.actual || 0;
+    });
   }));
 
   const adherence = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : null;
