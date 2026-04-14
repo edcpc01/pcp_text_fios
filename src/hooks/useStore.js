@@ -112,8 +112,14 @@ export function spindlesForProduct(machine, cabos) {
   return active;
 }
 
-export function isTwistSplit(machine, cabos) {
-  return isSplitMachine(machine) && (cabos === 1 || cabos === 3);
+export function hasTwistMark(productName) {
+  return !!productName && /"\s*[SZ]\s*"/i.test(String(productName));
+}
+
+export function isTwistSplit(machine, cabos, productName) {
+  return isSplitMachine(machine)
+    && (cabos === 1 || cabos === 3)
+    && hasTwistMark(productName);
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────

@@ -38,7 +38,7 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
   const machineObj = machines?.find((x) => x.id === (primary?.machine || machine?.id)) || machine || null;
   const firstProd  = products.find((x) => x.id === primary?.product) || defaultProduct;
   const cabosInit  = parseCabos(firstProd?.nome) || 1;
-  const splitInit  = isTwistSplit(machineObj, cabosInit);
+  const splitInit  = isTwistSplit(machineObj, cabosInit, firstProd?.nome);
 
   const entryS = existing.find((e) => e.twist === 'S');
   const entryZ = existing.find((e) => e.twist === 'Z');
@@ -68,7 +68,7 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
   const currentMachine = machines?.find((x) => x.id === form.machine) || machineObj;
   const currentProduct = products.find((x) => x.id === form.product);
   const cabos = parseCabos(currentProduct?.nome) || parseCabos(form.productName) || 1;
-  const splitMode = isTwistSplit(currentMachine, cabos);
+  const splitMode = isTwistSplit(currentMachine, cabos, currentProduct?.nome || form.productName);
 
   const handleProduct = (id) => {
     const p = products.find((x) => x.id === id);
