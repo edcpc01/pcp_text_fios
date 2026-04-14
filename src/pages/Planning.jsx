@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, ChevronLeft, ChevronRight, X, Save, Trash2, CalendarDays, Package, Cpu, Activity } from 'lucide-react';
-import { useAppStore, usePlanningStore, useAdminStore, useAuthStore, CELL_TYPES, makeEntryId, FACTORIES } from '../hooks/useStore';
+import { useAppStore, usePlanningStore, useAdminStore, useAuthStore, CELL_TYPES, makeEntryId, FACTORIES, parseCabos, spindlesForProduct, isTwistSplit } from '../hooks/useStore';
 import { subscribePlanningEntries, savePlanningEntry, deletePlanningEntry } from '../services/firebase';
 import { getDaysInMonth, getWeekday, formatDate, getMonthLabel, isToday } from '../utils/dates';
 
@@ -19,46 +19,87 @@ function Legend() {
 }
 
 // ─── Entry Modal ──────────────────────────────────────────────────────────────
-function EntryModal({ entry, machine, date, factory, products, machines, onSave, onDelete, onClose }) {
-  const isEdit = !!entry;
+// `entries` = array com 0, 1 ou 2 entries para a célula (S + Z quando split)
+function EntryModal({ entries, machine, date, factory, products, machines, onSave, onDelete, onClose }) {
+  const existing = entries || [];
+  const primary  = existing[0] || null;
+  const isEdit   = existing.length > 0;
   const defaultProduct = products[0];
-  const initialPlanned = entry?.planned ?? (
-    (machine && defaultProduct && machine.spindles)
-      ? Math.round(machine.spindles * (defaultProduct.prodDiaPosicao || 0) * ((machine.efficiency || 95) / 100))
-      : (machine?.capacity ? Math.round(machine.capacity * 0.8) : 400)
-  );
+
+  // Recalcula kg/dia considerando cabos e split S/Z.
+  const recalc = (m, p) => {
+    if (!m?.spindles || !p?.prodDiaPosicao) return 0;
+    const cabos  = parseCabos(p?.nome) || 1;
+    const fusos  = spindlesForProduct(m, cabos);
+    const eff    = (m.efficiency || 95) / 100;
+    return Math.round(fusos * p.prodDiaPosicao * eff);
+  };
+
+  const machineObj = machines?.find((x) => x.id === (primary?.machine || machine?.id)) || machine || null;
+  const firstProd  = products.find((x) => x.id === primary?.product) || defaultProduct;
+  const cabosInit  = parseCabos(firstProd?.nome) || 1;
+  const splitInit  = isTwistSplit(machineObj, cabosInit);
+
+  const entryS = existing.find((e) => e.twist === 'S');
+  const entryZ = existing.find((e) => e.twist === 'Z');
+  const entryFlat = existing.find((e) => !e.twist) || primary;
 
   const [form, setForm] = useState({
-    machine:     entry?.machine     || machine?.id    || '',
-    machineName: entry?.machineName || machine?.name  || '',
-    product:     entry?.product     || defaultProduct?.id   || '',
-    productName: entry?.productName || defaultProduct?.nome || '',
-    date:        entry?.date || date || '',
-    planned:     initialPlanned,
-    cellType:    entry?.cellType || 'producao',
+    machine:     primary?.machine     || machine?.id    || '',
+    machineName: primary?.machineName || machine?.name  || '',
+    date:        primary?.date        || date           || '',
+    cellType:    primary?.cellType    || 'producao',
+    // Produto único (quando NÃO há split)
+    product:     entryFlat?.product     || firstProd?.id   || '',
+    productName: entryFlat?.productName || firstProd?.nome || '',
+    planned:     entryFlat?.planned ?? recalc(machineObj, firstProd),
+    // Split S/Z
+    productS:     entryS?.product     || entryFlat?.product     || firstProd?.id   || '',
+    productSName: entryS?.productName || entryFlat?.productName || firstProd?.nome || '',
+    plannedS:     entryS?.planned     ?? recalc(machineObj, firstProd),
+    productZ:     entryZ?.product     || entryFlat?.product     || firstProd?.id   || '',
+    productZName: entryZ?.productName || entryFlat?.productName || firstProd?.nome || '',
+    plannedZ:     entryZ?.planned     ?? recalc(machineObj, firstProd),
   });
 
   const [saving,   setSaving]   = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Recalculate kg when product or machine changes
-  const recalc = (m, p) => {
-    if (m?.spindles && m?.efficiency && p?.prodDiaPosicao)
-      return Math.round(m.spindles * p.prodDiaPosicao * (m.efficiency / 100));
-    if (m?.capacity) return Math.round(m.capacity * 0.8);
-    return form.planned;
-  };
+  const currentMachine = machines?.find((x) => x.id === form.machine) || machineObj;
+  const currentProduct = products.find((x) => x.id === form.product);
+  const cabos = parseCabos(currentProduct?.nome) || parseCabos(form.productName) || 1;
+  const splitMode = isTwistSplit(currentMachine, cabos);
 
   const handleProduct = (id) => {
     const p = products.find((x) => x.id === id);
-    const m = machines?.find((x) => x.id === form.machine);
-    if (p) setForm((f) => ({ ...f, product: p.id, productName: p.nome, planned: recalc(m, p) }));
+    if (!p) return;
+    setForm((f) => ({ ...f, product: p.id, productName: p.nome, planned: recalc(currentMachine, p) }));
+  };
+  const handleProductTwist = (twist, id) => {
+    const p = products.find((x) => x.id === id);
+    if (!p) return;
+    setForm((f) => ({
+      ...f,
+      [`product${twist}`]:     p.id,
+      [`product${twist}Name`]: p.nome,
+      [`planned${twist}`]:     recalc(currentMachine, p),
+    }));
   };
 
   const handleMachine = (id) => {
     const m = machines?.find((x) => x.id === id);
-    const p = products.find((x) => x.id === form.product);
-    if (m) setForm((f) => ({ ...f, machine: m.id, machineName: m.name, planned: recalc(m, p) }));
+    if (!m) return;
+    const p  = products.find((x) => x.id === form.product);
+    const pS = products.find((x) => x.id === form.productS);
+    const pZ = products.find((x) => x.id === form.productZ);
+    setForm((f) => ({
+      ...f,
+      machine: m.id,
+      machineName: m.name,
+      planned:  recalc(m, p),
+      plannedS: recalc(m, pS),
+      plannedZ: recalc(m, pZ),
+    }));
   };
 
   const isProducao = form.cellType === 'producao';
@@ -66,14 +107,37 @@ function EntryModal({ entry, machine, date, factory, products, machines, onSave,
   const handleSubmit = async () => {
     if (!form.date || !form.machine) return;
     setSaving(true);
-    try { await onSave({ ...form, factory }); onClose(); }
-    finally { setSaving(false); }
+    try {
+      const base = {
+        machine: form.machine, machineName: form.machineName,
+        date: form.date, cellType: form.cellType, factory,
+      };
+      if (!isProducao) {
+        // Parada/manutenção: sempre entrada única, sem twist. Remove S/Z antigos se houver.
+        await onSave({ ...base, product: '', productName: '', planned: 0, twist: null });
+        if (entryS) await onDelete(entryS.id);
+        if (entryZ) await onDelete(entryZ.id);
+      } else if (splitMode) {
+        // Split S/Z — grava duas entries e remove a flat antiga se existir.
+        await onSave({ ...base, product: form.productS, productName: form.productSName, planned: Number(form.plannedS) || 0, twist: 'S' });
+        await onSave({ ...base, product: form.productZ, productName: form.productZName, planned: Number(form.plannedZ) || 0, twist: 'Z' });
+        if (entryFlat && !entryFlat.twist) await onDelete(entryFlat.id);
+      } else {
+        // Produto único (2 cabos ou máquina sem split). Remove S/Z antigos se houver.
+        await onSave({ ...base, product: form.product, productName: form.productName, planned: Number(form.planned) || 0, twist: null });
+        if (entryS) await onDelete(entryS.id);
+        if (entryZ) await onDelete(entryZ.id);
+      }
+      onClose();
+    } finally { setSaving(false); }
   };
 
   const handleDelete = async () => {
     setDeleting(true);
-    try { await onDelete(entry.id); onClose(); }
-    finally { setDeleting(false); }
+    try {
+      for (const e of existing) await onDelete(e.id);
+      onClose();
+    } finally { setDeleting(false); }
   };
 
   return (
@@ -120,13 +184,14 @@ function EntryModal({ entry, machine, date, factory, products, machines, onSave,
             </div>
           </div>
 
-          {isProducao && (<>
+          {isProducao && !splitMode && (<>
             <div>
               <label className="block text-xs font-bold text-brand-muted mb-1.5 uppercase tracking-wider">Produto</label>
               <select value={form.product} onChange={(e) => handleProduct(e.target.value)}
                 className="w-full bg-brand-surface border border-brand-border rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
                 {products.map((p) => <option key={p.id} value={p.id}>{p.id} — {p.nome}</option>)}
               </select>
+              <p className="text-[10px] text-brand-muted mt-1">{cabos} cabo{cabos > 1 ? 's' : ''} · {spindlesForProduct(currentMachine, cabos)} fusos</p>
             </div>
             <div>
               <label className="block text-xs font-bold text-brand-muted mb-1.5 uppercase tracking-wider">Kg/dia</label>
@@ -134,6 +199,32 @@ function EntryModal({ entry, machine, date, factory, products, machines, onSave,
                 onChange={(e) => setForm((f) => ({ ...f, planned: Number(e.target.value) }))}
                 className="w-full bg-brand-surface border border-brand-border rounded-xl px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-brand-cyan/50 transition-all" />
             </div>
+          </>)}
+
+          {isProducao && splitMode && (<>
+            <div className="bg-brand-surface/40 border border-brand-border rounded-xl px-3 py-2 text-[10px] text-brand-muted">
+              Máquina SINGLE · {cabos} cabo{cabos > 1 ? 's' : ''} → metade dos fusos com torção <span className="text-white font-bold">S</span> e metade com <span className="text-white font-bold">Z</span> ({spindlesForProduct(currentMachine, cabos)} fusos por produto).
+            </div>
+            {['S', 'Z'].map((tw) => (
+              <div key={tw} className="border border-brand-border rounded-xl p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-brand-cyan">Torção {tw}</span>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-brand-muted mb-1 uppercase tracking-wider">Produto</label>
+                  <select value={form[`product${tw}`]} onChange={(e) => handleProductTwist(tw, e.target.value)}
+                    className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
+                    {products.map((p) => <option key={p.id} value={p.id}>{p.id} — {p.nome}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-brand-muted mb-1 uppercase tracking-wider">Kg/dia</label>
+                  <input type="number" value={form[`planned${tw}`]} min={0} max={99999}
+                    onChange={(e) => setForm((f) => ({ ...f, [`planned${tw}`]: Number(e.target.value) }))}
+                    className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-brand-cyan/50 transition-all" />
+                </div>
+              </div>
+            ))}
           </>)}
 
           {!isProducao && (
@@ -163,34 +254,58 @@ function EntryModal({ entry, machine, date, factory, products, machines, onSave,
 }
 
 // ─── Matrix Cell ──────────────────────────────────────────────────────────────
-function MatrixCell({ entry, date, machine, isCurrentDay, onClick, onDragStart, onDrop }) {
-  const ct = entry?.cellType ? CELL_TYPES[entry.cellType] : null;
-  const tooltipText = entry
-    ? (entry.cellType === 'producao' ? `${entry.productName || ''}\n${entry.planned} kg` : ct?.label)
+function MatrixCell({ entries, date, machine, isCurrentDay, onClick, onDragStart, onDrop }) {
+  const primary = entries?.[0] || null;
+  const ct = primary?.cellType ? CELL_TYPES[primary.cellType] : null;
+  const isSplit = entries && entries.length > 1;
+  const totalPlanned = (entries || []).reduce((s, e) => s + (e?.cellType === 'producao' ? (e.planned || 0) : 0), 0);
+
+  const tooltipText = primary
+    ? (primary.cellType === 'producao'
+        ? (isSplit
+            ? entries.map((e) => `${e.twist || ''} ${e.productName || ''} — ${e.planned} kg`).join('\n')
+            : `${primary.productName || ''}\n${primary.planned} kg`)
+        : ct?.label)
     : 'Planejar dia';
 
   return (
     <td
-      onClick={() => onClick && onClick(entry || null, machine, date)}
+      onClick={() => onClick && onClick(entries || [], machine, date)}
       title={tooltipText}
-      draggable={!!entry && !!onDragStart}
-      onDragStart={(e) => onDragStart && onDragStart(e, entry)}
+      draggable={!!primary && !!onDragStart}
+      onDragStart={(e) => onDragStart && onDragStart(e, primary)}
       onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
       onDrop={(e) => onDrop && onDrop(e, machine, date)}
       className={`border border-brand-border/40 min-w-[40px] md:min-w-[50px] w-[40px] md:w-[50px] transition-all duration-100 ${onClick ? 'cursor-pointer hover:brightness-125' : ''}`}
       style={ct
         ? { background: ct.bg, borderColor: ct.border }
         : { background: isCurrentDay ? 'rgba(34,211,238,0.04)' : 'transparent' }}>
-      <div className="h-[40px] md:h-[52px] flex flex-col items-center justify-center gap-0.5 px-0.5">
-        {entry ? (
-          entry.cellType === 'producao' ? (<>
-            <span className="text-[8px] md:text-[11px] font-mono font-black leading-none" style={{ color: ct.text }}>
-              {entry.planned >= 1000 ? `${(entry.planned / 1000).toFixed(1)}k` : entry.planned}
-            </span>
-            <span className="text-[7px] md:text-[9px] font-bold" style={{ color: ct.text, opacity: 0.8 }}>{entry.quality || 'A'}</span>
-          </>) : (
+      <div className="h-[40px] md:h-[52px] flex flex-col items-center justify-center gap-0 px-0.5">
+        {primary ? (
+          primary.cellType === 'producao' ? (
+            isSplit ? (
+              <div className="flex flex-col items-center leading-none gap-0.5">
+                {entries.map((e) => (
+                  <div key={e.id} className="flex items-center gap-0.5">
+                    <span className="text-[7px] md:text-[8px] font-black" style={{ color: ct.text, opacity: 0.7 }}>{e.twist}</span>
+                    <span className="text-[7px] md:text-[9px] font-mono font-black" style={{ color: ct.text }}>
+                      {e.planned >= 1000 ? `${(e.planned / 1000).toFixed(1)}k` : e.planned}
+                    </span>
+                  </div>
+                ))}
+                <span className="text-[6px] md:text-[7px] font-mono" style={{ color: ct.text, opacity: 0.55 }}>
+                  Σ {totalPlanned >= 1000 ? `${(totalPlanned / 1000).toFixed(1)}k` : totalPlanned}
+                </span>
+              </div>
+            ) : (<>
+              <span className="text-[8px] md:text-[11px] font-mono font-black leading-none" style={{ color: ct.text }}>
+                {primary.planned >= 1000 ? `${(primary.planned / 1000).toFixed(1)}k` : primary.planned}
+              </span>
+              <span className="text-[7px] md:text-[9px] font-bold" style={{ color: ct.text, opacity: 0.8 }}>{primary.quality || 'A'}</span>
+            </>)
+          ) : (
             <span className="text-[7px] md:text-[8px] font-black uppercase text-center leading-tight px-0.5" style={{ color: ct.text, opacity: 0.9 }}>
-              {entry.cellType === 'parada_np' ? 'P.N.P' : entry.cellType === 'parada_p' ? 'P.Prog' : 'Manut.'}
+              {primary.cellType === 'parada_np' ? 'P.N.P' : primary.cellType === 'parada_p' ? 'P.Prog' : 'Manut.'}
             </span>
           )
         ) : (
@@ -249,20 +364,27 @@ export default function Planning() {
     return () => unsub();
   }, [factory, yearMonth]);
 
-  // KEY FIX: use machine._factory (actual factory) not the selected factory
-  // This way "all" view correctly finds entries stored as "matriz__M01__date"
-  const getEntry = (machine, date) => {
+  // Retorna array de entries para a célula (0, 1 ou 2 itens — 2 para split S/Z).
+  const getEntries = (machine, date) => {
     const f = machine._factory || factory;
-    return entriesMap[makeEntryId(f, machine.id, date)] || null;
+    const flat = entriesMap[makeEntryId(f, machine.id, date)];
+    const s    = entriesMap[makeEntryId(f, machine.id, date, 'S')];
+    const z    = entriesMap[makeEntryId(f, machine.id, date, 'Z')];
+    const list = [];
+    if (s) list.push(s);
+    if (z) list.push(z);
+    if (list.length === 0 && flat) list.push(flat);
+    return list;
   };
 
-  // Totals
+  // Totals — soma todas as entries de produção (incluindo S/Z)
   const machineTotals = {};
   machineList.forEach((m) => {
     let total = 0;
     days.forEach((date) => {
-      const e = getEntry(m, date);
-      if (e?.cellType === 'producao') total += e.planned || 0;
+      getEntries(m, date).forEach((e) => {
+        if (e?.cellType === 'producao') total += e.planned || 0;
+      });
     });
     machineTotals[m.id] = total;
   });
@@ -272,7 +394,7 @@ export default function Planning() {
   const handleSave = useCallback(async (data) => {
     // When saving from "all" view, use the machine's real factory
     const targetFactory = data._factory || data.factory || factory;
-    const stableId = makeEntryId(targetFactory, data.machine, data.date);
+    const stableId = makeEntryId(targetFactory, data.machine, data.date, data.twist);
     const entry = { ...data, id: stableId, factory: targetFactory };
     delete entry._factory;
     upsertEntry(entry);
@@ -308,10 +430,10 @@ export default function Planning() {
     } catch (err) { console.error('Drop error:', err); }
   }, [handleSave]);
 
-  // For modal — pass the machine's actual factory
-  const openModal = (entry, machine, date) => {
+  // For modal — pass the machine's actual factory. `entries` = array (0, 1 ou 2 itens)
+  const openModal = (entries, machine, date) => {
     if (isSupervisor) return;
-    setModal({ entry: entry || null, machine, date, factory: machine._factory || factory });
+    setModal({ entries: entries || [], machine, date, factory: machine._factory || factory });
   };
 
   return (
@@ -343,7 +465,7 @@ export default function Planning() {
           </div>
           {!isSupervisor && (
             <button
-              onClick={() => setModal({ entry: null, machine: null, date: new Date().toISOString().split('T')[0], factory: isAllUnits ? 'matriz' : factory })}
+              onClick={() => setModal({ entries: [], machine: null, date: new Date().toISOString().split('T')[0], factory: isAllUnits ? 'matriz' : factory })}
               className="flex items-center gap-1.5 px-3 py-2 bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/20 text-brand-cyan text-xs font-bold rounded-xl transition-all active:scale-95">
               <Plus size={13} /> <span className="hidden sm:inline">Nova entrada</span><span className="sm:hidden">Novo</span>
             </button>
@@ -423,11 +545,11 @@ export default function Planning() {
                     {days.map((date) => (
                       <MatrixCell
                         key={date}
-                        entry={getEntry(machine, date)}
+                        entries={getEntries(machine, date)}
                         date={date}
                         machine={machine}
                         isCurrentDay={isToday(date)}
-                        onClick={!isSupervisor ? (e, m, d) => openModal(e, m, d) : undefined}
+                        onClick={!isSupervisor ? (es, m, d) => openModal(es, m, d) : undefined}
                         onDragStart={!isSupervisor ? handleDragStart : undefined}
                         onDrop={!isSupervisor ? handleDrop : undefined}
                       />
@@ -448,8 +570,8 @@ export default function Planning() {
               </td>
               {days.map((date) => {
                 const dayTotal = machineList.reduce((s, m) => {
-                  const e = getEntry(m, date);
-                  return s + (e?.cellType === 'producao' ? (e.planned || 0) : 0);
+                  return s + getEntries(m, date).reduce(
+                    (acc, e) => acc + (e?.cellType === 'producao' ? (e.planned || 0) : 0), 0);
                 }, 0);
                 return (
                   <td key={date} className="border border-brand-border/40 bg-brand-surface text-center"
@@ -471,7 +593,7 @@ export default function Planning() {
 
       {modal && (
         <EntryModal
-          entry={modal.entry}
+          entries={modal.entries}
           machine={modal.machine}
           date={modal.date}
           factory={modal.factory}

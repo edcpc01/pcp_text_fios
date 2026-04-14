@@ -176,7 +176,7 @@ export function subscribePlanningEntries(factory, yearMonth, callback) {
 }
 
 export async function savePlanningEntry(entry) {
-  const stableId = makeEntryId(entry.factory, entry.machine, entry.date);
+  const stableId = entry.id || makeEntryId(entry.factory, entry.machine, entry.date, entry.twist);
   const data = {
     factory:     entry.factory,
     machine:     entry.machine,
@@ -186,6 +186,7 @@ export async function savePlanningEntry(entry) {
     date:        Timestamp.fromDate(new Date(entry.date + 'T12:00:00')),
     planned:     Number(entry.planned) || 0,
     cellType:    entry.cellType    || 'producao',
+    twist:       entry.twist       || null,
     updatedAt:   Timestamp.now(),
     createdAt:   Timestamp.now(),
   };

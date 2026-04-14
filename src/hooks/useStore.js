@@ -72,8 +72,48 @@ export const CELL_TYPES = {
   manutencao: { id: 'manutencao', label: 'Manutenção Preventiva', color: '#22d3ee', bg: 'rgba(34,211,238,0.12)',  border: 'rgba(34,211,238,0.35)',  text: '#67e8f9' },
 };
 
-export function makeEntryId(factory, machine, date) {
-  return `${factory}__${machine}__${date}`;
+export function makeEntryId(factory, machine, date, twist) {
+  const base = `${factory}__${machine}__${date}`;
+  return twist ? `${base}__${twist}` : base;
+}
+
+// ─── Twist-split logic ────────────────────────────────────────────────────────
+// RPR TEXTRIZADORA CONV. SINGLE: produtos de 1 ou 3 cabos rodam metade S / metade Z
+// na mesma máquina no mesmo dia. Produtos de 2 cabos ocupam a máquina inteira
+// com um único produto.
+export function parseCabos(productName) {
+  if (!productName) return null;
+  const m = String(productName).match(/(\d)\s*[xX×]/);
+  return m ? Number(m[1]) : null;
+}
+
+export function isSplitMachine(machine) {
+  return !!machine?.name && /SINGLE/i.test(machine.name);
+}
+
+// Total de fusos ativos da máquina para um dado nº de cabos
+function totalActiveSpindles(machine, cabos) {
+  const total = machine?.spindles || 0;
+  if (cabos === 1) return total;             // 108
+  if (cabos === 2) return Math.floor(total / 2); // 54
+  if (cabos === 3) return Math.floor(total / 3); // 36
+  return total;
+}
+
+// Fusos que contribuem para a produção de UM produto específico.
+// Para cabos 1 e 3 a máquina roda dois produtos (S+Z) simultaneamente,
+// então cada produto usa metade dos fusos ativos.
+export function spindlesForProduct(machine, cabos) {
+  if (!machine?.spindles) return 0;
+  const active = totalActiveSpindles(machine, cabos);
+  if (isSplitMachine(machine) && (cabos === 1 || cabos === 3)) {
+    return Math.floor(active / 2);
+  }
+  return active;
+}
+
+export function isTwistSplit(machine, cabos) {
+  return isSplitMachine(machine) && (cabos === 1 || cabos === 3);
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
