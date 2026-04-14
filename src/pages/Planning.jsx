@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, ChevronLeft, ChevronRight, X, Save, Trash2, CalendarDays, Package, Cpu, Activity } from 'lucide-react';
-import { useAppStore, usePlanningStore, useAdminStore, useAuthStore, CELL_TYPES, makeEntryId, FACTORIES, parseCabos, spindlesForProduct, isTwistSplit } from '../hooks/useStore';
+import { useAppStore, usePlanningStore, useAdminStore, useAuthStore, CELL_TYPES, makeEntryId, FACTORIES, parseCabos, spindlesForProduct, isTwistSplit, hasTwistMark, isSplitMachine } from '../hooks/useStore';
 import { subscribePlanningEntries, savePlanningEntry, deletePlanningEntry } from '../services/firebase';
 import { getDaysInMonth, getWeekday, formatDate, getMonthLabel, isToday } from '../utils/dates';
 
@@ -36,30 +36,29 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
   };
 
   const machineObj = machines?.find((x) => x.id === (primary?.machine || machine?.id)) || machine || null;
-  const firstProd  = products.find((x) => x.id === primary?.product) || defaultProduct;
-  const cabosInit  = parseCabos(firstProd?.nome) || 1;
-  const splitInit  = isTwistSplit(machineObj, cabosInit, firstProd?.nome);
 
-  const entryS = existing.find((e) => e.twist === 'S');
-  const entryZ = existing.find((e) => e.twist === 'Z');
-  const entryFlat = existing.find((e) => !e.twist) || primary;
+  // Entries existentes: prioriza S como primário (preserva ordem S→Z).
+  const entryS     = existing.find((e) => e.twist === 'S');
+  const entryZ     = existing.find((e) => e.twist === 'Z');
+  const entryFlat  = existing.find((e) => !e.twist);
+  const primaryE   = entryS || entryFlat || primary;
+  const secondaryE = entryS ? entryZ : null;
+
+  const primaryProd = products.find((x) => x.id === primaryE?.product) || defaultProduct;
 
   const [form, setForm] = useState({
-    machine:     primary?.machine     || machine?.id    || '',
-    machineName: primary?.machineName || machine?.name  || '',
-    date:        primary?.date        || date           || '',
-    cellType:    primary?.cellType    || 'producao',
-    // Produto único (quando NÃO há split)
-    product:     entryFlat?.product     || firstProd?.id   || '',
-    productName: entryFlat?.productName || firstProd?.nome || '',
-    planned:     entryFlat?.planned ?? recalc(machineObj, firstProd),
-    // Split S/Z
-    productS:     entryS?.product     || entryFlat?.product     || firstProd?.id   || '',
-    productSName: entryS?.productName || entryFlat?.productName || firstProd?.nome || '',
-    plannedS:     entryS?.planned     ?? recalc(machineObj, firstProd),
-    productZ:     entryZ?.product     || entryFlat?.product     || firstProd?.id   || '',
-    productZName: entryZ?.productName || entryFlat?.productName || firstProd?.nome || '',
-    plannedZ:     entryZ?.planned     ?? recalc(machineObj, firstProd),
+    machine:      primary?.machine     || machine?.id    || '',
+    machineName:  primary?.machineName || machine?.name  || '',
+    date:         primary?.date        || date           || '',
+    cellType:     primary?.cellType    || 'producao',
+    // Produto primário (flat OU torção S quando houver split)
+    product:      primaryE?.product     || primaryProd?.id   || '',
+    productName:  primaryE?.productName || primaryProd?.nome || '',
+    planned:      primaryE?.planned     ?? recalc(machineObj, primaryProd),
+    // Produto secundário (torção Z, aparece se primário gatilhar split)
+    productZ:     secondaryE?.product     || '',
+    productZName: secondaryE?.productName || '',
+    plannedZ:     secondaryE?.planned     ?? 0,
   });
 
   const [saving,   setSaving]   = useState(false);
@@ -68,37 +67,38 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
   const currentMachine = machines?.find((x) => x.id === form.machine) || machineObj;
   const currentProduct = products.find((x) => x.id === form.product);
   const cabos = parseCabos(currentProduct?.nome) || parseCabos(form.productName) || 1;
+
+  // Torção do produto primário: "S" ou "Z" extraídos do nome, se houver.
+  const primaryTwist = (() => {
+    const name = currentProduct?.nome || form.productName || '';
+    const m = name.match(/"\s*([SZ])\s*"/i);
+    return m ? m[1].toUpperCase() : null;
+  })();
   const splitMode = isTwistSplit(currentMachine, cabos, currentProduct?.nome || form.productName);
+  const secondaryTwist = primaryTwist === 'S' ? 'Z' : 'S';
 
   const handleProduct = (id) => {
     const p = products.find((x) => x.id === id);
     if (!p) return;
     setForm((f) => ({ ...f, product: p.id, productName: p.nome, planned: recalc(currentMachine, p) }));
   };
-  const handleProductTwist = (twist, id) => {
+  const handleProductZ = (id) => {
     const p = products.find((x) => x.id === id);
     if (!p) return;
-    setForm((f) => ({
-      ...f,
-      [`product${twist}`]:     p.id,
-      [`product${twist}Name`]: p.nome,
-      [`planned${twist}`]:     recalc(currentMachine, p),
-    }));
+    setForm((f) => ({ ...f, productZ: p.id, productZName: p.nome, plannedZ: recalc(currentMachine, p) }));
   };
 
   const handleMachine = (id) => {
     const m = machines?.find((x) => x.id === id);
     if (!m) return;
     const p  = products.find((x) => x.id === form.product);
-    const pS = products.find((x) => x.id === form.productS);
     const pZ = products.find((x) => x.id === form.productZ);
     setForm((f) => ({
       ...f,
       machine: m.id,
       machineName: m.name,
       planned:  recalc(m, p),
-      plannedS: recalc(m, pS),
-      plannedZ: recalc(m, pZ),
+      plannedZ: pZ ? recalc(m, pZ) : f.plannedZ,
     }));
   };
 
@@ -117,13 +117,16 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
         await onSave({ ...base, product: '', productName: '', planned: 0, twist: null });
         if (entryS) await onDelete(entryS.id);
         if (entryZ) await onDelete(entryZ.id);
-      } else if (splitMode) {
-        // Split S/Z — grava duas entries e remove a flat antiga se existir.
-        await onSave({ ...base, product: form.productS, productName: form.productSName, planned: Number(form.plannedS) || 0, twist: 'S' });
-        await onSave({ ...base, product: form.productZ, productName: form.productZName, planned: Number(form.plannedZ) || 0, twist: 'Z' });
+      } else if (splitMode && form.productZ) {
+        // Split S/Z — primário + secundário. Grava ambos com twist correto.
+        await onSave({ ...base, product: form.product,  productName: form.productName,  planned: Number(form.planned)  || 0, twist: primaryTwist });
+        await onSave({ ...base, product: form.productZ, productName: form.productZName, planned: Number(form.plannedZ) || 0, twist: secondaryTwist });
         if (entryFlat && !entryFlat.twist) await onDelete(entryFlat.id);
+        // Se existia S+Z antes mas os twists trocaram, limpa o que não casa
+        if (entryS && entryS.twist !== primaryTwist && entryS.twist !== secondaryTwist) await onDelete(entryS.id);
+        if (entryZ && entryZ.twist !== primaryTwist && entryZ.twist !== secondaryTwist) await onDelete(entryZ.id);
       } else {
-        // Produto único (2 cabos ou máquina sem split). Remove S/Z antigos se houver.
+        // Produto único. Remove S/Z antigos se houver.
         await onSave({ ...base, product: form.product, productName: form.productName, planned: Number(form.planned) || 0, twist: null });
         if (entryS) await onDelete(entryS.id);
         if (entryZ) await onDelete(entryZ.id);
@@ -184,47 +187,44 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
             </div>
           </div>
 
-          {isProducao && !splitMode && (<>
-            <div>
-              <label className="block text-xs font-bold text-brand-muted mb-1.5 uppercase tracking-wider">Produto</label>
+          {isProducao && (<>
+            <div className="border border-brand-border rounded-xl p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-brand-cyan">
+                  {splitMode && primaryTwist ? `Torção ${primaryTwist}` : 'Produto'}
+                </span>
+                <span className="text-[10px] text-brand-muted">
+                  {cabos} cabo{cabos > 1 ? 's' : ''} · {spindlesForProduct(currentMachine, cabos)} fusos
+                </span>
+              </div>
               <select value={form.product} onChange={(e) => handleProduct(e.target.value)}
-                className="w-full bg-brand-surface border border-brand-border rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
+                className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
                 {products.map((p) => <option key={p.id} value={p.id}>{p.id} — {p.nome}</option>)}
               </select>
-              <p className="text-[10px] text-brand-muted mt-1">{cabos} cabo{cabos > 1 ? 's' : ''} · {spindlesForProduct(currentMachine, cabos)} fusos</p>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-brand-muted mb-1.5 uppercase tracking-wider">Kg/dia</label>
               <input type="number" value={form.planned} min={0} max={99999}
                 onChange={(e) => setForm((f) => ({ ...f, planned: Number(e.target.value) }))}
-                className="w-full bg-brand-surface border border-brand-border rounded-xl px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-brand-cyan/50 transition-all" />
+                placeholder="Kg/dia"
+                className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-brand-cyan/50 transition-all" />
             </div>
-          </>)}
 
-          {isProducao && splitMode && (<>
-            <div className="bg-brand-surface/40 border border-brand-border rounded-xl px-3 py-2 text-[10px] text-brand-muted">
-              Máquina SINGLE · {cabos} cabo{cabos > 1 ? 's' : ''} → metade dos fusos com torção <span className="text-white font-bold">S</span> e metade com <span className="text-white font-bold">Z</span> ({spindlesForProduct(currentMachine, cabos)} fusos por produto).
-            </div>
-            {['S', 'Z'].map((tw) => (
-              <div key={tw} className="border border-brand-border rounded-xl p-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-brand-cyan">Torção {tw}</span>
+            {splitMode && (
+              <div className="border border-brand-cyan/30 rounded-xl p-3 space-y-2 bg-brand-cyan/5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-brand-cyan">Torção {secondaryTwist}</span>
+                  <span className="text-[10px] text-brand-muted">mesma máquina</span>
                 </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-brand-muted mb-1 uppercase tracking-wider">Produto</label>
-                  <select value={form[`product${tw}`]} onChange={(e) => handleProductTwist(tw, e.target.value)}
-                    className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
-                    {products.map((p) => <option key={p.id} value={p.id}>{p.id} — {p.nome}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-brand-muted mb-1 uppercase tracking-wider">Kg/dia</label>
-                  <input type="number" value={form[`planned${tw}`]} min={0} max={99999}
-                    onChange={(e) => setForm((f) => ({ ...f, [`planned${tw}`]: Number(e.target.value) }))}
-                    className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-brand-cyan/50 transition-all" />
-                </div>
+                <select value={form.productZ} onChange={(e) => handleProductZ(e.target.value)}
+                  className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
+                  <option value="">— selecione —</option>
+                  {products.map((p) => <option key={p.id} value={p.id}>{p.id} — {p.nome}</option>)}
+                </select>
+                <input type="number" value={form.plannedZ} min={0} max={99999}
+                  onChange={(e) => setForm((f) => ({ ...f, plannedZ: Number(e.target.value) }))}
+                  placeholder="Kg/dia"
+                  className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-brand-cyan/50 transition-all" />
+                <p className="text-[10px] text-brand-muted">Metade dos fusos com torção {secondaryTwist}.</p>
               </div>
-            ))}
+            )}
           </>)}
 
           {!isProducao && (
