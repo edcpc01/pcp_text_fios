@@ -138,7 +138,7 @@ function ProductModal({ product, allProducts, onSave, onClose }) {
   const [form, setForm] = useState(
     product
       ? { ...EMPTY_PRODUCT, ...product, mp1: { ...EMPTY_MP, ...product.mp1 }, mp2: { ...EMPTY_MP, ...product.mp2 }, mp3: { ...EMPTY_MP, ...product.mp3 } }
-      : { ...EMPTY_PRODUCT, id: `P${String(Date.now()).slice(-3)}` }
+      : { ...EMPTY_PRODUCT }
   );
 
   const setMP = (key, field, val) => setForm((f) => ({ ...f, [key]: { ...f[key], [field]: val } }));
@@ -148,7 +148,7 @@ function ProductModal({ product, allProducts, onSave, onClose }) {
   const MP_LABELS = ['Matéria Prima 1', 'Matéria Prima 2', 'Matéria Prima 3'];
 
   const handleSubmit = async () => {
-    if (form.nome && form.id) {
+    if (form.nome) {
       setLoading(true);
       try {
         await onSave(form);
@@ -231,7 +231,7 @@ function ProductModal({ product, allProducts, onSave, onClose }) {
           <button onClick={onClose} className="px-4 py-2 text-xs text-brand-muted hover:text-white rounded-xl">Cancelar</button>
           <button
             onClick={handleSubmit}
-            disabled={!form.nome || !form.id || loading}
+            disabled={!form.nome || loading}
             className="flex items-center gap-1.5 px-5 py-2 bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan text-xs font-semibold rounded-xl hover:bg-brand-cyan/20 transition-all disabled:opacity-40">
             {loading ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
             Salvar produto
@@ -304,7 +304,7 @@ function ProductCard({ product, onEdit, onDelete }) {
       <div className="flex items-center gap-4 px-4 py-3 hover:bg-white/[0.02] transition-colors">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3">
-            <span className="text-xs font-mono text-brand-cyan">{product.id}</span>
+            <span className="text-xs font-mono text-brand-cyan">{product.codigoMicrodata || product.id}</span>
             <span className="text-sm font-semibold text-white truncate">{product.nome}</span>
             {product.cliente && <span className="text-xs text-brand-muted hidden sm:block truncate">— {product.cliente}</span>}
           </div>
@@ -547,7 +547,9 @@ export default function Admin() {
           </div>
           {products.length === 0
             ? <div className="text-center py-12 text-brand-muted text-sm">Nenhum produto no banco de dados</div>
-            : products.map((p) => <ProductCard key={p.id} product={p} onEdit={(prod) => setModal({ type: 'product', data: prod })} onDelete={handleDeleteProduct} />)
+            : [...products]
+                .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+                .map((p) => <ProductCard key={p.id} product={p} onEdit={(prod) => setModal({ type: 'product', data: prod })} onDelete={handleDeleteProduct} />)
           }
         </div>
       )}

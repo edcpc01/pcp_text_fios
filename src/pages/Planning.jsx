@@ -197,10 +197,12 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
                   {cabos} cabo{cabos > 1 ? 's' : ''} · {spindlesForProduct(currentMachine, cabos)} fusos
                 </span>
               </div>
-              <select value={form.product} onChange={(e) => handleProduct(e.target.value)}
-                className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
-                {products.map((p) => <option key={p.id} value={p.id}>{p.id} — {p.nome}</option>)}
-              </select>
+                <select value={form.product} onChange={(e) => handleProduct(e.target.value)}
+                  className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
+                  {[...products]
+                    .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+                    .map((p) => <option key={p.id} value={p.id}>{p.codigoMicrodata || p.id} — {p.nome}</option>)}
+                </select>
               <input type="number" value={form.planned} min={0} max={99999}
                 onChange={(e) => setForm((f) => ({ ...f, planned: Number(e.target.value) }))}
                 placeholder="Kg/dia"
@@ -213,11 +215,13 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
                   <span className="text-xs font-bold text-brand-cyan">Torção {secondaryTwist}</span>
                   <span className="text-[10px] text-brand-muted">mesma máquina</span>
                 </div>
-                <select value={form.productZ} onChange={(e) => handleProductZ(e.target.value)}
-                  className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
-                  <option value="">— selecione —</option>
-                  {products.map((p) => <option key={p.id} value={p.id}>{p.id} — {p.nome}</option>)}
-                </select>
+                  <select value={form.productZ} onChange={(e) => handleProductZ(e.target.value)}
+                    className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
+                    <option value="">— selecione —</option>
+                    {[...products]
+                      .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+                      .map((p) => <option key={p.id} value={p.id}>{p.codigoMicrodata || p.id} — {p.nome}</option>)}
+                  </select>
                 <input type="number" value={form.plannedZ} min={0} max={99999}
                   onChange={(e) => setForm((f) => ({ ...f, plannedZ: Number(e.target.value) }))}
                   placeholder="Kg/dia"

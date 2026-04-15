@@ -236,7 +236,19 @@ export function subscribeProducts(callback) {
 }
 
 export async function saveProduct(product) {
-  const id = product.id || `P${String(Date.now()).slice(-5)}`;
+  // Se for um novo produto (sem ID) ou se o ID atual for um código temp "Pxxx",
+  // tentamos usar o codigoMicrodata como ID oficial para limpar a base.
+  let id = product.id;
+  const isTempId = !id || String(id).startsWith('P');
+  
+  if (isTempId && product.codigoMicrodata) {
+    id = String(product.codigoMicrodata).trim();
+  }
+  
+  if (!id) {
+    id = `P${String(Date.now()).slice(-5)}`;
+  }
+
   await setDoc(doc(db, 'products', id), { ...product, id, updatedAt: Timestamp.now() }, { merge: true });
   return id;
 }

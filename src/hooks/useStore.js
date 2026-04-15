@@ -35,7 +35,7 @@ export const MACHINES = {
 // Produto com estrutura completa do ficha técnica
 export const PRODUCTS = [
   {
-    id: 'P001',
+    id: '109001',
     cliente: 'Corradi',
     nome: 'DTY 150/48',
     prodDiaPosicao: 16.24,

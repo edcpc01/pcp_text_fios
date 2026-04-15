@@ -794,9 +794,11 @@ export default function Materiais() {
            </div>
          ) : (
            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-             {productsWithCode.map((product) => (
-               <PaCard
-                 key={product.id}
+             {[...productsWithCode]
+               .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+               .map((product) => (
+                 <PaCard
+                   key={product.id}
                  product={product}
                  stock={paStock[product.id]}
                  onSaveStock={saveFinishedGoodStock}
