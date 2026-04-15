@@ -304,7 +304,9 @@ function ProductCard({ product, onEdit, onDelete }) {
       <div className="flex items-center gap-4 px-4 py-3 hover:bg-white/[0.02] transition-colors">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3">
-            <span className="text-xs font-mono text-brand-cyan">{product.codigoMicrodata || product.id}</span>
+            <span className="text-xs font-mono text-brand-cyan">
+              {product.codigoMicrodata || (String(product.id).startsWith('P') ? 'Pendente' : product.id)}
+            </span>
             <span className="text-sm font-semibold text-white truncate">{product.nome}</span>
             {product.cliente && <span className="text-xs text-brand-muted hidden sm:block truncate">— {product.cliente}</span>}
           </div>

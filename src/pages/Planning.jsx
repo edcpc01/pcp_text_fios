@@ -201,7 +201,11 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
                   className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
                   {[...products]
                     .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
-                    .map((p) => <option key={p.id} value={p.id}>{p.codigoMicrodata || p.id} — {p.nome}</option>)}
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.codigoMicrodata || (String(p.id).startsWith('P') ? 'Pendente' : p.id)} — {p.nome}
+                      </option>
+                    ))}
                 </select>
               <input type="number" value={form.planned} min={0} max={99999}
                 onChange={(e) => setForm((f) => ({ ...f, planned: Number(e.target.value) }))}
@@ -220,7 +224,11 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
                     <option value="">— selecione —</option>
                     {[...products]
                       .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
-                      .map((p) => <option key={p.id} value={p.id}>{p.codigoMicrodata || p.id} — {p.nome}</option>)}
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.codigoMicrodata || (String(p.id).startsWith('P') ? 'Pendente' : p.id)} — {p.nome}
+                        </option>
+                      ))}
                   </select>
                 <input type="number" value={form.plannedZ} min={0} max={99999}
                   onChange={(e) => setForm((f) => ({ ...f, plannedZ: Number(e.target.value) }))}
