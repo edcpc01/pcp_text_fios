@@ -12,6 +12,9 @@ import {
 import { getMonthLabel } from '../utils/dates';
 import { pickOrReuseFile, clearFileHandle, readSavedFile, parseEstoqueCSV, findProductByCode } from '../utils/csvSync';
 
+// ─── Cores de clientes — mesma paleta do Dashboard ───────────────────────────
+const CLIENT_COLORS = ['#f97316','#22d3ee','#8b5cf6','#10b981','#f59e0b','#ec4899','#6366f1','#14b8a6'];
+
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 function fmtKg(v) {
@@ -202,18 +205,20 @@ function MpCard({ mp, stock, onSaveStock, editable }) {
 
 // ─── Finished Good Card ───────────────────────────────────────────────────────
 
-function PaCard({ product, stock, onSaveStock, editable }) {
+function PaCard({ product, stock, onSaveStock, editable, clientColor }) {
   const estoqueKg = stock?.estoqueKg ?? 0;
+  const borderColor = clientColor || '#8b5cf6';
+  const badgeBg = `${borderColor}18`;
 
   return (
-    <div className="bg-brand-card border border-brand-border rounded-2xl p-3 sm:p-4 card-hover" style={{ borderTop: '2px solid #8b5cf6' }}>
+    <div className="bg-brand-card border border-brand-border rounded-2xl p-3 sm:p-4 card-hover" style={{ borderTop: `2px solid ${borderColor}` }}>
       <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
         <div className="flex-1 min-w-0">
           <p className="text-[8px] sm:text-[10px] font-bold text-brand-muted uppercase tracking-widest mb-0.5">Produto Acabado</p>
           <p className="text-xs sm:text-sm font-semibold text-white break-words leading-tight" title={product.nome}>{product.nome}</p>
           <p className="text-[10px] sm:text-[11px] font-mono text-brand-muted mt-0.5">Cód. {product.codigoMicrodata || '—'}</p>
         </div>
-        <span className="text-[8px] sm:text-[9px] font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-violet-500/10 text-violet-400 shrink-0">
+        <span className="text-[8px] sm:text-[9px] font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg shrink-0" style={{ backgroundColor: badgeBg, color: borderColor }}>
           {product.composicao || product.type || '—'}
         </span>
       </div>
@@ -567,6 +572,42 @@ export default function Materiais() {
   // Products with at least one field (for PA cards)
   const productsWithCode = products.filter((p) => p.codigoMicrodata || p.nome);
 
+  // Ordem e cor dos clientes — mesma lógica do Dashboard (por volume planejado desc)
+  const clientColorMap = useMemo(() => {
+    const totals = {};
+    planningEntries.forEach((e) => {
+      const product = products.find((p) => p.id === e.product || p.nome === e.productName);
+      const cliente = product?.cliente || 'Sem Cliente';
+      totals[cliente] = (totals[cliente] || 0) + (e.planned || 0);
+    });
+    const sorted = Object.keys(totals).sort((a, b) => totals[b] - totals[a]);
+    const map = {};
+    sorted.forEach((c, i) => { map[c] = CLIENT_COLORS[i % CLIENT_COLORS.length]; });
+    return map;
+  }, [planningEntries, products]);
+
+  // Agrupa produtos por cliente, na ordem do volume planejado
+  const paByClient = useMemo(() => {
+    const groups = {};
+    productsWithCode.forEach((p) => {
+      const cliente = p.cliente || 'Sem Cliente';
+      if (!groups[cliente]) groups[cliente] = [];
+      groups[cliente].push(p);
+    });
+    // Ordena produtos dentro de cada grupo por nome
+    Object.values(groups).forEach((g) => g.sort((a, b) => (a.nome || '').localeCompare(b.nome || '')));
+    // Ordena grupos pelo volume planejado (clientes sem planejamento vão para o final)
+    const clientOrder = Object.keys(clientColorMap);
+    return Object.entries(groups).sort(([a], [b]) => {
+      const ia = clientOrder.indexOf(a);
+      const ib = clientOrder.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+  }, [productsWithCode, clientColorMap]);
+
   return (
     <div className="p-4 sm:p-6 space-y-6 sm:space-y-8 animate-fade-in overflow-x-hidden">
 
@@ -793,18 +834,38 @@ export default function Materiais() {
              <p className="text-brand-muted text-sm">Nenhum produto cadastrado ainda.</p>
            </div>
          ) : (
-           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-             {[...productsWithCode]
-               .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
-               .map((product) => (
-                 <PaCard
-                   key={product.id}
-                 product={product}
-                 stock={paStock[product.id]}
-                 onSaveStock={saveFinishedGoodStock}
-                 editable={!isSupervisor}
-               />
-             ))}
+           <div className="space-y-6">
+             {paByClient.map(([cliente, clienteProducts]) => {
+               const color = clientColorMap[cliente] || '#8b5cf6';
+               return (
+                 <div key={cliente}>
+                   {/* Header do cliente */}
+                   <div className="flex items-center gap-2 mb-3">
+                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                     <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color }}>
+                       {cliente}
+                     </span>
+                     <span className="text-[10px] text-brand-muted">
+                       {clienteProducts.length} {clienteProducts.length === 1 ? 'produto' : 'produtos'}
+                     </span>
+                     <div className="flex-1 h-px opacity-20 rounded" style={{ backgroundColor: color }} />
+                   </div>
+                   {/* Cards do cliente */}
+                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                     {clienteProducts.map((product) => (
+                       <PaCard
+                         key={product.id}
+                         product={product}
+                         stock={paStock[product.id]}
+                         onSaveStock={saveFinishedGoodStock}
+                         editable={!isSupervisor}
+                         clientColor={color}
+                       />
+                     ))}
+                   </div>
+                 </div>
+               );
+             })}
            </div>
          )}
       </div>
