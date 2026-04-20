@@ -339,7 +339,7 @@ export default function Dashboard() {
       </div>
 
       {/* Aderência Histórica */}
-      <AdherenceChart factory={factory} currentAdherence={adherence} currentMonth={yearMonth} />
+      <AdherenceChart factory={factory} currentAdherence={adherence} currentMonth={yearMonth} currentPlanned={totalPlanned} currentActual={totalActual} />
 
       {/* Mix de Produtos por Cliente */}
       <div className="bg-brand-card border border-brand-border rounded-2xl p-5" style={{ borderTop: '2px solid #f97316' }}>

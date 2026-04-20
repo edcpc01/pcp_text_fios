@@ -7,12 +7,12 @@ import { TrendingUp } from 'lucide-react';
 import { fetchMonthSummary } from '../services/firebase';
 import { getMonthLabel } from '../utils/dates';
 
-// Gera array dos últimos N meses (excluindo o mês atual)
-function getPastMonths(n) {
+// Gera array dos últimos N meses anteriores ao mês de referência (exclusive)
+function getPastMonths(n, referenceYearMonth) {
+  const [refYear, refMonth] = referenceYearMonth.split('-').map(Number);
   const result = [];
-  const now = new Date();
   for (let i = n; i >= 1; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const d = new Date(refYear, refMonth - 1 - i, 1);
     const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     result.push(ym);
   }
@@ -50,7 +50,7 @@ function CustomTooltip({ active, payload, label }) {
   );
 }
 
-export default function AdherenceChart({ factory, currentAdherence, currentMonth }) {
+export default function AdherenceChart({ factory, currentAdherence, currentMonth, currentPlanned, currentActual }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -58,7 +58,7 @@ export default function AdherenceChart({ factory, currentAdherence, currentMonth
     let cancelled = false;
     setLoading(true);
 
-    const months = getPastMonths(5); // últimos 5 meses
+    const months = getPastMonths(5, currentMonth); // últimos 5 meses anteriores ao mês selecionado
 
     Promise.all(months.map((ym) => fetchMonthSummary(factory, ym)))
       .then((results) => {
@@ -83,8 +83,8 @@ export default function AdherenceChart({ factory, currentAdherence, currentMonth
           monthLabel: curLabel,
           shortLabel: curShort,
           adherence: currentAdherence,
-          totalPlanned: null,
-          totalActual: null,
+          totalPlanned: currentPlanned ?? null,
+          totalActual: currentActual ?? null,
           isCurrent: true,
           color: currentAdherence >= 90 ? '#10b981' : currentAdherence >= 80 ? '#f59e0b' : '#ef4444',
         });
@@ -97,14 +97,20 @@ export default function AdherenceChart({ factory, currentAdherence, currentMonth
     return () => { cancelled = true; };
   }, [factory, currentMonth]);
 
-  // Atualiza aderência do mês atual em tempo real sem re-fetch histórico
+  // Atualiza aderência e volumes do mês atual em tempo real sem re-fetch histórico
   useEffect(() => {
     setHistory((prev) => prev.map((d) =>
       d.isCurrent
-        ? { ...d, adherence: currentAdherence, color: currentAdherence >= 90 ? '#10b981' : currentAdherence >= 80 ? '#f59e0b' : '#ef4444' }
+        ? {
+            ...d,
+            adherence: currentAdherence,
+            totalPlanned: currentPlanned ?? d.totalPlanned,
+            totalActual: currentActual ?? d.totalActual,
+            color: currentAdherence >= 90 ? '#10b981' : currentAdherence >= 80 ? '#f59e0b' : '#ef4444',
+          }
         : d,
     ));
-  }, [currentAdherence]);
+  }, [currentAdherence, currentPlanned, currentActual]);
 
   const hasData = history.some((d) => d.adherence != null);
 
