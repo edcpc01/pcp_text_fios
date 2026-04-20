@@ -110,20 +110,28 @@ export default function Dashboard() {
       .reduce((s, e) => s + (e.planned || 0), 0),
   );
 
-  // Realizado até hoje (tudo sincronizado no período — usado no KPI de volume)
-  const totalActual = Math.round(activeRecords.reduce((s, r) => s + (r.actual || 0), 0) * 100) / 100;
-
-  // Aderência = realizado apenas de produtos programados até D-1 / planejado D-1
-  // Usa o mesmo filtro de datas do plannedD1 para manter numerador e denominador consistentes
-  const plannedProductIds = new Set(
+  // Par (produto__fábrica) com planejamento — evita dupla-contagem cross-factory em 'Todas as Unidades'
+  const plannedPairs = new Set(
+    basePlanning.map(e => `${e.product}__${e.factory || 'matriz'}`).filter(Boolean),
+  );
+  const plannedD1Pairs = new Set(
     basePlanning
-      .filter(e => e.date && e.date <= yesterday)
-      .map(e => e.product)
+      .filter(e => e.date && e.date.startsWith(yearMonth) && e.date <= yesterday)
+      .map(e => `${e.product}__${e.factory || 'matriz'}`)
       .filter(Boolean),
   );
+
+  // Realizado até hoje — apenas produtos planejados, na fábrica onde foram planejados
+  const totalActual = Math.round(
+    activeRecords
+      .filter(r => plannedPairs.has(`${r.product}__${r.factory || 'matriz'}`))
+      .reduce((s, r) => s + (r.actual || 0), 0) * 100,
+  ) / 100;
+
+  // Aderência = realizado de produtos planejados até D-1 / planejado D-1
   const actualScheduled = Math.round(
     activeRecords
-      .filter(r => plannedProductIds.has(r.product))
+      .filter(r => plannedD1Pairs.has(`${r.product}__${r.factory || 'matriz'}`))
       .reduce((s, r) => s + (r.actual || 0), 0) * 100,
   ) / 100;
   const adherence = plannedD1 > 0 ? Math.round((actualScheduled / plannedD1) * 100) : 0;

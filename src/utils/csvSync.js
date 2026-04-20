@@ -214,6 +214,7 @@ export function parseProducaoCSV(text) {
   const iName    = findCol(headers, ['descricao', 'description', 'desc', 'nome', 'name']);
   const iQty     = findCol(headers, ['quantidade', 'qtd', 'realizado', 'produzido', 'kg', 'qty', 'amount', 'peso']);
   const iClassif = findCol(headers, ['classif', 'classificacao', 'classification', 'class']);
+  const iEmpresa = findCol(headers, ['empresa', 'company', 'emp', 'cd_empresa', 'cod_empresa', 'ie_empresa']);
 
   const rows = [];
   for (let i = 1; i < lines.length; i++) {
@@ -231,10 +232,11 @@ export function parseProducaoCSV(text) {
     const productCode = iCode    >= 0 ? cols[iCode]    : cols[2];
     const productName = iName    >= 0 ? cols[iName]    : '';
     const qty         = parseNumber(iQty >= 0 ? cols[iQty] : cols[3]);
+    const empresa     = iEmpresa >= 0 ? (cols[iEmpresa] || '').trim() : '';
 
     if (!date || !productCode || isNaN(qty)) continue;
 
-    rows.push({ date, machine: (machine || '').trim(), productCode: (productCode || '').trim(), productName: (productName || '').trim(), quantity: qty });
+    rows.push({ date, machine: (machine || '').trim(), productCode: (productCode || '').trim(), productName: (productName || '').trim(), quantity: qty, empresa });
   }
   return rows;
 }

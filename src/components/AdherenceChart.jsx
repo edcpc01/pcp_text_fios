@@ -65,7 +65,7 @@ export default function AdherenceChart({ factory, currentAdherence, currentMonth
         if (cancelled) return;
         const data = results.map((r) => ({
           ...r,
-          monthLabel: getMonthLabel(Number(r.yearMonth.split('-')[0]), Number(r.yearMonth.split('-')[1])),
+          monthLabel: getMonthLabel(Number(r.yearMonth.split('-')[0]), Number(r.yearMonth.split('-')[1]) - 1),
           shortLabel: new Date(Number(r.yearMonth.split('-')[0]), Number(r.yearMonth.split('-')[1]) - 1, 1)
             .toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
           color: r.adherence == null ? '#64748b' : r.adherence >= 90 ? '#10b981' : r.adherence >= 80 ? '#f59e0b' : '#ef4444',
@@ -74,7 +74,7 @@ export default function AdherenceChart({ factory, currentAdherence, currentMonth
         // Adiciona mês atual
         const curLabel = getMonthLabel(
           Number(currentMonth.split('-')[0]),
-          Number(currentMonth.split('-')[1]),
+          Number(currentMonth.split('-')[1]) - 1,
         );
         const curShort = new Date(Number(currentMonth.split('-')[0]), Number(currentMonth.split('-')[1]) - 1, 1)
           .toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');

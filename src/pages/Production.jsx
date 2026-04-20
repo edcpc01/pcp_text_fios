@@ -135,9 +135,15 @@ export default function Production() {
       return;
     }
 
-    // Determina a fábrica — se 'all', usa a primeira fábrica dos dados (ou 'matriz')
-    const targetFactory = factory === 'all' ? 'matriz' : factory;
     const yearMonth = getYearMonth();
+
+    // Empresa 09 → Corradi Matriz; Empresa 07 → Corradi Filial
+    const resolveFactory = (empresaCod) => {
+      const cod = String(empresaCod || '').replace(/^0+/, ''); // remove zeros à esquerda
+      if (cod === '9') return 'matriz';
+      if (cod === '7') return 'filial';
+      return factory === 'all' ? 'matriz' : factory;
+    };
 
     // 1. Filtra e resolve produtos
     let skipped = 0, noProduct = 0;
@@ -149,14 +155,14 @@ export default function Production() {
       validRows.push({ row, product });
     }
 
-    // 2. Agrega por produto+data (soma todas as linhas do CSV para o mesmo produto/dia)
-    // Não inclui máquina na chave pois o CSV pode ter várias linhas por máquina/bobina
+    // 2. Agrega por produto+data+fábrica (soma todas as linhas do CSV para o mesmo produto/dia/empresa)
     const aggMap = {};
     for (const { row, product } of validRows) {
-      const key = `${product.id}__${row.date}`;
+      const rowFactory = resolveFactory(row.empresa);
+      const key = `${product.id}__${row.date}__${rowFactory}`;
       if (!aggMap[key]) {
         aggMap[key] = {
-          factory:     targetFactory,
+          factory:     rowFactory,
           machine:     row.machine || 'CSV',
           machineName: row.machine || 'CSV',
           product:     product.id,
@@ -296,6 +302,7 @@ export default function Production() {
   // A ligação é feita pelo código do produto (r.product / e.product)
   const byProduct = (() => {
     const map = {};
+    const plannedFactories = {}; // productId → Set<factory> — fábricas onde o produto está planejado
 
     // 1. Planejado: soma das planning entries até hoje (não conta dias futuros)
     entries.forEach((e) => {
@@ -308,16 +315,20 @@ export default function Production() {
       if (!key) return;
       if (!map[key]) map[key] = { name: e.productName || e.product, planned: 0, actual: 0 };
       map[key].planned += e.planned || 0;
+      if (!plannedFactories[key]) plannedFactories[key] = new Set();
+      plannedFactories[key].add(e.factory || 'matriz');
     });
 
     // 2. Realizado: soma dos production records (importados via CSV)
-    // Quando fábrica específica: só conta realizados de produtos que têm planejamento
-    // nesta fábrica, evitando contaminação cruzada (CSV contém produção de todas as unidades)
+    // Só conta registros da fábrica onde o produto está planejado — evita dupla-contagem
+    // quando o mesmo produto é produzido em ambas as fábricas mas planejado em apenas uma.
     records.forEach((r) => {
       const key = r.product;
       if (!key) return;
-      if (factory !== 'all' && !map[key]) return; // ignora produtos sem planejamento nesta fábrica
-      if (!map[key]) map[key] = { name: r.productName || r.product, planned: 0, actual: 0 };
+      if (!map[key]) return; // ignora produtos sem planejamento
+      const rFactory = r.factory || 'matriz';
+      if (factory !== 'all' && rFactory !== factory) return;
+      if (factory === 'all' && plannedFactories[key] && !plannedFactories[key].has(rFactory)) return;
       map[key].actual += r.actual || 0;
     });
 
