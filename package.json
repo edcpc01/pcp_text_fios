@@ -5,7 +5,7 @@
   "description": "PWA para planejamento de produção de fios texturizados - Fábricas Doptex e Corradi",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/generate-icons.js && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext .js,.jsx",
     "generate:icons": "node scripts/generate-icons.js"
