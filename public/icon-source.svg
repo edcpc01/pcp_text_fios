@@ -1,23 +1,35 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Fundo #06b6d4 — mesma cor que favicon.svg e header icon -->
-  <rect width="512" height="512" rx="96" fill="#06b6d4"/>
+  <!-- Fundo azul Doptex -->
+  <rect width="512" height="512" rx="96" fill="#1553b5"/>
 
-  <!-- D — mesmas proporções relativas do favicon.svg (font-size: 30/64 × 512 = 240) -->
-  <text x="256" y="224" font-family="Georgia,'Times New Roman',serif" font-size="240" font-weight="700" font-style="italic" fill="white" text-anchor="middle" dominant-baseline="middle">D</text>
+  <!-- D italic Doptex -->
+  <text x="248" y="208" font-family="Georgia,'Times New Roman',serif"
+        font-size="208" font-weight="700" font-style="italic"
+        fill="white" text-anchor="middle" dominant-baseline="middle">D</text>
 
-  <!-- Fábrica — translate proporcional: (32/64)=256, (54/64)*512=432 -->
-  <g transform="translate(256,432)" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round">
-    <!-- Corpo principal -->
-    <rect x="-120" y="-80" width="240" height="88" rx="8" fill="#06b6d4" stroke="white" stroke-width="11"/>
+  <!-- Fábrica industrial (silhueta) — proporcional ao favicon -->
+  <g transform="translate(256,416)" fill="none" stroke="white"
+     stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- Base / corpo principal -->
+    <rect x="-128" y="-80" width="256" height="88" rx="10"
+          fill="#1553b5" stroke="white" stroke-width="12"/>
+
     <!-- Chaminé esquerda -->
-    <rect x="-96"  y="-144" width="40" height="72"  rx="6" fill="#06b6d4" stroke="white" stroke-width="10"/>
+    <rect x="-104" y="-160" width="48" height="88"  rx="8"
+          fill="#1553b5" stroke="white" stroke-width="10"/>
+
     <!-- Chaminé central (maior) -->
-    <rect x="-24"  y="-176" width="40" height="104" rx="6" fill="#06b6d4" stroke="white" stroke-width="10"/>
+    <rect x="-24"  y="-200" width="48" height="128" rx="8"
+          fill="#1553b5" stroke="white" stroke-width="10"/>
+
     <!-- Chaminé direita -->
-    <rect x="56"   y="-128" width="40" height="56"  rx="6" fill="#06b6d4" stroke="white" stroke-width="10"/>
+    <rect x="56"   y="-136" width="48" height="64"  rx="8"
+          fill="#1553b5" stroke="white" stroke-width="10"/>
+
     <!-- Janelas -->
-    <rect x="-88"  y="-48"  width="32" height="32" rx="4" fill="white" stroke="none"/>
-    <rect x="-24"  y="-48"  width="32" height="32" rx="4" fill="white" stroke="none"/>
-    <rect x="40"   y="-48"  width="32" height="32" rx="4" fill="white" stroke="none"/>
+    <rect x="-96"  y="-48" width="32" height="32" rx="5" fill="white" stroke="none"/>
+    <rect x="-32"  y="-48" width="32" height="32" rx="5" fill="white" stroke="none"/>
+    <rect x="32"   y="-48" width="32" height="32" rx="5" fill="white" stroke="none"/>
   </g>
 </svg>

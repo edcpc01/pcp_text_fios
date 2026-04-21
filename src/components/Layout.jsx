@@ -1,9 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, CalendarDays, TrendingUp, FlaskConical,
+  LayoutDashboard, CalendarDays, TrendingUp,
   Bot, LogOut, Settings, ChevronDown, X, Menu, LineChart, RefreshCw,
 } from 'lucide-react';
+
+// Ícone de bobina de fio — substitui FlaskConical na nav de Materiais
+function SpoolIcon({ size = 18, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+         xmlns="http://www.w3.org/2000/svg" className={className}
+         stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="12" cy="18.5" rx="8" ry="2.5"/>
+      <ellipse cx="12" cy="5.5"  rx="8" ry="2.5"/>
+      <line x1="4"  y1="5.5"  x2="4"  y2="18.5"/>
+      <line x1="20" y1="5.5"  x2="20" y2="18.5"/>
+      <line x1="4"  y1="7"  x2="20" y2="13"/>
+      <line x1="4"  y1="12" x2="20" y2="18"/>
+      <line x1="4"  y1="13" x2="20" y2="7"/>
+      <line x1="4"  y1="18" x2="20" y2="12"/>
+    </svg>
+  );
+}
 import { useAuthStore, useAppStore, FACTORIES } from '../hooks/useStore';
 import { signOut, subscribeForecast, subscribeFinishedGoodsStock } from '../services/firebase';
 import AgentPanel from './AgentPanel';
@@ -100,25 +118,25 @@ export default function Layout({ children }) {
   const NAV = [
     { to: '/',           icon: LayoutDashboard, label: 'Dashboard'    },
     { to: '/production', icon: TrendingUp,      label: 'Realizado'    },
-    { to: '/materiais',  icon: FlaskConical,    label: 'Materiais'    },
+    { to: '/materiais',  icon: SpoolIcon,       label: 'Materiais'    },
     { to: '/forecast',   icon: LineChart,       label: 'Forecast'     },
     { to: '/planning',   icon: CalendarDays,    label: 'Planejamento' },
     ...(isAdmin ? [{ to: '/admin', icon: Settings, label: 'Cadastros' }] : []),
   ];
 
-  // SVG logo inline
+  // SVG logo inline — azul Doptex
   const LogoSVG = () => (
     <svg viewBox="0 0 64 64" width="32" height="32" xmlns="http://www.w3.org/2000/svg">
-      <rect width="64" height="64" rx="12" fill="#06b6d4"/>
-      <text x="32" y="28" fontFamily="Georgia,'Times New Roman',serif" fontSize="30" fontWeight="700" fontStyle="italic" fill="white" textAnchor="middle" dominantBaseline="middle">D</text>
-      <g transform="translate(32,54)" fill="none" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6">
-        <rect x="-15" y="-10" width="30" height="11" rx="1" fill="#06b6d4" stroke="white" strokeWidth="1.4"/>
-        <rect x="-12" y="-18" width="5" height="9"  rx="0.8" fill="#06b6d4" stroke="white" strokeWidth="1.3"/>
-        <rect x="-3"  y="-22" width="5" height="13" rx="0.8" fill="#06b6d4" stroke="white" strokeWidth="1.3"/>
-        <rect x="7"   y="-16" width="5" height="7"  rx="0.8" fill="#06b6d4" stroke="white" strokeWidth="1.3"/>
-        <rect x="-11" y="-6"  width="4" height="4" rx="0.5" fill="white" stroke="none"/>
-        <rect x="-3"  y="-6"  width="4" height="4" rx="0.5" fill="white" stroke="none"/>
-        <rect x="5"   y="-6"  width="4" height="4" rx="0.5" fill="white" stroke="none"/>
+      <rect width="64" height="64" rx="12" fill="#1553b5"/>
+      <text x="31" y="26" fontFamily="Georgia,'Times New Roman',serif" fontSize="26" fontWeight="700" fontStyle="italic" fill="white" textAnchor="middle" dominantBaseline="middle">D</text>
+      <g transform="translate(32,52)" fill="none" stroke="white" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="-16" y="-10" width="32" height="11" rx="1.2" fill="#1553b5" stroke="white" strokeWidth="1.5"/>
+        <rect x="-13" y="-20" width="6"  height="11" rx="1"   fill="#1553b5" stroke="white" strokeWidth="1.3"/>
+        <rect x="-3"  y="-25" width="6"  height="16" rx="1"   fill="#1553b5" stroke="white" strokeWidth="1.3"/>
+        <rect x="7"   y="-17" width="6"  height="8"  rx="1"   fill="#1553b5" stroke="white" strokeWidth="1.3"/>
+        <rect x="-12" y="-6"  width="4"  height="4"  rx="0.6" fill="white"   stroke="none"/>
+        <rect x="-4"  y="-6"  width="4"  height="4"  rx="0.6" fill="white"   stroke="none"/>
+        <rect x="4"   y="-6"  width="4"  height="4"  rx="0.6" fill="white"   stroke="none"/>
       </g>
     </svg>
   );

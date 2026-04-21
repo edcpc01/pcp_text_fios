@@ -15,8 +15,8 @@ export default defineConfig({
       devOptions: { enabled: true },
       includeAssets: ['favicon.svg', 'favicon-32.png', 'apple-touch-icon.png', 'robots.txt'],
       manifest: {
-        name: 'Corradi — Planejamento de Produção',
-        short_name: 'Corradi',
+        name: 'Doptex | Planejamento de Produção',
+        short_name: 'PCP Fios',
         description: 'Planejamento de produção de fios texturizados — Doptex & Corradi',
         theme_color: '#0c1222',
         background_color: '#0c1222',

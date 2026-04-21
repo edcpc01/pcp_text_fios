@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  FlaskConical, Package, ChevronLeft, ChevronRight, Pencil, Check, X,
+  Package, ChevronLeft, ChevronRight, Pencil, Check, X,
   TrendingDown, AlertTriangle, CheckCircle2, Layers, RefreshCw, Loader2, FolderOpen, ChevronDown,
 } from 'lucide-react';
 import { useAppStore, useAdminStore, usePlanningStore, useAuthStore } from '../hooks/useStore';
@@ -11,6 +11,31 @@ import {
 } from '../services/firebase';
 import { getMonthLabel } from '../utils/dates';
 import { pickOrReuseFile, clearFileHandle, readSavedFile, parseEstoqueCSV, findProductByCode } from '../utils/csvSync';
+
+// ─── Ícone de bobina de fio (SpoolIcon) ──────────────────────────────────────
+function SpoolIcon({ size = 18, className = '' }) {
+  const s = size;
+  return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none"
+         xmlns="http://www.w3.org/2000/svg" className={className}
+         stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      {/* Flange inferior */}
+      <ellipse cx="12" cy="18.5" rx="8" ry="2.5"/>
+      {/* Flange superior */}
+      <ellipse cx="12" cy="5.5"  rx="8" ry="2.5"/>
+      {/* Lateral esquerda do barril */}
+      <line x1="4"  y1="5.5"  x2="4"  y2="18.5"/>
+      {/* Lateral direita do barril */}
+      <line x1="20" y1="5.5"  x2="20" y2="18.5"/>
+      {/* Fios cruzados — sentido \\ */}
+      <line x1="4"  y1="7"  x2="20" y2="13"/>
+      <line x1="4"  y1="12" x2="20" y2="18"/>
+      {/* Fios cruzados — sentido // */}
+      <line x1="4"  y1="13" x2="20" y2="7"/>
+      <line x1="4"  y1="18" x2="20" y2="12"/>
+    </svg>
+  );
+}
 
 // ─── Cores de clientes — mesma paleta do Dashboard ───────────────────────────
 const CLIENT_COLORS = ['#f97316','#22d3ee','#8b5cf6','#10b981','#f59e0b','#ec4899','#6366f1','#14b8a6'];
@@ -615,7 +640,7 @@ export default function Materiais() {
       <div className="flex flex-col gap-3">
         <div>
           <h1 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-            <FlaskConical size={18} className="text-brand-cyan shrink-0" />
+            <SpoolIcon size={18} className="text-brand-cyan shrink-0" />
             Estoque Matéria Prima e Produto Acabado
           </h1>
           <p className="text-[10px] text-brand-muted mt-0.5 uppercase tracking-widest font-black">
@@ -706,7 +731,7 @@ export default function Materiais() {
       {/* ── MP Cards ── */}
       <div>
         <h2 className="text-xs font-bold text-brand-muted uppercase tracking-widest mb-4 flex items-center gap-2">
-          <FlaskConical size={16} className="text-brand-cyan" />
+          <SpoolIcon size={16} className="text-brand-cyan" />
           Matéria-Prima — Necessidade vs Estoque Microdata
           <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-md bg-brand-surface border border-brand-border">
             Clique no estoque para editar
@@ -715,7 +740,7 @@ export default function Materiais() {
 
         {mpNecessidade.length === 0 ? (
           <div className="bg-brand-card border border-brand-border rounded-2xl p-12 text-center">
-            <FlaskConical size={32} className="text-brand-muted mx-auto mb-3 opacity-30" />
+            <SpoolIcon size={32} className="text-brand-muted mx-auto mb-3 opacity-30" />
             <p className="text-brand-muted text-sm">Nenhum planejamento encontrado para o período.</p>
             <p className="text-brand-muted text-xs mt-1">Verifique se há entradas de planejamento com produtos cadastrados.</p>
           </div>
