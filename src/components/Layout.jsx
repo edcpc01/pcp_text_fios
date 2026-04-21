@@ -124,22 +124,6 @@ export default function Layout({ children }) {
     ...(isAdmin ? [{ to: '/admin', icon: Settings, label: 'Cadastros' }] : []),
   ];
 
-  // SVG logo inline — azul Doptex
-  const LogoSVG = () => (
-    <svg viewBox="0 0 64 64" width="32" height="32" xmlns="http://www.w3.org/2000/svg">
-      <rect width="64" height="64" rx="12" fill="#1553b5"/>
-      <text x="31" y="26" fontFamily="Georgia,'Times New Roman',serif" fontSize="26" fontWeight="700" fontStyle="italic" fill="white" textAnchor="middle" dominantBaseline="middle">D</text>
-      <g transform="translate(32,52)" fill="none" stroke="white" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="-16" y="-10" width="32" height="11" rx="1.2" fill="#1553b5" stroke="white" strokeWidth="1.5"/>
-        <rect x="-13" y="-20" width="6"  height="11" rx="1"   fill="#1553b5" stroke="white" strokeWidth="1.3"/>
-        <rect x="-3"  y="-25" width="6"  height="16" rx="1"   fill="#1553b5" stroke="white" strokeWidth="1.3"/>
-        <rect x="7"   y="-17" width="6"  height="8"  rx="1"   fill="#1553b5" stroke="white" strokeWidth="1.3"/>
-        <rect x="-12" y="-6"  width="4"  height="4"  rx="0.6" fill="white"   stroke="none"/>
-        <rect x="-4"  y="-6"  width="4"  height="4"  rx="0.6" fill="white"   stroke="none"/>
-        <rect x="4"   y="-6"  width="4"  height="4"  rx="0.6" fill="white"   stroke="none"/>
-      </g>
-    </svg>
-  );
 
   return (
     <div className="flex flex-col min-h-screen bg-brand-bg">
@@ -150,7 +134,9 @@ export default function Layout({ children }) {
 
           {/* Logo */}
           <div className="flex items-center gap-2.5 pr-4 border-r border-brand-border mr-3 shrink-0">
-            <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0"><LogoSVG /></div>
+            <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0">
+              <img src="/doptex-logo.png" alt="Doptex" className="w-full h-full object-cover" />
+            </div>
             <div className="hidden sm:block">
               <p className="text-sm font-bold text-white leading-none">PCP Fios</p>
               <p className="text-[10px] text-brand-muted">Planejamento</p>
