@@ -71,7 +71,7 @@ export default function Layout({ children }) {
           // Dispara notificação via SW (obrigatório em PWA standalone)
           if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
             const body = `${critical} produto${critical > 1 ? 's' : ''} com estoque crítico para ${currentYM}`;
-            const opts = { body, icon: '/icons/icon-192.png', tag: 'ruptura-forecast' };
+            const opts = { body, icon: '/doptex-logo.png', tag: 'ruptura-forecast' };
             if ('serviceWorker' in navigator) {
               navigator.serviceWorker.ready
                 .then((reg) => reg.showNotification('Alerta de Ruptura — PCP Fios', opts))

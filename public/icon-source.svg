@@ -1,35 +1,96 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <!-- Fundo azul Doptex -->
-  <rect width="512" height="512" rx="96" fill="#1553b5"/>
+  <rect width="512" height="512" fill="#1a55b4"/>
 
-  <!-- D italic Doptex -->
-  <text x="248" y="208" font-family="Georgia,'Times New Roman',serif"
-        font-size="208" font-weight="700" font-style="italic"
-        fill="white" text-anchor="middle" dominant-baseline="middle">D</text>
+  <!-- ── Silhueta da fábrica (cor levemente mais escura para textura) ── -->
+  <g fill="#1648a0" stroke="none">
 
-  <!-- Fábrica industrial (silhueta) — proporcional ao favicon -->
-  <g transform="translate(256,416)" fill="none" stroke="white"
-     stroke-linecap="round" stroke-linejoin="round">
+    <!-- Bloco central grande (corpo principal fábrica) -->
+    <rect x="80"  y="270" width="352" height="140"/>
 
-    <!-- Base / corpo principal -->
-    <rect x="-128" y="-80" width="256" height="88" rx="10"
-          fill="#1553b5" stroke="white" stroke-width="12"/>
+    <!-- Torre esquerda alta -->
+    <rect x="88"  y="150" width="52"  height="200"/>
+    <!-- Torre central maior -->
+    <rect x="160" y="100" width="60"  height="250"/>
+    <!-- Bloco médio centro-esquerda -->
+    <rect x="232" y="200" width="48"  height="120"/>
+    <!-- Torre direita alta -->
+    <rect x="340" y="130" width="64"  height="220"/>
+    <!-- Bloco menor direita -->
+    <rect x="290" y="220" width="44"  height="130"/>
 
-    <!-- Chaminé esquerda -->
-    <rect x="-104" y="-160" width="48" height="88"  rx="8"
-          fill="#1553b5" stroke="white" stroke-width="10"/>
+    <!-- Chaminés -->
+    <rect x="96"  y="90"  width="18" height="80"/>
+    <rect x="118" y="120" width="14" height="60"/>
+    <rect x="176" y="48"  width="20" height="80"/>
+    <rect x="200" y="70"  width="14" height="60"/>
+    <rect x="354" y="68"  width="20" height="88"/>
+    <rect x="376" y="90"  width="14" height="66"/>
 
-    <!-- Chaminé central (maior) -->
-    <rect x="-24"  y="-200" width="48" height="128" rx="8"
-          fill="#1553b5" stroke="white" stroke-width="10"/>
+    <!-- Janelas fábrica — fileiras de janelas pequenas -->
+    <!-- Bloco central - linha superior -->
+    <rect x="100" y="284" width="20" height="16" rx="2"/>
+    <rect x="130" y="284" width="20" height="16" rx="2"/>
+    <rect x="160" y="284" width="20" height="16" rx="2"/>
+    <rect x="200" y="284" width="20" height="16" rx="2"/>
+    <rect x="230" y="284" width="20" height="16" rx="2"/>
+    <rect x="268" y="284" width="20" height="16" rx="2"/>
+    <rect x="298" y="284" width="20" height="16" rx="2"/>
+    <rect x="330" y="284" width="20" height="16" rx="2"/>
+    <rect x="362" y="284" width="20" height="16" rx="2"/>
 
-    <!-- Chaminé direita -->
-    <rect x="56"   y="-136" width="48" height="64"  rx="8"
-          fill="#1553b5" stroke="white" stroke-width="10"/>
+    <!-- Bloco central - linha inferior -->
+    <rect x="100" y="316" width="20" height="16" rx="2"/>
+    <rect x="130" y="316" width="20" height="16" rx="2"/>
+    <rect x="160" y="316" width="20" height="16" rx="2"/>
+    <rect x="200" y="316" width="20" height="16" rx="2"/>
+    <rect x="230" y="316" width="20" height="16" rx="2"/>
+    <rect x="268" y="316" width="20" height="16" rx="2"/>
+    <rect x="298" y="316" width="20" height="16" rx="2"/>
+    <rect x="330" y="316" width="20" height="16" rx="2"/>
+    <rect x="362" y="316" width="20" height="16" rx="2"/>
 
-    <!-- Janelas -->
-    <rect x="-96"  y="-48" width="32" height="32" rx="5" fill="white" stroke="none"/>
-    <rect x="-32"  y="-48" width="32" height="32" rx="5" fill="white" stroke="none"/>
-    <rect x="32"   y="-48" width="32" height="32" rx="5" fill="white" stroke="none"/>
+    <!-- Torres laterais — janelas -->
+    <rect x="96"  y="170" width="16" height="12" rx="2"/>
+    <rect x="96"  y="196" width="16" height="12" rx="2"/>
+    <rect x="168" y="120" width="16" height="12" rx="2"/>
+    <rect x="168" y="146" width="16" height="12" rx="2"/>
+    <rect x="168" y="172" width="16" height="12" rx="2"/>
+    <rect x="350" y="148" width="18" height="12" rx="2"/>
+    <rect x="374" y="148" width="18" height="12" rx="2"/>
+    <rect x="350" y="176" width="18" height="12" rx="2"/>
+    <rect x="374" y="176" width="18" height="12" rx="2"/>
+    <rect x="350" y="204" width="18" height="12" rx="2"/>
+    <rect x="374" y="204" width="18" height="12" rx="2"/>
   </g>
+
+  <!-- ── D estilizado Doptex (logo mark) — branco com gradiente ── -->
+  <g>
+    <!-- Sombra/profundidade do D -->
+    <path d="M178 148 L178 320 Q178 340 200 340 L256 340
+             Q330 340 362 290 Q390 248 390 234 Q390 188 362 168 Q334 148 260 148 Z"
+          fill="rgba(0,0,0,0.15)"/>
+
+    <!-- D principal branco -->
+    <path d="M172 144 L172 316 Q172 336 194 336 L250 336
+             Q324 336 356 286 Q384 244 384 230 Q384 184 356 164 Q328 144 254 144 Z"
+          fill="white"/>
+
+    <!-- Recorte interno do D (buraco) -->
+    <path d="M210 178 L240 178 Q298 178 324 210 Q342 232 342 230
+             Q342 252 324 274 Q298 302 240 302 L210 302 Z"
+          fill="#1a55b4"/>
+
+    <!-- Arco/traço diagonal característico do logo Doptex -->
+    <path d="M148 260 Q200 210 290 184 Q340 168 390 178"
+          fill="none" stroke="white" stroke-width="22" stroke-linecap="round"/>
+    <path d="M148 260 Q200 210 290 184 Q340 168 390 178"
+          fill="none" stroke="#1a55b4" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <!-- ── DOPTEX texto ── -->
+  <text x="256" y="478"
+        font-family="Arial Black, Arial, Helvetica, sans-serif"
+        font-size="72" font-weight="900" letter-spacing="6"
+        fill="white" text-anchor="middle" dominant-baseline="auto">DOPTEX</text>
 </svg>
