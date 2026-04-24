@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, TrendingUp,
-  Bot, LogOut, Settings, ChevronDown, X, Menu, LineChart, RefreshCw,
+  Bot, LogOut, Settings, ChevronDown, X, Menu, LineChart, RefreshCw, Award,
 } from 'lucide-react';
 
 // Ícone de bobina de fio — substitui FlaskConical na nav de Materiais
@@ -120,6 +120,7 @@ export default function Layout({ children }) {
     { to: '/production', icon: TrendingUp,      label: 'Realizado'    },
     { to: '/materiais',  icon: SpoolIcon,       label: 'Materiais'    },
     { to: '/forecast',   icon: LineChart,       label: 'Forecast'     },
+    { to: '/qualidade',  icon: Award,           label: 'Qualidade'    },
     { to: '/planning',   icon: CalendarDays,    label: 'Planejamento' },
     ...(isAdmin ? [{ to: '/admin', icon: Settings, label: 'Cadastros' }] : []),
   ];
