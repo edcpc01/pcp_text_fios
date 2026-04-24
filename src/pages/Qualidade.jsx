@@ -24,7 +24,7 @@ function getTier(classif, lote) {
   const l = (lote    || '').toUpperCase().trim();
   if (REFUGO.has(c))           return 'refugo';
   if (SEGUNDA.has(c))          return 'segunda';
-  if (l.startsWith('A'))       return 'segunda'; // lote iniciado com "A" = 2ª qualidade
+  if (l.endsWith('A'))         return 'segunda'; // lote terminado com "A" = 2ª qualidade
   return 'primeira';
 }
 
