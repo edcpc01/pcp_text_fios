@@ -77,6 +77,19 @@ export async function clearFileHandle(key) {
 }
 
 /**
+ * Lê um File com encoding Windows-1252 (padrão do Microdata ERP / exportações BR).
+ * file.text() usa sempre UTF-8, o que corrompe acentos e cedilhas em arquivos do ERP.
+ */
+export function readFileText(file, encoding = 'windows-1252') {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = (e) => resolve(e.target.result);
+    reader.onerror = ()  => reject(reader.error);
+    reader.readAsText(file, encoding);
+  });
+}
+
+/**
  * Lê silenciosamente o arquivo salvo SEM abrir picker.
  * Retorna File se o handle existe e a permissão está ativa, null caso contrário.
  * Usado para auto-sync em background (sem interação do usuário).

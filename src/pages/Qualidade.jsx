@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../hooks/useStore';
 import { getMonthLabel } from '../utils/dates';
-import { pickOrReuseFile, clearFileHandle, readSavedFile, parseQualidadeCSV } from '../utils/csvSync';
+import { pickOrReuseFile, clearFileHandle, readSavedFile, parseQualidadeCSV, readFileText } from '../utils/csvSync';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -133,14 +133,14 @@ export default function Qualidade() {
     try {
       const file = await pickOrReuseFile(CSV_KEY);
       if (!file) { setSyncing(false); return; }
-      processText(await file.text());
+      processText(await readFileText(file));
     } catch (err) { setSyncResult({ error: err.message }); setSyncing(false); }
   };
 
   const handleFallback = async (e) => {
     const file = e.target.files?.[0];
     if (!file) { setSyncing(false); return; }
-    try { processText(await file.text()); } catch (err) { setSyncResult({ error: err.message }); setSyncing(false); }
+    try { processText(await readFileText(file)); } catch (err) { setSyncResult({ error: err.message }); setSyncing(false); }
     e.target.value = '';
   };
 
