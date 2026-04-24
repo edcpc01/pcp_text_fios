@@ -307,6 +307,56 @@ export function parseEstoqueCSV(text) {
   }));
 }
 
+// ─── Parse CSV de Qualidade ───────────────────────────────────────────────────
+
+/**
+ * Retorna todas as linhas do CSV de Produção sem filtrar nenhuma classificação.
+ * Usado pela página de Qualidade para separar 1ª, 2ª qualidade e refugo.
+ * Retorna array de { date, machine, productCode, productName, quantity, classif, empresa }
+ */
+export function parseQualidadeCSV(text) {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length < 2) return [];
+
+  const delim   = detectDelimiter(lines[0]);
+  const headers = lines[0].split(delim).map(parseValue);
+
+  const iDate    = findCol(headers, ['data', 'date', 'dt', 'dia']);
+  const iMachine = findCol(headers, ['maquina', 'machine', 'maq', 'cod_maquina', 'codigo_maquina', 'equipamento']);
+  const iCode    = findCol(headers, ['codigo_produto', 'cod_produto', 'produto', 'product', 'codigo', 'cod', 'code', 'item']);
+  const iName    = findCol(headers, ['descricao', 'description', 'desc', 'nome', 'name']);
+  const iQty     = findCol(headers, ['quantidade', 'qtd', 'realizado', 'produzido', 'kg', 'qty', 'amount', 'peso']);
+  const iClassif = findCol(headers, ['classif', 'classificacao', 'classification', 'class']);
+  const iEmpresa = findCol(headers, ['empresa', 'company', 'emp', 'cd_empresa', 'cod_empresa', 'ie_empresa']);
+
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(delim).map(parseValue);
+    if (cols.length < 2) continue;
+
+    const date        = parseDate(iDate    >= 0 ? cols[iDate]    : cols[0]);
+    const machine     = iMachine >= 0 ? cols[iMachine] : cols[1];
+    const productCode = iCode    >= 0 ? cols[iCode]    : cols[2];
+    const productName = iName    >= 0 ? cols[iName]    : '';
+    const qty         = parseNumber(iQty >= 0 ? cols[iQty] : cols[3]);
+    const classif     = iClassif >= 0 ? (cols[iClassif] || '').trim().toUpperCase() : '';
+    const empresa     = iEmpresa >= 0 ? (cols[iEmpresa] || '').trim() : '';
+
+    if (!date || !productCode || isNaN(qty)) continue;
+
+    rows.push({
+      date,
+      machine:     (machine     || '').trim(),
+      productCode: (productCode || '').trim(),
+      productName: (productName || '').trim(),
+      quantity: qty,
+      classif,
+      empresa,
+    });
+  }
+  return rows;
+}
+
 // ─── Product Lookup ───────────────────────────────────────────────────────────
 
 /**
