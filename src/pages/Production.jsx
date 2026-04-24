@@ -4,7 +4,7 @@ import { useAppStore, useProductionStore, usePlanningStore, useAdminStore, useAu
 import { subscribeProductionRecords, subscribePlanningEntries, saveProductionRecord } from '../services/firebase';
 import { getMonthLabel, getDaysInMonth, isSunday } from '../utils/dates';
 import { seedDemoData } from '../utils/seedData';
-import { pickOrReuseFile, clearFileHandle, readSavedFile, parseProducaoCSV, findProductByCode } from '../utils/csvSync';
+import { pickOrReuseFile, clearFileHandle, readSavedFile, parseProducaoCSV, findProductByCode, readFileText } from '../utils/csvSync';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -204,7 +204,7 @@ export default function Production() {
     try {
       const file = await pickOrReuseFile(CSV_HANDLE_KEY);
       if (!file) { setSyncing(false); return; }
-      const text = await file.text();
+      const text = await readFileText(file);
       await processCSVText(text);
     } catch (err) {
       setSyncResult({ error: err.message });
@@ -216,7 +216,7 @@ export default function Production() {
     const file = e.target.files?.[0];
     if (!file) { setSyncing(false); return; }
     try {
-      const text = await file.text();
+      const text = await readFileText(file);
       await processCSVText(text);
     } catch (err) {
       setSyncResult({ error: err.message });
@@ -270,7 +270,7 @@ export default function Production() {
       const file = await readSavedFile(CSV_HANDLE_KEY);
       if (!file) return; // nenhum arquivo salvo — aguarda sync manual
       try {
-        const text = await file.text();
+        const text = await readFileText(file);
         await processCSVText(text);
         setLastAutoSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
       } catch { /* falha silenciosa no auto-sync */ }
