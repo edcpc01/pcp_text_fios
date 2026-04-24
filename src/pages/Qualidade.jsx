@@ -19,10 +19,12 @@ const FACTORY_META = {
   outra:  { label: 'Outras',         dot: '#6b7280' },
 };
 
-function getTier(classif) {
+function getTier(classif, lote) {
   const c = (classif || '').toUpperCase().trim();
-  if (SEGUNDA.has(c)) return 'segunda';
-  if (REFUGO.has(c))  return 'refugo';
+  const l = (lote    || '').toUpperCase().trim();
+  if (REFUGO.has(c))           return 'refugo';
+  if (SEGUNDA.has(c))          return 'segunda';
+  if (l.startsWith('A'))       return 'segunda'; // lote iniciado com "A" = 2ª qualidade
   return 'primeira';
 }
 
@@ -54,6 +56,7 @@ function MetricCols({ primeira, segunda, refugo, total }) {
       <td className="px-3 py-2.5 text-right whitespace-nowrap">
         <span className="text-sm font-mono font-semibold text-emerald-400">{fmtKg(primeira)}</span>
         <span className="text-[10px] text-brand-muted/60 ml-1">kg</span>
+        <span className="text-[10px] text-emerald-400/70 ml-1.5">({p1.toFixed(1)}%)</span>
       </td>
 
       <td className="px-3 py-2.5 text-right whitespace-nowrap">
@@ -173,7 +176,7 @@ export default function Qualidade() {
       const fKey = getFactory(r.empresa);
       const mKey = r.machine || '(sem máquina)';
       const pKey = `${r.productCode}||${r.productName || r.productCode}`;
-      const t    = getTier(r.classif);
+      const t    = getTier(r.classif, r.lote);
 
       if (!factMap[fKey]) {
         const meta = FACTORY_META[fKey] || FACTORY_META.outra;

@@ -328,6 +328,7 @@ export function parseQualidadeCSV(text) {
   const iQty      = findCol(headers, ['quantidade', 'qtd', 'realizado', 'produzido', 'kg', 'qty', 'amount', 'peso']);
   const iClassif  = findCol(headers, ['qualidade', 'classif', 'classificacao', 'classification', 'class', 'qual', 'tp_qualidade', 'ie_qualidade', 'cd_qualidade']);
   const iEmpresa  = findCol(headers, ['empresa', 'company', 'emp', 'cd_empresa', 'cod_empresa', 'ie_empresa']);
+  const iLote     = findCol(headers, ['lote', 'lot', 'batch', 'nr_lote', 'num_lote', 'cd_lote']);
 
   const rows = [];
   for (let i = 1; i < lines.length; i++) {
@@ -341,6 +342,7 @@ export function parseQualidadeCSV(text) {
     const qty         = parseNumber(iQty >= 0 ? cols[iQty] : cols[3]);
     const classif     = iClassif >= 0 ? (cols[iClassif] || '').trim().toUpperCase() : '';
     const empresa     = iEmpresa >= 0 ? (cols[iEmpresa] || '').trim() : '';
+    const lote        = iLote    >= 0 ? (cols[iLote]    || '').trim().toUpperCase() : '';
 
     if (!date || !productCode || isNaN(qty)) continue;
 
@@ -352,6 +354,7 @@ export function parseQualidadeCSV(text) {
       quantity: qty,
       classif,
       empresa,
+      lote,
     });
   }
   return rows;
