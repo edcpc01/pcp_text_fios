@@ -322,7 +322,7 @@ export function parseQualidadeCSV(text) {
   const headers = lines[0].split(delim).map(parseValue);
 
   // Log para diagnóstico — remove após identificar o nome correto da coluna
-  console.debug('[parseQualidadeCSV] headers detectados:', headers);
+  console.log('[parseQualidadeCSV] headers detectados:', headers);
 
   const iDate    = findCol(headers, ['data', 'date', 'dt', 'dia']);
   const iMachine = findCol(headers, ['maquina', 'machine', 'maq', 'cod_maquina', 'codigo_maquina', 'equipamento']);
@@ -332,7 +332,7 @@ export function parseQualidadeCSV(text) {
   const iClassif = findCol(headers, ['qualidade', 'classif', 'classificacao', 'classification', 'class', 'qual', 'tp_qualidade', 'ie_qualidade', 'cd_qualidade', 'ds_qualidade', 'categoria', 'tipo']);
   const iEmpresa = findCol(headers, ['empresa', 'company', 'emp', 'cd_empresa', 'cod_empresa', 'ie_empresa']);
 
-  console.debug('[parseQualidadeCSV] índice coluna qualidade (iClassif):', iClassif, '→', iClassif >= 0 ? headers[iClassif] : 'NÃO ENCONTRADO');
+  console.log('[parseQualidadeCSV] iClassif:', iClassif, '→', iClassif >= 0 ? headers[iClassif] : 'NÃO ENCONTRADO');
 
   const rows = [];
   for (let i = 1; i < lines.length; i++) {
