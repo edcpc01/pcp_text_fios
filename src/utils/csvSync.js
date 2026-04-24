@@ -326,7 +326,7 @@ export function parseQualidadeCSV(text) {
   const iCode    = findCol(headers, ['codigo_produto', 'cod_produto', 'produto', 'product', 'codigo', 'cod', 'code', 'item']);
   const iName    = findCol(headers, ['descricao', 'description', 'desc', 'nome', 'name']);
   const iQty     = findCol(headers, ['quantidade', 'qtd', 'realizado', 'produzido', 'kg', 'qty', 'amount', 'peso']);
-  const iClassif = findCol(headers, ['classif', 'classificacao', 'classification', 'class']);
+  const iClassif = findCol(headers, ['qualidade', 'classif', 'classificacao', 'classification', 'class', 'qual']);
   const iEmpresa = findCol(headers, ['empresa', 'company', 'emp', 'cd_empresa', 'cod_empresa', 'ie_empresa']);
 
   const rows = [];
