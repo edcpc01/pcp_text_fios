@@ -321,13 +321,18 @@ export function parseQualidadeCSV(text) {
   const delim   = detectDelimiter(lines[0]);
   const headers = lines[0].split(delim).map(parseValue);
 
+  // Log para diagnóstico — remove após identificar o nome correto da coluna
+  console.log('[parseQualidadeCSV] headers detectados:', headers);
+
   const iDate    = findCol(headers, ['data', 'date', 'dt', 'dia']);
   const iMachine = findCol(headers, ['maquina', 'machine', 'maq', 'cod_maquina', 'codigo_maquina', 'equipamento']);
   const iCode    = findCol(headers, ['codigo_produto', 'cod_produto', 'produto', 'product', 'codigo', 'cod', 'code', 'item']);
   const iName    = findCol(headers, ['descricao', 'description', 'desc', 'nome', 'name']);
   const iQty     = findCol(headers, ['quantidade', 'qtd', 'realizado', 'produzido', 'kg', 'qty', 'amount', 'peso']);
-  const iClassif = findCol(headers, ['classif', 'classificacao', 'classification', 'class']);
+  const iClassif = findCol(headers, ['qualidade', 'classif', 'classificacao', 'classification', 'class', 'qual', 'tp_qualidade', 'ie_qualidade', 'cd_qualidade', 'ds_qualidade', 'categoria', 'tipo']);
   const iEmpresa = findCol(headers, ['empresa', 'company', 'emp', 'cd_empresa', 'cod_empresa', 'ie_empresa']);
+
+  console.log('[parseQualidadeCSV] iClassif:', iClassif, '→', iClassif >= 0 ? headers[iClassif] : 'NÃO ENCONTRADO');
 
   const rows = [];
   for (let i = 1; i < lines.length; i++) {
