@@ -433,7 +433,7 @@ function MatrixCell({ entries, date, machine, isCurrentDay, onClick, onDragStart
                 : <span className="text-[7px] md:text-[9px] font-bold" style={{ color: ct.text, opacity: 0.8 }}>{primary.quality || 'A'}</span>
               }
             </>)
-          ) : (
+          ) : (<>
             <span className="text-[7px] md:text-[8px] font-black uppercase text-center leading-tight px-0.5" style={{ color: ct.text, opacity: 0.9 }}>
               {primary.cellType === 'parada_np'
                 ? (hasPnp ? `${(primary.pnps[0].motivo || 'PNP').slice(0, 3).toUpperCase()}` : 'P.N.P')
@@ -444,7 +444,7 @@ function MatrixCell({ entries, date, machine, isCurrentDay, onClick, onDragStart
                 {minToTime((primary.pnps || []).reduce((s, p) => s + (p.minutos || 0), 0))}
               </span>
             )}
-          )
+          </>)
         ) : (
           onClick ? <Plus size={8} className="text-brand-border/40 md:hidden" /> : null
         )}
