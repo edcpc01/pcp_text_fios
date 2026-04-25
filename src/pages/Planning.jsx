@@ -156,8 +156,9 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
         date: form.date, cellType: form.cellType, factory,
       };
       if (!isProducao) {
-        // Parada/manutenção: sempre entrada única, sem twist. Remove S/Z antigos se houver.
-        await onSave({ ...base, product: '', productName: '', planned: 0, twist: null, pnps: [] });
+        // Parada/manutenção: salva pnps se parada_np, vazio para outros tipos.
+        const pnpsSave = form.cellType === 'parada_np' ? pnps : [];
+        await onSave({ ...base, product: '', productName: '', planned: 0, twist: null, pnps: pnpsSave });
         if (entryS) await onDelete(entryS.id);
         if (entryZ) await onDelete(entryZ.id);
       } else if (splitMode && form.productZ) {
@@ -281,8 +282,8 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
             )}
           </>)}
 
-          {/* ── Seção PNP (apenas produção) ─────────────────────── */}
-          {isProducao && (
+          {/* ── Seção PNP ─────────────────────────────────────────── */}
+          {(isProducao || form.cellType === 'parada_np') && (
             <div className="border border-red-500/25 rounded-xl p-3 space-y-2 bg-red-500/[0.03]">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-red-400 flex items-center gap-1.5">
@@ -296,7 +297,7 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
                 )}
               </div>
 
-              {/* Lista */}
+              {/* Lista de PNPs */}
               {pnps.map((p) => (
                 <div key={p.id} className="flex items-center justify-between bg-red-500/10 rounded-lg px-2.5 py-1.5">
                   <div className="flex items-center gap-2">
@@ -338,8 +339,8 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
                 <p className="text-[10px] text-brand-muted/40">Nenhuma parada registrada</p>
               )}
 
-              {/* Resumo de desconto */}
-              {totalPnpMin > 0 && (
+              {/* Resumo de desconto (apenas para produção) */}
+              {isProducao && totalPnpMin > 0 && (
                 <div className="flex items-center justify-between pt-1 border-t border-red-500/15">
                   <span className="text-[10px] text-brand-muted/60">Desconto: {minToTime(totalPnpMin)}h</span>
                   <span className="text-[10px] text-amber-400 font-mono font-bold">
@@ -350,7 +351,7 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
             </div>
           )}
 
-          {!isProducao && (
+          {!isProducao && form.cellType !== 'parada_np' && (
             <p className="text-xs text-brand-muted bg-brand-surface/50 border border-brand-border rounded-xl px-3 py-2.5">
               Nenhuma produção será apontada para este dia.
             </p>
@@ -434,8 +435,15 @@ function MatrixCell({ entries, date, machine, isCurrentDay, onClick, onDragStart
             </>)
           ) : (
             <span className="text-[7px] md:text-[8px] font-black uppercase text-center leading-tight px-0.5" style={{ color: ct.text, opacity: 0.9 }}>
-              {primary.cellType === 'parada_np' ? 'P.N.P' : primary.cellType === 'parada_p' ? 'P.Prog' : 'Manut.'}
+              {primary.cellType === 'parada_np'
+                ? (hasPnp ? `${(primary.pnps[0].motivo || 'PNP').slice(0, 3).toUpperCase()}` : 'P.N.P')
+                : primary.cellType === 'parada_p' ? 'P.Prog' : 'Manut.'}
             </span>
+            {primary.cellType === 'parada_np' && hasPnp && (
+              <span className="text-[6px] font-mono" style={{ color: ct.text, opacity: 0.7 }}>
+                {minToTime((primary.pnps || []).reduce((s, p) => s + (p.minutos || 0), 0))}
+              </span>
+            )}
           )
         ) : (
           onClick ? <Plus size={8} className="text-brand-border/40 md:hidden" /> : null
