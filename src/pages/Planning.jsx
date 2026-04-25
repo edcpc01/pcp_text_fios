@@ -1,8 +1,34 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, ChevronLeft, ChevronRight, X, Save, Trash2, CalendarDays, Package, Cpu, Activity } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, X, Save, Trash2, CalendarDays, Package, Cpu, Activity, AlertTriangle, Clock } from 'lucide-react';
 import { useAppStore, usePlanningStore, useAdminStore, useAuthStore, CELL_TYPES, makeEntryId, FACTORIES, parseCabos, spindlesForProduct, isTwistSplit, hasTwistMark, isSplitMachine } from '../hooks/useStore';
 import { subscribePlanningEntries, savePlanningEntry, deletePlanningEntry } from '../services/firebase';
 import { getDaysInMonth, getWeekday, formatDate, getMonthLabel, isToday } from '../utils/dates';
+
+// ─── PNP helpers ──────────────────────────────────────────────────────────────
+const MOTIVOS_PNP = ['Mecânico', 'Elétrico', 'Programação', 'Pico de energia', 'Operacional', 'Compressor'];
+
+function timeToMin(hhmm) {
+  const [h, m] = (hhmm || '00:00').split(':').map(Number);
+  return (isNaN(h) ? 0 : h) * 60 + (isNaN(m) ? 0 : m);
+}
+
+function minToTime(min) {
+  const h = Math.floor((min || 0) / 60);
+  const m = (min || 0) % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function calcFactor(pnps) {
+  const min = (pnps || []).reduce((s, p) => s + (p.minutos || 0), 0);
+  return min > 0 ? Math.max(0, (1440 - min) / 1440) : 1;
+}
+
+function adjustedPlannedTotal(entries) {
+  const pnps   = entries[0]?.pnps || [];
+  const factor = calcFactor(pnps);
+  const raw    = entries.reduce((s, e) => s + (e?.cellType === 'producao' ? (e.planned || 0) : 0), 0);
+  return Math.round(raw * factor);
+}
 
 // ─── Legend ───────────────────────────────────────────────────────────────────
 function Legend() {
@@ -64,6 +90,23 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
   const [saving,   setSaving]   = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // ── PNP state ──
+  const [pnps,         setPnps]         = useState(primaryE?.pnps || []);
+  const [addingPnp,    setAddingPnp]    = useState(false);
+  const [newPnpMotivo, setNewPnpMotivo] = useState(MOTIVOS_PNP[0]);
+  const [newPnpTime,   setNewPnpTime]   = useState('');
+
+  const totalPnpMin   = pnps.reduce((s, p) => s + (p.minutos || 0), 0);
+  const adjPlanned    = Math.round((Number(form.planned) || 0) * calcFactor(pnps));
+
+  const addPnp = () => {
+    const min = timeToMin(newPnpTime);
+    if (min <= 0) return;
+    setPnps((prev) => [...prev, { id: String(Date.now()), motivo: newPnpMotivo, minutos: min }]);
+    setNewPnpTime('');
+    setAddingPnp(false);
+  };
+
   const currentMachine = machines?.find((x) => x.id === form.machine) || machineObj;
   const currentProduct = products.find((x) => x.id === form.product);
   const cabos = parseCabos(currentProduct?.nome) || parseCabos(form.productName) || 1;
@@ -114,20 +157,19 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
       };
       if (!isProducao) {
         // Parada/manutenção: sempre entrada única, sem twist. Remove S/Z antigos se houver.
-        await onSave({ ...base, product: '', productName: '', planned: 0, twist: null });
+        await onSave({ ...base, product: '', productName: '', planned: 0, twist: null, pnps: [] });
         if (entryS) await onDelete(entryS.id);
         if (entryZ) await onDelete(entryZ.id);
       } else if (splitMode && form.productZ) {
-        // Split S/Z — primário + secundário. Grava ambos com twist correto.
-        await onSave({ ...base, product: form.product,  productName: form.productName,  planned: Number(form.planned)  || 0, twist: primaryTwist });
-        await onSave({ ...base, product: form.productZ, productName: form.productZName, planned: Number(form.plannedZ) || 0, twist: secondaryTwist });
+        // Split S/Z — primário carrega pnps; secundário não.
+        await onSave({ ...base, product: form.product,  productName: form.productName,  planned: Number(form.planned)  || 0, twist: primaryTwist,   pnps });
+        await onSave({ ...base, product: form.productZ, productName: form.productZName, planned: Number(form.plannedZ) || 0, twist: secondaryTwist, pnps: [] });
         if (entryFlat && !entryFlat.twist) await onDelete(entryFlat.id);
-        // Se existia S+Z antes mas os twists trocaram, limpa o que não casa
         if (entryS && entryS.twist !== primaryTwist && entryS.twist !== secondaryTwist) await onDelete(entryS.id);
         if (entryZ && entryZ.twist !== primaryTwist && entryZ.twist !== secondaryTwist) await onDelete(entryZ.id);
       } else {
-        // Produto único. Remove S/Z antigos se houver.
-        await onSave({ ...base, product: form.product, productName: form.productName, planned: Number(form.planned) || 0, twist: null });
+        // Produto único.
+        await onSave({ ...base, product: form.product, productName: form.productName, planned: Number(form.planned) || 0, twist: null, pnps });
         if (entryS) await onDelete(entryS.id);
         if (entryZ) await onDelete(entryZ.id);
       }
@@ -239,6 +281,75 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
             )}
           </>)}
 
+          {/* ── Seção PNP (apenas produção) ─────────────────────── */}
+          {isProducao && (
+            <div className="border border-red-500/25 rounded-xl p-3 space-y-2 bg-red-500/[0.03]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-red-400 flex items-center gap-1.5">
+                  <AlertTriangle size={11} /> Paradas Não Programadas
+                </span>
+                {!addingPnp && (
+                  <button onClick={() => setAddingPnp(true)}
+                    className="flex items-center gap-1 text-[11px] text-red-400/80 hover:text-red-300 transition-colors">
+                    <Plus size={11} /> Adicionar
+                  </button>
+                )}
+              </div>
+
+              {/* Lista */}
+              {pnps.map((p) => (
+                <div key={p.id} className="flex items-center justify-between bg-red-500/10 rounded-lg px-2.5 py-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-red-300 font-medium">{p.motivo}</span>
+                    <span className="text-[10px] text-red-400/70 font-mono flex items-center gap-0.5">
+                      <Clock size={9} />{minToTime(p.minutos)}
+                    </span>
+                  </div>
+                  <button onClick={() => setPnps((prev) => prev.filter((x) => x.id !== p.id))}
+                    className="text-red-400/50 hover:text-red-300 transition-colors ml-2">
+                    <X size={11} />
+                  </button>
+                </div>
+              ))}
+
+              {/* Formulário de adição */}
+              {addingPnp && (
+                <div className="space-y-2 pt-1">
+                  <select value={newPnpMotivo} onChange={(e) => setNewPnpMotivo(e.target.value)}
+                    className="w-full bg-brand-surface border border-red-500/30 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-red-400/50 transition-all">
+                    {MOTIVOS_PNP.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                  <div className="flex gap-2">
+                    <input type="time" value={newPnpTime} onChange={(e) => setNewPnpTime(e.target.value)}
+                      className="flex-1 bg-brand-surface border border-red-500/30 rounded-lg px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-red-400/50 transition-all" />
+                    <button onClick={addPnp} disabled={!newPnpTime}
+                      className="px-3 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-300 text-xs font-bold rounded-lg transition-all disabled:opacity-40">
+                      OK
+                    </button>
+                    <button onClick={() => { setAddingPnp(false); setNewPnpTime(''); }}
+                      className="px-2 py-2 text-brand-muted hover:text-white rounded-lg transition-all">
+                      <X size={12} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {pnps.length === 0 && !addingPnp && (
+                <p className="text-[10px] text-brand-muted/40">Nenhuma parada registrada</p>
+              )}
+
+              {/* Resumo de desconto */}
+              {totalPnpMin > 0 && (
+                <div className="flex items-center justify-between pt-1 border-t border-red-500/15">
+                  <span className="text-[10px] text-brand-muted/60">Desconto: {minToTime(totalPnpMin)}h</span>
+                  <span className="text-[10px] text-amber-400 font-mono font-bold">
+                    Volume ajustado: {adjPlanned.toLocaleString('pt-BR')} kg
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           {!isProducao && (
             <p className="text-xs text-brand-muted bg-brand-surface/50 border border-brand-border rounded-xl px-3 py-2.5">
               Nenhuma produção será apontada para este dia.
@@ -271,6 +382,8 @@ function MatrixCell({ entries, date, machine, isCurrentDay, onClick, onDragStart
   const ct = primary?.cellType ? CELL_TYPES[primary.cellType] : null;
   const isSplit = entries && entries.length > 1;
   const totalPlanned = (entries || []).reduce((s, e) => s + (e?.cellType === 'producao' ? (e.planned || 0) : 0), 0);
+  const adjTotal  = adjustedPlannedTotal(entries || []);
+  const hasPnp    = (primary?.pnps || []).length > 0;
 
   const tooltipText = primary
     ? (primary.cellType === 'producao'
@@ -306,14 +419,18 @@ function MatrixCell({ entries, date, machine, isCurrentDay, onClick, onDragStart
                   </div>
                 ))}
                 <span className="text-[6px] md:text-[7px] font-mono" style={{ color: ct.text, opacity: 0.55 }}>
-                  Σ {totalPlanned >= 1000 ? `${(totalPlanned / 1000).toFixed(1)}k` : totalPlanned}
+                  Σ {adjTotal >= 1000 ? `${(adjTotal / 1000).toFixed(1)}k` : adjTotal}
+                  {hasPnp && <span style={{ opacity: 0.8 }}>⚠</span>}
                 </span>
               </div>
             ) : (<>
               <span className="text-[8px] md:text-[11px] font-mono font-black leading-none" style={{ color: ct.text }}>
-                {primary.planned >= 1000 ? `${(primary.planned / 1000).toFixed(1)}k` : primary.planned}
+                {adjTotal >= 1000 ? `${(adjTotal / 1000).toFixed(1)}k` : adjTotal}
               </span>
-              <span className="text-[7px] md:text-[9px] font-bold" style={{ color: ct.text, opacity: 0.8 }}>{primary.quality || 'A'}</span>
+              {hasPnp
+                ? <span className="text-[6px] md:text-[7px] font-bold leading-none" style={{ color: '#fbbf24' }}>PNP</span>
+                : <span className="text-[7px] md:text-[9px] font-bold" style={{ color: ct.text, opacity: 0.8 }}>{primary.quality || 'A'}</span>
+              }
             </>)
           ) : (
             <span className="text-[7px] md:text-[8px] font-black uppercase text-center leading-tight px-0.5" style={{ color: ct.text, opacity: 0.9 }}>
@@ -394,9 +511,10 @@ export default function Planning() {
   machineList.forEach((m) => {
     let total = 0;
     days.forEach((date) => {
-      getEntries(m, date).forEach((e) => {
-        if (e?.cellType === 'producao') total += e.planned || 0;
-      });
+      const es = getEntries(m, date);
+      if (es.length > 0 && es[0]?.cellType === 'producao') {
+        total += adjustedPlannedTotal(es);
+      }
     });
     machineTotals[m.id] = total;
   });
@@ -582,8 +700,9 @@ export default function Planning() {
               </td>
               {days.map((date) => {
                 const dayTotal = machineList.reduce((s, m) => {
-                  return s + getEntries(m, date).reduce(
-                    (acc, e) => acc + (e?.cellType === 'producao' ? (e.planned || 0) : 0), 0);
+                  const es = getEntries(m, date);
+                  if (!es.length || es[0]?.cellType !== 'producao') return s;
+                  return s + adjustedPlannedTotal(es);
                 }, 0);
                 return (
                   <td key={date} className="border border-brand-border/40 bg-brand-surface text-center"
