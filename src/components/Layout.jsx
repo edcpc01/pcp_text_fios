@@ -125,6 +125,8 @@ export default function Layout({ children }) {
     { to: '/planning',   icon: CalendarDays,    label: 'Planejamento' },
     ...(isAdmin ? [{ to: '/admin', icon: Settings, label: 'Cadastros' }] : []),
   ];
+  // Mobile bottom bar: exclui Cadastros (fica no header)
+  const MOBILE_NAV = NAV.filter((n) => n.to !== '/admin');
 
 
   return (
@@ -220,6 +222,19 @@ export default function Layout({ children }) {
               {agentOpen && <span className="w-1.5 h-1.5 rounded-full bg-purple-400 pulse-dot" />}
             </button>
 
+            {/* Cadastros — visível só para admin, em todos os tamanhos de tela */}
+            {isAdmin && (
+              <NavLink to="/admin" title="Cadastros"
+                className={({ isActive }) =>
+                  `flex items-center gap-1.5 px-2 md:px-3 py-1.5 rounded-lg text-sm font-medium border transition-all
+                  ${isActive
+                    ? 'bg-brand-cyan/10 text-brand-cyan border-brand-cyan/20'
+                    : 'bg-white/5 text-brand-muted border-brand-border hover:text-white'}`}>
+                <Settings size={14} />
+                <span className="hidden md:inline">Cadastros</span>
+              </NavLink>
+            )}
+
             {/* User + logout */}
             <div className="flex items-center gap-1.5 pl-2 border-l border-brand-border">
               <div className="w-7 h-7 rounded-full bg-brand-cyan/10 border border-brand-cyan/20 flex items-center justify-center shrink-0"
@@ -248,7 +263,7 @@ export default function Layout({ children }) {
       {/* ── Mobile Bottom Tab Bar ── */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-brand-surface border-t border-brand-border
         flex items-stretch safe-area-bottom">
-        {NAV.map(({ to, icon: Icon, label }) => (
+        {MOBILE_NAV.map(({ to, icon: Icon, label }) => (
           <NavLink key={to} to={to} end={to === '/'}
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors
