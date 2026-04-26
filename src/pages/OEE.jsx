@@ -10,6 +10,7 @@ import {
 import { subscribePlanningEntries } from '../services/firebase';
 import {
   readSavedFile, pickOrReuseFile, readFileText, parseQualidadeCSV,
+  getCsvMachineName,
 } from '../utils/csvSync';
 import { getMonthLabel } from '../utils/dates';
 
@@ -42,9 +43,19 @@ function oeeColor(pct) {
   return '#ef4444';
 }
 
+// ─── Group admin machines by their CSV machine name ───────────────────────────
+function groupByCsvName(machineList, factory) {
+  const groups = {}; // csvName → { csvName, machines: [mObj,...] }
+  machineList.forEach((m) => {
+    const csvName = getCsvMachineName(m.name, factory) || m.id;
+    if (!groups[csvName]) groups[csvName] = { csvName, machines: [] };
+    groups[csvName].machines.push(m);
+  });
+  return groups;
+}
+
 // ─── OEE Calculation ─────────────────────────────────────────────────────────
 function computeOEE({ planningEntries, csvRows, adminMachines, adminProducts, factory, yearMonth, cutoff }) {
-  const [yr, mo] = yearMonth.split('-').map(Number);
   const monthStart = `${yearMonth}-01`;
 
   const factoriesToProcess = factory === 'all' ? ['matriz', 'filial'] : [factory];
@@ -66,23 +77,25 @@ function computeOEE({ planningEntries, csvRows, adminMachines, adminProducts, fa
   const result = {};
 
   factoriesToProcess.forEach((fac) => {
-    const machines = adminMachines[fac] || [];
+    const groups = groupByCsvName(adminMachines[fac] || [], fac);
     let fPlannedMin = 0, fRunMin = 0, fActual = 0, fTheoretical = 0, fFirstQ = 0;
     const machineResults = {};
 
-    machines.forEach((mObj) => {
-      // Planning entries for this machine in the month, up to cutoff
+    Object.values(groups).forEach(({ csvName, machines }) => {
+      // Planning entries for ALL machines in this group, up to cutoff
+      const allIds = new Set(machines.map((m) => m.id));
       const mEntries = planningEntries.filter(
-        (e) => e.factory === fac && e.machine === mObj.id
+        (e) => e.factory === fac && allIds.has(e.machine)
           && e.date >= monthStart && e.date <= cutoff,
       );
       if (mEntries.length === 0) return;
 
-      // Group entries by date (handles S/Z split — same date, different twist)
+      // Group entries by machineId+date (handles S/Z split)
       const byDate = {};
       mEntries.forEach((e) => {
-        if (!byDate[e.date]) byDate[e.date] = [];
-        byDate[e.date].push(e);
+        const k = `${e.machine}__${e.date}`;
+        if (!byDate[k]) byDate[k] = [];
+        byDate[k].push(e);
       });
 
       // ── Availability ──────────────────────────────────────────────────────
@@ -117,9 +130,12 @@ function computeOEE({ planningEntries, csvRows, adminMachines, adminProducts, fa
       let theoreticalKg = 0;
       const productAccum = {}; // productId → { productName, theoreticalKg, actualKg, firstQKg }
 
-      Object.entries(byDate).forEach(([, dayEntries]) => {
+      Object.entries(byDate).forEach(([dayKey, dayEntries]) => {
         const primary = dayEntries.find((e) => e.twist === 'S' || !e.twist) || dayEntries[0];
         if (primary.cellType !== 'producao') return;
+
+        // Find the correct machine object for spindle lookup
+        const mObj = machines.find((m) => m.id === primary.machine) || machines[0];
 
         dayEntries.forEach((e) => {
           if (!e.product) return;
@@ -145,26 +161,14 @@ function computeOEE({ planningEntries, csvRows, adminMachines, adminProducts, fa
       });
 
       // ── Actual production & quality from CSV ──────────────────────────────
-      // Try exact match on machine ID first, then by name
-      const exactKey = `${fac}__${normStr(mObj.id)}`;
-      let machCsvRows = csvByFactMachine[exactKey] || [];
+      // Match by the CSV machine group name from the mapping
+      const machCsvRows = csvByFactMachine[`${fac}__${normStr(csvName)}`] || [];
 
-      if (machCsvRows.length === 0) {
-        // Fuzzy: look for any key where the CSV machine name includes the machine ID
-        Object.entries(csvByFactMachine).forEach(([k, rows]) => {
-          if (!k.startsWith(`${fac}__`)) return;
-          const csvMach = k.replace(`${fac}__`, '');
-          if (csvMach.includes(normStr(mObj.id)) || normStr(mObj.id).includes(csvMach)) {
-            machCsvRows = [...machCsvRows, ...rows];
-          }
-        });
-      }
-
-      // Only count dates where machine was planned to produce
+      // Working dates = unique dates where any machine in the group was 'producao'
       const workingDateSet = new Set(
         Object.entries(byDate)
           .filter(([, es]) => (es.find((e) => !e.twist || e.twist === 'S') || es[0]).cellType === 'producao')
-          .map(([d]) => d),
+          .map(([k]) => k.split('__')[1]),
       );
 
       let actualKg = 0;
@@ -205,8 +209,9 @@ function computeOEE({ planningEntries, csvRows, adminMachines, adminProducts, fa
         productsResult[pa.productId] = { ...pa, performance: pPerf, qualidade: pQual, oee: pOee };
       });
 
-      machineResults[mObj.id] = {
-        id: mObj.id, name: mObj.name,
+      machineResults[csvName] = {
+        csvName,
+        machineIds: machines.map((m) => m.id),
         workingDays: workingDateSet.size,
         plannedMin, runMin,
         disponibilidade, performance, qualidade, oee,
@@ -497,10 +502,10 @@ export default function OEEPage() {
               {expandedFactories.has(facId) && (
                 <div className="border-t border-brand-border/40">
                   {Object.values(facData.machines).map((mach) => {
-                    const machKey = `${facId}__${mach.id}`;
+                    const machKey = `${facId}__${mach.csvName}`;
                     const expanded = expandedMachines.has(machKey);
                     return (
-                      <div key={mach.id} className="border-b border-brand-border/20 last:border-b-0">
+                      <div key={mach.csvName} className="border-b border-brand-border/20 last:border-b-0">
 
                         {/* Machine row */}
                         <button onClick={() => toggleMachine(machKey)}
@@ -510,11 +515,10 @@ export default function OEEPage() {
                               ? <ChevronDown  size={11} className="text-brand-muted" />
                               : <ChevronRight size={11} className="text-brand-muted" />}
                           </div>
-                          <div className="flex items-baseline gap-2 flex-1 min-w-0">
-                            <span className="text-xs font-bold text-white font-mono shrink-0">{mach.id}</span>
-                            <span className="text-[10px] text-brand-muted truncate hidden sm:block">{mach.name}</span>
-                            <span className="text-[9px] text-brand-muted/40 shrink-0 hidden sm:inline">
-                              {mach.workingDays}d
+                          <div className="flex-1 min-w-0">
+                            <span className="text-xs font-medium text-white truncate block leading-tight">{mach.csvName}</span>
+                            <span className="text-[9px] text-brand-muted/50 font-mono hidden sm:block leading-tight">
+                              {mach.machineIds.join(' · ')} · {mach.workingDays}d
                             </span>
                           </div>
                           <div className="hidden sm:flex items-center gap-5 mr-3 shrink-0">
@@ -577,8 +581,8 @@ export default function OEEPage() {
 
                             {/* Machine summary */}
                             <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-12 py-2 bg-brand-surface/40 border-t border-brand-border/20 items-center">
-                              <span className="text-[9px] font-bold text-brand-muted uppercase tracking-wider">
-                                Total {mach.id}
+                              <span className="text-[9px] font-bold text-brand-muted uppercase tracking-wider truncate">
+                                Total
                               </span>
                               <span className="hidden sm:block text-[10px] font-mono font-bold text-white text-right">
                                 {(mach.actualKg / 1000).toFixed(2)}t
