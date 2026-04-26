@@ -193,19 +193,20 @@ function computeOEE({ planningEntries, csvRows, adminMachines, adminProducts, fa
         });
 
       // ── OEE metrics ───────────────────────────────────────────────────────
-      const perfDenom = theoreticalKg * dFactor;
-      const performance   = perfDenom > 0 ? Math.min(150, (actualKg / perfDenom) * 100) : 0;
-      const qualidade     = actualKg  > 0 ? (firstQKg / actualKg) * 100 : 100;
-      const oee           = (disponibilidade / 100) * (performance / 100) * (qualidade / 100) * 100;
+      const perfDenom   = theoreticalKg * dFactor;
+      const performance = perfDenom > 0 ? Math.min(100, (actualKg / perfDenom) * 100) : 0;
+      // qualidade = null quando sem dados CSV (não exibir como 100% falso)
+      const qualidade   = actualKg > 0 ? (firstQKg / actualKg) * 100 : null;
+      const oee         = (disponibilidade / 100) * (performance / 100) * ((qualidade ?? 100) / 100) * 100;
 
       // Per-product OEE (shares availability with machine)
       const productsResult = {};
       Object.values(productAccum).forEach((pa) => {
         if (pa.theoreticalKg === 0 && pa.actualKg === 0) return;
         const pPerfDenom = pa.theoreticalKg * dFactor;
-        const pPerf = pPerfDenom > 0 ? Math.min(150, (pa.actualKg / pPerfDenom) * 100) : 0;
-        const pQual = pa.actualKg > 0 ? (pa.firstQKg / pa.actualKg) * 100 : 100;
-        const pOee  = (disponibilidade / 100) * (pPerf / 100) * (pQual / 100) * 100;
+        const pPerf = pPerfDenom > 0 ? Math.min(100, (pa.actualKg / pPerfDenom) * 100) : 0;
+        const pQual = pa.actualKg > 0 ? (pa.firstQKg / pa.actualKg) * 100 : null;
+        const pOee  = (disponibilidade / 100) * (pPerf / 100) * ((pQual ?? 100) / 100) * 100;
         productsResult[pa.productId] = { ...pa, performance: pPerf, qualidade: pQual, oee: pOee };
       });
 
@@ -231,9 +232,9 @@ function computeOEE({ planningEntries, csvRows, adminMachines, adminProducts, fa
     const fDFactor = fPlannedMin > 0 ? fRunMin / fPlannedMin : 0;
     const fD = fDFactor * 100;
     const fP = (fTheoretical * fDFactor) > 0
-      ? Math.min(150, (fActual / (fTheoretical * fDFactor)) * 100) : 0;
-    const fQ  = fActual > 0 ? (fFirstQ / fActual) * 100 : 100;
-    const fOEE = fD * fP * fQ / 10000;
+      ? Math.min(100, (fActual / (fTheoretical * fDFactor)) * 100) : 0;
+    const fQ   = fActual > 0 ? (fFirstQ / fActual) * 100 : null;
+    const fOEE = fD * fP * ((fQ ?? 100)) / 10000;
 
     const factData = FACTORIES.find((f) => f.id === fac) || {};
     result[fac] = {
@@ -268,8 +269,8 @@ function MetricPill({ label, value, color }) {
   return (
     <div className="flex flex-col items-end sm:items-center">
       <span className="text-[8px] text-brand-muted uppercase font-bold tracking-wider leading-none mb-0.5">{label}</span>
-      <span className="text-[11px] font-mono font-bold tabular-nums" style={{ color }}>
-        {(value || 0).toFixed(1)}%
+      <span className="text-[11px] font-mono font-bold tabular-nums" style={{ color: value === null ? '#475569' : color }}>
+        {value === null ? '—' : `${Math.min(100, value).toFixed(1)}%`}
       </span>
     </div>
   );
@@ -367,9 +368,9 @@ export default function OEEPage() {
     if (pMin === 0) return null;
     const dF  = rMin / pMin;
     const D   = dF * 100;
-    const P   = (theo * dF) > 0 ? Math.min(150, actual / (theo * dF) * 100) : 0;
-    const Q   = actual > 0 ? firstQ / actual * 100 : 100;
-    const OEE = D * P * Q / 10000;
+    const P   = (theo * dF) > 0 ? Math.min(100, actual / (theo * dF) * 100) : 0;
+    const Q   = actual > 0 ? firstQ / actual * 100 : null;
+    const OEE = D * P * (Q ?? 100) / 10000;
     return { D, P, Q, OEE, actual, theo };
   }, [oeeTree]);
 
