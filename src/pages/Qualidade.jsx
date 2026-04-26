@@ -3,7 +3,7 @@ import {
   Award, ChevronLeft, ChevronRight, ChevronDown,
   RefreshCw, FolderOpen, X, AlertTriangle, Building2,
 } from 'lucide-react';
-import { useAppStore } from '../hooks/useStore';
+import { useAppStore, useCsvStore } from '../hooks/useStore';
 import { getMonthLabel } from '../utils/dates';
 import { pickOrReuseFile, clearFileHandle, readSavedFile, parseQualidadeCSV, readFileText } from '../utils/csvSync';
 
@@ -119,10 +119,18 @@ export default function Qualidade() {
 
   // ─── CSV Sync ────────────────────────────────────────────────────────────────
 
-  const processText = (text) => {
+  const processText = (text, fileName = '') => {
     const rows = parseQualidadeCSV(text);
-    if (rows.length) { setAllRows(rows); setSyncResult({ imported: rows.length }); }
-    else setSyncResult({ error: 'Arquivo vazio ou formato não reconhecido.' });
+    if (rows.length) {
+      setAllRows(rows);
+      setSyncResult({ imported: rows.length });
+      const cs = useCsvStore.getState();
+      cs.setRows(rows);
+      if (fileName) cs.setFileName(fileName);
+      cs.setLastSync(new Date());
+    } else {
+      setSyncResult({ error: 'Arquivo vazio ou formato não reconhecido.' });
+    }
     setSyncing(false);
   };
 
@@ -133,14 +141,14 @@ export default function Qualidade() {
     try {
       const file = await pickOrReuseFile(CSV_KEY);
       if (!file) { setSyncing(false); return; }
-      processText(await readFileText(file));
+      processText(await readFileText(file), file.name);
     } catch (err) { setSyncResult({ error: err.message }); setSyncing(false); }
   };
 
   const handleFallback = async (e) => {
     const file = e.target.files?.[0];
     if (!file) { setSyncing(false); return; }
-    try { processText(await readFileText(file)); } catch (err) { setSyncResult({ error: err.message }); setSyncing(false); }
+    try { processText(await readFileText(file), file.name); } catch (err) { setSyncResult({ error: err.message }); setSyncing(false); }
     e.target.value = '';
   };
 

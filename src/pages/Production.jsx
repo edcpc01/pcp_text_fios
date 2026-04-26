@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus, Download, RefreshCw, AlertTriangle, FolderOpen, X } from 'lucide-react';
-import { useAppStore, useProductionStore, usePlanningStore, useAdminStore, useAuthStore, MACHINES } from '../hooks/useStore';
+import { useAppStore, useProductionStore, usePlanningStore, useAdminStore, useAuthStore, useCsvStore, MACHINES } from '../hooks/useStore';
 import { subscribeProductionRecords, subscribePlanningEntries, saveProductionRecord } from '../services/firebase';
 import { getMonthLabel, getDaysInMonth, isSunday } from '../utils/dates';
 import { seedDemoData } from '../utils/seedData';
-import { pickOrReuseFile, clearFileHandle, readSavedFile, parseProducaoCSV, findProductByCode, readFileText } from '../utils/csvSync';
+import { pickOrReuseFile, clearFileHandle, readSavedFile, parseProducaoCSV, parseQualidadeCSV, findProductByCode, readFileText } from '../utils/csvSync';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -128,7 +128,7 @@ export default function Production() {
 
   // ─── CSV Sync ───────────────────────────────────────────────────────────────
 
-  const processCSVText = async (text) => {
+  const processCSVText = async (text, fileName = '') => {
     const rows = parseProducaoCSV(text);
     if (rows.length === 0) {
       setSyncResult({ imported: 0, skipped: 0, noProduct: 0, error: 'Arquivo vazio ou formato não reconhecido.' });
@@ -183,6 +183,12 @@ export default function Production() {
 
     setSyncResult({ imported: toSave.length, skipped, noProduct });
     setSyncing(false);
+
+    // Populate shared CSV store so OEE and Qualidade pages get the same data
+    const { setRows, setFileName, setLastSync } = useCsvStore.getState();
+    setRows(parseQualidadeCSV(text));
+    if (fileName) setFileName(fileName);
+    setLastSync(new Date());
   };
 
   // No mobile, showOpenFilePicker envia o PWA para background causando tela preta ao retornar.
@@ -205,7 +211,7 @@ export default function Production() {
       const file = await pickOrReuseFile(CSV_HANDLE_KEY);
       if (!file) { setSyncing(false); return; }
       const text = await readFileText(file);
-      await processCSVText(text);
+      await processCSVText(text, file.name);
     } catch (err) {
       setSyncResult({ error: err.message });
       setSyncing(false);
@@ -217,7 +223,7 @@ export default function Production() {
     if (!file) { setSyncing(false); return; }
     try {
       const text = await readFileText(file);
-      await processCSVText(text);
+      await processCSVText(text, file.name);
     } catch (err) {
       setSyncResult({ error: err.message });
       setSyncing(false);
@@ -271,7 +277,7 @@ export default function Production() {
       if (!file) return; // nenhum arquivo salvo — aguarda sync manual
       try {
         const text = await readFileText(file);
-        await processCSVText(text);
+        await processCSVText(text, file.name);
         setLastAutoSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
       } catch { /* falha silenciosa no auto-sync */ }
     };
