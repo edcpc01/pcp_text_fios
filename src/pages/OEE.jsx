@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import {
   useAppStore, useAdminStore, useCsvStore, FACTORIES,
-  parseCabos, spindlesForProduct,
+  parseCabos,
 } from '../hooks/useStore';
 import { subscribePlanningEntries } from '../services/firebase';
 import {
@@ -54,6 +54,21 @@ function groupByCsvName(machineList, factory) {
     groups[csvName].machines.push(m);
   });
   return groups;
+}
+
+// Spindles for OEE theoretical:
+// - flat entry (twist=null): full machine capacity for those cabos
+// - S/Z entry: half the machine (split between two products)
+// This mirrors how Planning stores 'planned' — flat entries use full spindles.
+function activeSpindlesForEntry(machine, cabos, twist) {
+  const total = machine?.spindles || 0;
+  const byCount = cabos === 2 ? Math.floor(total / 2)
+    : cabos === 3 ? Math.floor(total / 3)
+    : total;
+  if (twist && /SINGLE/i.test(machine?.name || '') && (cabos === 1 || cabos === 3)) {
+    return Math.floor(byCount / 2);
+  }
+  return byCount;
 }
 
 // ─── OEE Calculation ─────────────────────────────────────────────────────────
@@ -146,7 +161,7 @@ function computeOEE({ planningEntries, csvRows, adminMachines, adminProducts, fa
           if (!prod?.prodDiaPosicao) return;
 
           const cabos = parseCabos(prod.nome || e.productName) || 1;
-          const fusos = spindlesForProduct(mObj, cabos);
+          const fusos = activeSpindlesForEntry(mObj, cabos, e.twist);
           const theoDay = fusos * prod.prodDiaPosicao;
           theoreticalKg += theoDay;
 
