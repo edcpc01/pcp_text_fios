@@ -168,6 +168,7 @@ function computeOEE({ planningEntries, csvRows, adminMachines, adminProducts, fa
           if (!productAccum[e.product]) {
             productAccum[e.product] = {
               productId: e.product,
+              codigoMicrodata: prod.codigoMicrodata || '',
               productName: e.productName || prod.nome || e.product,
               theoreticalKg: 0, actualKg: 0, firstQKg: 0,
             };
@@ -196,6 +197,25 @@ function computeOEE({ planningEntries, csvRows, adminMachines, adminProducts, fa
           .filter(([, es]) => (es.find((e) => !e.twist || e.twist === 'S') || es[0]).cellType === 'producao')
           .map(([k]) => k.split('__')[1]),
       );
+
+      // Second fallback: match by planned product Microdata codes + working date + factory.
+      // Handles cases where CSV exports an unexpected machine name.
+      if (machCsvRows.length === 0 && Object.keys(productAccum).length > 0) {
+        const plannedCodes = new Set();
+        Object.values(productAccum).forEach(({ productId, codigoMicrodata }) => {
+          plannedCodes.add(normStr(productId));
+          if (codigoMicrodata) plannedCodes.add(normStr(codigoMicrodata));
+        });
+        const seen = new Set();
+        csvRows.forEach((r) => {
+          if (r.date < monthStart || r.date > cutoff) return;
+          if (!workingDateSet.has(r.date)) return;
+          if (!plannedCodes.has(normStr(r.productCode))) return;
+          const rowFac = empresaToFactory(r.empresa);
+          if (rowFac && rowFac !== fac) return;
+          if (!seen.has(r)) { seen.add(r); machCsvRows = [...machCsvRows, r]; }
+        });
+      }
 
       let actualKg = 0;
       let firstQKg = 0;
@@ -557,7 +577,7 @@ export default function OEEPage() {
                                   className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-12 py-2 border-b border-brand-border/10 last:border-b-0 hover:bg-white/[0.015] items-center">
                                   <div className="min-w-0">
                                     <p className="text-[11px] font-medium text-white truncate leading-tight">{prod.productName}</p>
-                                    <p className="text-[9px] text-brand-muted font-mono leading-tight">{prod.productId}</p>
+                                    <p className="text-[9px] text-brand-muted font-mono leading-tight">{prod.codigoMicrodata || prod.productId}</p>
                                   </div>
                                   <span className="hidden sm:block text-[10px] font-mono text-white text-right">
                                     {prod.actualKg > 0 ? `${(prod.actualKg / 1000).toFixed(2)}t` : '—'}
