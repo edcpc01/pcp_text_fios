@@ -570,8 +570,8 @@ export default function OEEPage() {
                                   <span className="hidden sm:block text-[10px] font-mono text-right tabular-nums" style={{ color: '#a78bfa' }}>
                                     {prod.performance.toFixed(1)}%
                                   </span>
-                                  <span className="hidden sm:block text-[10px] font-mono text-right tabular-nums" style={{ color: '#34d399' }}>
-                                    {prod.qualidade.toFixed(1)}%
+                                  <span className="hidden sm:block text-[10px] font-mono text-right tabular-nums" style={{ color: prod.qualidade != null ? '#34d399' : '#475569' }}>
+                                    {prod.qualidade != null ? `${prod.qualidade.toFixed(1)}%` : '—'}
                                   </span>
                                   <div className="flex justify-end">
                                     <GaugeBar pct={prod.oee} width={52} />
@@ -597,8 +597,8 @@ export default function OEEPage() {
                               <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: '#a78bfa' }}>
                                 {mach.performance.toFixed(1)}%
                               </span>
-                              <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: '#34d399' }}>
-                                {mach.qualidade.toFixed(1)}%
+                              <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: mach.qualidade != null ? '#34d399' : '#475569' }}>
+                                {mach.qualidade != null ? `${mach.qualidade.toFixed(1)}%` : '—'}
                               </span>
                               <div className="flex justify-end">
                                 <GaugeBar pct={mach.oee} width={60} />
