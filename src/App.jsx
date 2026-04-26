@@ -10,6 +10,7 @@ import Admin from './pages/Admin';
 import Materiais from './pages/Materiais';
 import Forecast from './pages/Forecast';
 import Qualidade from './pages/Qualidade';
+import OEEPage from './pages/OEE';
 import Login from './pages/Login';
 
 export default function App() {
@@ -85,6 +86,7 @@ export default function App() {
         <Route path="/materiais"  element={<Materiais />} />
         <Route path="/forecast"    element={<Forecast />} />
         <Route path="/qualidade"   element={<Qualidade />} />
+        <Route path="/oee"         element={<OEEPage />} />
         <Route path="/admin"      element={user.role === 'admin' ? <Admin /> : <Navigate to="/" replace />} />
         <Route path="*"           element={<Navigate to="/" replace />} />
       </Routes>
