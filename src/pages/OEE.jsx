@@ -1,20 +1,18 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
-  Gauge, ChevronDown, ChevronRight, ChevronLeft, RefreshCw, Upload,
-  Activity, TrendingUp, Award, Package,
+  Gauge, ChevronDown, ChevronRight, ChevronLeft,
+  Activity, TrendingUp, Award,
 } from 'lucide-react';
 import {
-  useAppStore, useAdminStore, FACTORIES,
+  useAppStore, useAdminStore, useCsvStore, FACTORIES,
   parseCabos, spindlesForProduct,
 } from '../hooks/useStore';
 import { subscribePlanningEntries } from '../services/firebase';
 import {
-  readSavedFile, pickOrReuseFile, readFileText, parseQualidadeCSV,
+  readSavedFile, readFileText, parseQualidadeCSV,
   getCsvMachineName,
 } from '../utils/csvSync';
 import { getMonthLabel } from '../utils/dates';
-
-const CSV_HANDLE_KEY = 'producao-csv';
 
 // ─── Quality tier (same logic as Qualidade.jsx) ───────────────────────────────
 const REFUGO_CODES  = new Set(['AS', 'EJ', 'EI', 'EM', 'EP']);
@@ -280,6 +278,7 @@ function MetricPill({ label, value, color }) {
 export default function OEEPage() {
   const { factory, month, changeMonth, getYearMonth } = useAppStore();
   const { machines: adminMachines, products: adminProducts } = useAdminStore();
+  const { rows: csvRows, fileName: csvFile, lastSync } = useCsvStore();
 
   const yearMonth  = getYearMonth();
   const monthLabel = getMonthLabel(month.year, month.month);
@@ -297,45 +296,21 @@ export default function OEEPage() {
     return () => unsub();
   }, [factory, yearMonth]);
 
-  // CSV state
-  const [csvRows,    setCsvRows]    = useState([]);
-  const [csvLoading, setCsvLoading] = useState(false);
-  const [csvFile,    setCsvFile]    = useState(null);
-  const [lastSync,   setLastSync]   = useState(null);
-
-  const loadCSV = useCallback(async (file) => {
-    if (!file) return;
-    setCsvLoading(true);
-    try {
-      const text = await readFileText(file);
-      setCsvRows(parseQualidadeCSV(text));
-      setCsvFile(file.name);
-      setLastSync(new Date());
-    } catch (err) {
-      console.error('[OEE] CSV parse error:', err);
-    } finally {
-      setCsvLoading(false);
-    }
+  // Auto-load from IndexedDB on first render if shared store is still empty
+  useEffect(() => {
+    if (useCsvStore.getState().rows.length > 0) return;
+    readSavedFile('producao-csv').then(async (f) => {
+      if (!f) return;
+      try {
+        const text = await readFileText(f);
+        const qRows = parseQualidadeCSV(text);
+        const cs = useCsvStore.getState();
+        cs.setRows(qRows);
+        cs.setFileName(f.name);
+        cs.setLastSync(new Date());
+      } catch { /* ignore */ }
+    });
   }, []);
-
-  // Auto-load saved handle on mount
-  useEffect(() => {
-    readSavedFile(CSV_HANDLE_KEY).then((f) => { if (f) loadCSV(f); });
-  }, [loadCSV]);
-
-  // Auto-refresh every 5 min
-  useEffect(() => {
-    const id = setInterval(async () => {
-      const f = await readSavedFile(CSV_HANDLE_KEY);
-      if (f) loadCSV(f);
-    }, 5 * 60 * 1000);
-    return () => clearInterval(id);
-  }, [loadCSV]);
-
-  const handlePickFile = async () => {
-    const f = await pickOrReuseFile(CSV_HANDLE_KEY);
-    if (f) loadCSV(f);
-  };
 
   // Accordion
   const [expandedFactories, setExpandedFactories] = useState(new Set(['matriz', 'filial']));
@@ -406,12 +381,19 @@ export default function OEEPage() {
             </button>
           </div>
 
-          {/* CSV button */}
-          <button onClick={handlePickFile} disabled={csvLoading}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all bg-brand-cyan/10 border-brand-cyan/20 text-brand-cyan hover:bg-brand-cyan/20 disabled:opacity-40">
-            {csvLoading ? <RefreshCw size={12} className="animate-spin" /> : <Upload size={12} />}
-            {csvFile ? 'Atualizar CSV' : 'Carregar CSV'}
-          </button>
+          {/* CSV status (shared with Realizado) */}
+          {csvFile ? (
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs border bg-brand-cyan/5 border-brand-cyan/10 text-brand-muted">
+              <Activity size={11} className="text-brand-cyan shrink-0" />
+              <span className="font-mono text-white truncate max-w-[120px]">{csvFile}</span>
+              {lastSync && <span>· {lastSync.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>}
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs border border-brand-border text-brand-muted/60">
+              <Activity size={11} className="shrink-0" />
+              Sincronize em Realizado
+            </div>
+          )}
         </div>
       </div>
 
@@ -444,15 +426,6 @@ export default function OEEPage() {
               <span className="text-xs font-mono font-bold text-brand-muted">{(global.theo / 1000).toFixed(2)} t</span>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* ── CSV info strip ── */}
-      {csvFile && (
-        <div className="px-4 sm:px-6 py-1 flex items-center gap-2 bg-brand-cyan/5 border-b border-brand-cyan/10 text-[10px] text-brand-muted shrink-0">
-          <Activity size={9} className="text-brand-cyan shrink-0" />
-          <span>CSV: <span className="text-white font-mono">{csvFile}</span></span>
-          {lastSync && <span>· {lastSync.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>}
         </div>
       )}
 

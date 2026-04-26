@@ -186,3 +186,13 @@ export const useAdminStore = create((set) => ({
   updateMachine: (fac, id, upd) => set((s) => ({ machines: { ...s.machines, [fac]: s.machines[fac].map((m) => m.id === id ? { ...m, ...upd } : m) } })),
   deleteMachine: (fac, id)      => set((s) => ({ machines: { ...s.machines, [fac]: s.machines[fac].filter((m) => m.id !== id) } })),
 }));
+
+// ─── Shared CSV store (qualidade rows — shared by Production, Qualidade, OEE) ──
+export const useCsvStore = create((set) => ({
+  rows:        [],
+  fileName:    null,
+  lastSync:    null,
+  setRows:     (rows)     => set({ rows }),
+  setFileName: (fileName) => set({ fileName }),
+  setLastSync: (lastSync) => set({ lastSync }),
+}));
