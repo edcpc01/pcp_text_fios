@@ -123,10 +123,8 @@ export default function Layout({ children }) {
     { to: '/qualidade',  icon: Award,           label: 'Qualidade'    },
     { to: '/oee',        icon: Gauge,           label: 'OEE'          },
     { to: '/planning',   icon: CalendarDays,    label: 'Planejamento' },
-    ...(isAdmin ? [{ to: '/admin', icon: Settings, label: 'Cadastros' }] : []),
   ];
-  // Mobile bottom bar: exclui Cadastros (fica no header)
-  const MOBILE_NAV = NAV.filter((n) => n.to !== '/admin');
+  const MOBILE_NAV = NAV;
 
 
   return (
