@@ -221,7 +221,7 @@ export const MACHINE_NAME_MAP = [
 ];
 
 const normMap = (s) =>
-  (s || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  (s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
 /**
  * Returns the CSV machine group name for an admin machine name.
