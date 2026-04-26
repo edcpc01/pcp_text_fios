@@ -26,12 +26,16 @@ function getTier(classif, lote) {
 }
 
 function empresaToFactory(empresa) {
-  const e = String(empresa || '').trim();
-  if (e === '09') return 'matriz';
-  if (e === '07') return 'filial';
+  const cod = String(empresa || '').replace(/^0+/, '');
+  if (cod === '9') return 'matriz';
+  if (cod === '7') return 'filial';
   return null;
 }
 
+// Normalise for matching: uppercase + strip diacritics + trim
+function normCSV(s) {
+  return (s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
 function normStr(s) { return (s || '').toUpperCase().trim(); }
 
 // ─── OEE color scale ──────────────────────────────────────────────────────────
@@ -58,15 +62,14 @@ function computeOEE({ planningEntries, csvRows, adminMachines, adminProducts, fa
 
   const factoriesToProcess = factory === 'all' ? ['matriz', 'filial'] : [factory];
 
-  // Index CSV rows by factory + normalised machine name
-  // One row can belong to multiple factories if empresa is unknown
-  const csvByFactMachine = {}; // `${fac}__${normMachine}` → [{...row}]
+  // Index CSV rows by factory + normalised machine name (diacritics stripped)
+  const csvByFactMachine = {}; // `${fac}__${normCSV(machine)}` → [{...row}]
   csvRows.forEach((row) => {
     if (row.date < monthStart || row.date > cutoff) return;
     const rowFactory = empresaToFactory(row.empresa);
     const targets = rowFactory ? [rowFactory] : factoriesToProcess;
     targets.forEach((f) => {
-      const key = `${f}__${normStr(row.machine)}`;
+      const key = `${f}__${normCSV(row.machine)}`;
       if (!csvByFactMachine[key]) csvByFactMachine[key] = [];
       csvByFactMachine[key].push(row);
     });
@@ -159,8 +162,18 @@ function computeOEE({ planningEntries, csvRows, adminMachines, adminProducts, fa
       });
 
       // ── Actual production & quality from CSV ──────────────────────────────
-      // Match by the CSV machine group name from the mapping
-      const machCsvRows = csvByFactMachine[`${fac}__${normStr(csvName)}`] || [];
+      // Primary: match by CSV machine group name (diacritics stripped)
+      let machCsvRows = csvByFactMachine[`${fac}__${normCSV(csvName)}`] || [];
+
+      // Fallback: CSV may use admin machine IDs (e.g. "C01") instead of group names
+      if (machCsvRows.length === 0) {
+        const seen = new Set();
+        machines.forEach((m) => {
+          (csvByFactMachine[`${fac}__${normCSV(m.id)}`] || []).forEach((r) => {
+            if (!seen.has(r)) { seen.add(r); machCsvRows = [...machCsvRows, r]; }
+          });
+        });
+      }
 
       // Working dates = unique dates where any machine in the group was 'producao'
       const workingDateSet = new Set(
