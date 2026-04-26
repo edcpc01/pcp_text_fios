@@ -200,21 +200,29 @@ function computeOEE({ planningEntries, csvRows, adminMachines, adminProducts, fa
 
       // Second fallback: match by planned product Microdata codes + working date + factory.
       // Handles cases where CSV exports an unexpected machine name.
-      if (machCsvRows.length === 0 && Object.keys(productAccum).length > 0) {
+      // Uses ALL mEntries (not just productAccum) so products without prodDiaPosicao
+      // still contribute their codes to the search.
+      if (machCsvRows.length === 0) {
         const plannedCodes = new Set();
-        Object.values(productAccum).forEach(({ productId, codigoMicrodata }) => {
-          plannedCodes.add(normStr(productId));
-          if (codigoMicrodata) plannedCodes.add(normStr(codigoMicrodata));
+        mEntries.forEach((e) => {
+          if (!e.product) return;
+          plannedCodes.add(normStr(e.product));
+          const p = adminProducts.find(
+            (ap) => ap.id === e.product || ap.codigoMicrodata === e.product,
+          );
+          if (p?.codigoMicrodata) plannedCodes.add(normStr(p.codigoMicrodata));
         });
-        const seen = new Set();
-        csvRows.forEach((r) => {
-          if (r.date < monthStart || r.date > cutoff) return;
-          if (!workingDateSet.has(r.date)) return;
-          if (!plannedCodes.has(normStr(r.productCode))) return;
-          const rowFac = empresaToFactory(r.empresa);
-          if (rowFac && rowFac !== fac) return;
-          if (!seen.has(r)) { seen.add(r); machCsvRows = [...machCsvRows, r]; }
-        });
+        if (plannedCodes.size > 0) {
+          const seen = new Set();
+          csvRows.forEach((r) => {
+            if (r.date < monthStart || r.date > cutoff) return;
+            if (!workingDateSet.has(r.date)) return;
+            if (!plannedCodes.has(normStr(r.productCode))) return;
+            const rowFac = empresaToFactory(r.empresa);
+            if (rowFac && rowFac !== fac) return;
+            if (!seen.has(r)) { seen.add(r); machCsvRows = [...machCsvRows, r]; }
+          });
+        }
       }
 
       let actualKg = 0;
