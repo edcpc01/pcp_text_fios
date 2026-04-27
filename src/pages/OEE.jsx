@@ -228,9 +228,9 @@ function computeOEE({ planningEntries, csvRows, adminMachines, adminProducts, fa
       let actualKg = 0;
       let firstQKg = 0;
 
-      machCsvRows
-        .filter((r) => workingDateSet.has(r.date))
-        .forEach((row) => {
+      // Count ALL matched rows in the date range — workingDateSet must not gate actual
+      // production because the CSV may have production on days absent from the planning.
+      machCsvRows.forEach((row) => {
           const tier = getTier(row.classif, row.lote);
           actualKg  += row.quantity;
           if (tier === 'primeira') firstQKg += row.quantity;
