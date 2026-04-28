@@ -234,7 +234,7 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
                   onChange={(e) => setForm((f) => ({ ...f, plannedZ: Number(e.target.value) }))}
                   placeholder="Kg/dia"
                   className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-brand-cyan/50 transition-all" />
-                <p className="text-[10px] text-brand-muted">Metade dos fusos com torção {secondaryTwist}.</p>
+                <p className="text-[10px] text-brand-muted">Mesma máquina, torção {secondaryTwist}.</p>
               </div>
             )}
           </>)}
