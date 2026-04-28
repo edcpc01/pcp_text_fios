@@ -9,7 +9,7 @@ import { pickOrReuseFile, clearFileHandle, readSavedFile, parseQualidadeCSV, rea
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-const SEGUNDA = new Set(['A3', 'DV']);
+const SEGUNDA = new Set(['A3', 'DV', '38']);
 const REFUGO  = new Set(['AS', 'EJ', 'EI', 'EM', 'EP']);
 const CSV_KEY = 'producao-csv';
 
