@@ -1,32 +1,21 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Award, ChevronLeft, ChevronRight, ChevronDown,
-  RefreshCw, FolderOpen, X, AlertTriangle, Building2,
+  AlertTriangle, Building2, Activity,
 } from 'lucide-react';
 import { useAppStore, useCsvStore } from '../hooks/useStore';
 import { getMonthLabel } from '../utils/dates';
-import { pickOrReuseFile, clearFileHandle, readSavedFile, parseQualidadeCSV, readFileText } from '../utils/csvSync';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
 const SEGUNDA = new Set(['A3', 'DV', '38']);
 const REFUGO  = new Set(['AS', 'EJ', 'EI', 'EM', 'EP']);
-const CSV_KEY = 'producao-csv';
 
 const FACTORY_META = {
   matriz: { label: 'Corradi Matriz', dot: '#38bdf8' },
   filial: { label: 'Corradi Filial', dot: '#a78bfa' },
   outra:  { label: 'Outras',         dot: '#6b7280' },
 };
-
-function getTier(classif, lote) {
-  const c = (classif || '').toUpperCase().trim();
-  const l = (lote    || '').toUpperCase().trim();
-  if (REFUGO.has(c))           return 'refugo';
-  if (SEGUNDA.has(c))          return 'segunda';
-  if (l.endsWith('A'))         return 'segunda'; // lote terminado com "A" = 2ª qualidade
-  return 'primeira';
-}
 
 function getFactory(emp) {
   const cod = String(emp || '').replace(/^0+/, '');
@@ -43,6 +32,15 @@ function fmtKg(v) {
 
 function pctN(part, total) {
   return total > 0 ? (part / total) * 100 : 0;
+}
+
+function getTier(classif, lote) {
+  const c = (classif || '').toUpperCase().trim();
+  const l = (lote    || '').toUpperCase().trim();
+  if (REFUGO.has(c))           return 'refugo';
+  if (SEGUNDA.has(c))          return 'segunda';
+  if (l.endsWith('A'))         return 'segunda';
+  return 'primeira';
 }
 
 // ─── Colunas de métricas (compartilhadas entre os níveis) ─────────────────────
@@ -105,69 +103,13 @@ function MetricCols({ primeira, segunda, refugo, total }) {
 
 export default function Qualidade() {
   const { factory, month, changeMonth, getYearMonth } = useAppStore();
-  const [allRows, setAllRows]       = useState([]);
-  const [syncing, setSyncing]       = useState(false);
-  const [syncResult, setSyncResult] = useState(null);
-  const [lastSync, setLastSync]     = useState(null);
+  const { rows: allRows, fileName: csvFile, lastSync } = useCsvStore();
+
   const [expandedFactories, setExpandedFactories] = useState(new Set(['matriz', 'filial']));
   const [expandedMachines,  setExpandedMachines]  = useState(new Set());
-  const fallbackRef = useRef(null);
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   const yearMonth  = getYearMonth();
   const monthLabel = getMonthLabel(month.year, month.month);
-
-  // ─── CSV Sync ────────────────────────────────────────────────────────────────
-
-  const processText = (text, fileName = '') => {
-    const rows = parseQualidadeCSV(text);
-    if (rows.length) {
-      setAllRows(rows);
-      setSyncResult({ imported: rows.length });
-      const cs = useCsvStore.getState();
-      cs.setRows(rows);
-      if (fileName) cs.setFileName(fileName);
-      cs.setLastSync(new Date());
-    } else {
-      setSyncResult({ error: 'Arquivo vazio ou formato não reconhecido.' });
-    }
-    setSyncing(false);
-  };
-
-  const handleSync = async () => {
-    if (syncing) return;
-    setSyncing(true); setSyncResult(null);
-    if (!window.showOpenFilePicker || isMobile) { fallbackRef.current?.click(); return; }
-    try {
-      const file = await pickOrReuseFile(CSV_KEY);
-      if (!file) { setSyncing(false); return; }
-      processText(await readFileText(file), file.name);
-    } catch (err) { setSyncResult({ error: err.message }); setSyncing(false); }
-  };
-
-  const handleFallback = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) { setSyncing(false); return; }
-    try { processText(await readFileText(file), file.name); } catch (err) { setSyncResult({ error: err.message }); setSyncing(false); }
-    e.target.value = '';
-  };
-
-  useEffect(() => {
-    const autoSync = async () => {
-      const file = await readSavedFile(CSV_KEY);
-      if (!file) return;
-      try {
-        const rows = parseQualidadeCSV(await file.text());
-        if (rows.length) {
-          setAllRows(rows);
-          setLastSync(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-        }
-      } catch { /* silencioso */ }
-    };
-    autoSync();
-    const id = setInterval(autoSync, 5 * 60 * 1000);
-    return () => clearInterval(id);
-  }, []);
 
   // ─── Árvore Empresa → Máquina → Produto ─────────────────────────────────────
 
@@ -217,8 +159,6 @@ export default function Qualidade() {
   const segundaKg  = Object.values(tree).reduce((s, f) => s + f.segunda,  0);
   const refugoKg   = Object.values(tree).reduce((s, f) => s + f.refugo,   0);
 
-  // ─── Toggle helpers ───────────────────────────────────────────────────────────
-
   const toggleFactory = (fKey) =>
     setExpandedFactories((prev) => { const n = new Set(prev); n.has(fKey) ? n.delete(fKey) : n.add(fKey); return n; });
 
@@ -229,15 +169,6 @@ export default function Qualidade() {
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-x-hidden">
-
-      {/* Toast */}
-      {syncResult && (
-        <div className={`mx-6 mt-3 flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-medium shrink-0
-          ${syncResult.error ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'}`}>
-          <span>{syncResult.error ? `Erro: ${syncResult.error}` : `${syncResult.imported} linhas lidas do CSV`}</span>
-          <button onClick={() => setSyncResult(null)} className="ml-4 opacity-60 hover:opacity-100"><X size={13} /></button>
-        </div>
-      )}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-brand-border shrink-0 gap-2">
@@ -262,18 +193,23 @@ export default function Qualidade() {
               <ChevronRight size={15} />
             </button>
           </div>
-          <input ref={fallbackRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFallback} />
-          <button onClick={handleSync} disabled={syncing}
-            className="flex items-center gap-1.5 px-3 py-2 bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/20 text-brand-cyan text-xs font-bold rounded-xl transition-all disabled:opacity-50 active:scale-95">
-            <RefreshCw size={13} className={syncing ? 'animate-spin' : ''} />
-            {syncing ? 'Sincronizando...' : lastSync ? `Sincronizado ${lastSync}` : 'Sincronizar CSV'}
-          </button>
-          <button
-            onClick={async () => { await clearFileHandle(CSV_KEY); setSyncResult(null); setAllRows([]); }}
-            title="Redefinir arquivo CSV"
-            className="p-2 rounded-xl bg-white/5 border border-brand-border text-brand-muted hover:text-white transition-all active:scale-95">
-            <FolderOpen size={15} />
-          </button>
+
+          {/* CSV status — updated via Realizado sync */}
+          {csvFile ? (
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs border bg-brand-cyan/5 border-brand-cyan/10 text-brand-muted">
+              <Activity size={11} className="text-brand-cyan shrink-0" />
+              <span className="font-mono text-white truncate max-w-[120px]">{csvFile}</span>
+              {lastSync && (
+                <span>· {(lastSync instanceof Date ? lastSync : new Date(lastSync))
+                  .toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs border border-brand-border text-brand-muted/60">
+              <Activity size={11} className="shrink-0" />
+              Sincronize em Realizado
+            </div>
+          )}
         </div>
       </div>
 
@@ -334,7 +270,7 @@ export default function Qualidade() {
               <Award size={20} className="text-brand-muted/60" />
             </div>
             <p className="text-sm text-brand-muted">Nenhum dado de qualidade encontrado</p>
-            <p className="text-xs text-brand-muted/60 mt-1">Sincronize o CSV da Produção Realizada para carregar os dados</p>
+            <p className="text-xs text-brand-muted/60 mt-1">Sincronize o CSV na página Realizado para carregar os dados</p>
           </div>
         ) : (
           <table className="w-full border-collapse" style={{ minWidth: 780 }}>
