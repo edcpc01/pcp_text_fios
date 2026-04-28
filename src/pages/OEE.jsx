@@ -9,7 +9,6 @@ import {
 } from '../hooks/useStore';
 import { subscribePlanningEntries } from '../services/firebase';
 import {
-  readSavedFile, readFileText, parseQualidadeCSV,
   getCsvMachineName,
 } from '../utils/csvSync';
 import { getMonthLabel } from '../utils/dates';
@@ -351,22 +350,6 @@ export default function OEEPage() {
     const unsub = subscribePlanningEntries(factory, yearMonth, setPlanningEntries);
     return () => unsub();
   }, [factory, yearMonth]);
-
-  // Auto-load from IndexedDB on first render if shared store is still empty
-  useEffect(() => {
-    if (useCsvStore.getState().rows.length > 0) return;
-    readSavedFile('producao-csv').then(async (f) => {
-      if (!f) return;
-      try {
-        const text = await readFileText(f);
-        const qRows = parseQualidadeCSV(text);
-        const cs = useCsvStore.getState();
-        cs.setRows(qRows);
-        cs.setFileName(f.name);
-        cs.setLastSync(new Date());
-      } catch { /* ignore */ }
-    });
-  }, []);
 
   // Accordion
   const [expandedFactories, setExpandedFactories] = useState(new Set(['matriz', 'filial']));
