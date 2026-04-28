@@ -5,6 +5,7 @@ import {
   query, where, orderBy, onSnapshot, Timestamp,
   initializeFirestore, memoryLocalCache,
 } from 'firebase/firestore';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -41,6 +42,7 @@ export const db = initializeFirestore(app, {
 });
 
 export const auth = getAuth(app);
+const storage = getStorage(app);
 const googleProvider = new GoogleAuthProvider();
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -410,6 +412,50 @@ export async function fetchMonthSummary(factory, yearMonth) {
 // ─── Agent Logs ───────────────────────────────────────────────────────────────
 export async function saveAgentLog(log) {
   await setDoc(doc(collection(db, 'agent_logs')), { ...log, timestamp: Timestamp.now() });
+}
+
+// ─── CSV Cross-device Sync (Firebase Storage + Firestore) ────────────────────
+// Tracks the timestamp of the last upload FROM THIS device so we can suppress
+// the redundant download that would otherwise trigger on the uploading device.
+let _lastUploadMs = 0;
+
+/**
+ * Uploads parsed CSV rows as JSON to Firebase Storage and updates the
+ * Firestore metadata document so all other devices auto-reload.
+ */
+export async function uploadCsvSync(rows, fileName) {
+  _lastUploadMs = Date.now();
+  const path = 'csv-data/producao.json';
+  const sRef = storageRef(storage, path);
+  const blob = new Blob([JSON.stringify(rows)], { type: 'application/json' });
+  await uploadBytes(sRef, blob);
+  const downloadUrl = await getDownloadURL(sRef);
+  await setDoc(doc(db, 'appSettings', 'csvSync'), {
+    fileName: fileName || 'producao.json',
+    syncedAt: Timestamp.now(),
+    rowCount: rows.length,
+    downloadUrl,
+  }, { merge: true });
+}
+
+/**
+ * Subscribes to CSV sync metadata. The callback is suppressed on the device
+ * that just uploaded (within a 30-second window) to avoid a redundant download.
+ * callback receives { fileName, syncedAt (ms), rowCount, downloadUrl }
+ */
+export function subscribeCsvSync(callback) {
+  return onSnapshot(
+    doc(db, 'appSettings', 'csvSync'),
+    (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+      const syncedAt = data.syncedAt?.toMillis?.() || 0;
+      // Suppress on the uploading device (avoids download of data we just pushed)
+      if (Math.abs(syncedAt - _lastUploadMs) < 30_000) return;
+      callback({ ...data, syncedAt });
+    },
+    (err) => console.warn('[Firestore] subscribeCsvSync:', err.code),
+  );
 }
 
 export default app;

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore, useAdminStore } from './hooks/useStore';
-import { onAuthChange, getUserRole, subscribeProducts, subscribeMachines } from './services/firebase';
+import { useAuthStore, useAdminStore, useCsvStore } from './hooks/useStore';
+import { onAuthChange, getUserRole, subscribeProducts, subscribeMachines, subscribeCsvSync } from './services/firebase';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Planning from './pages/Planning';
@@ -25,6 +25,25 @@ export default function App() {
     });
     const unsubMachines = subscribeMachines((data) => {
       setMachines(data);
+    });
+
+    // ── CSV cross-device sync ──────────────────────────────────────────────
+    // When another device uploads a new CSV, download and populate the shared store.
+    let prevSyncedAt = 0;
+    const unsubCsv = subscribeCsvSync(async (meta) => {
+      if (!meta.downloadUrl || meta.syncedAt <= prevSyncedAt) return;
+      prevSyncedAt = meta.syncedAt;
+      try {
+        const res = await fetch(meta.downloadUrl);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const rows = await res.json();
+        const { setRows, setFileName, setLastSync } = useCsvStore.getState();
+        setRows(rows);
+        if (meta.fileName) setFileName(meta.fileName);
+        setLastSync(new Date(meta.syncedAt));
+      } catch (err) {
+        console.warn('[csvSync] Failed to download rows:', err.message);
+      }
     });
 
     setLoading(true);
@@ -62,6 +81,7 @@ export default function App() {
       unsub();
       unsubProducts();
       unsubMachines();
+      unsubCsv();
       clearTimeout(timeout);
     };
   }, []);
