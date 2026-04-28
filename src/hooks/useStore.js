@@ -78,9 +78,8 @@ export function makeEntryId(factory, machine, date, twist) {
 }
 
 // ─── Twist-split logic ────────────────────────────────────────────────────────
-// RPR TEXTRIZADORA CONV. SINGLE: produtos de 1 ou 3 cabos rodam metade S / metade Z
-// na mesma máquina no mesmo dia. Produtos de 2 cabos ocupam a máquina inteira
-// com um único produto.
+// A divisão de fusos por cabos só vale para RPR TEXTRIZADORA CONV. SINGLE.
+// Demais máquinas usam sempre o total de fusos, independente do nº de cabos.
 export function parseCabos(productName) {
   if (!productName) return null;
   const m = String(productName).match(/(\d)\s*[xX×]/);
@@ -91,25 +90,14 @@ export function isSplitMachine(machine) {
   return !!machine?.name && /SINGLE/i.test(machine.name);
 }
 
-// Total de fusos ativos da máquina para um dado nº de cabos
-function totalActiveSpindles(machine, cabos) {
-  const total = machine?.spindles || 0;
-  if (cabos === 1) return total;             // 108
-  if (cabos === 2) return Math.floor(total / 2); // 54
-  if (cabos === 3) return Math.floor(total / 3); // 36
-  return total;
-}
-
 // Fusos que contribuem para a produção de UM produto específico.
-// Para cabos 1 e 3 a máquina roda dois produtos (S+Z) simultaneamente,
-// então cada produto usa metade dos fusos ativos.
 export function spindlesForProduct(machine, cabos) {
-  if (!machine?.spindles) return 0;
-  const active = totalActiveSpindles(machine, cabos);
-  if (isSplitMachine(machine) && (cabos === 1 || cabos === 3)) {
-    return Math.floor(active / 2);
-  }
-  return active;
+  const total = machine?.spindles || 0;
+  if (!total) return 0;
+  if (!isSplitMachine(machine)) return total;
+  if (cabos === 2) return Math.floor(total / 2);
+  if (cabos === 3) return Math.floor(total / 3);
+  return total; // 1 cabo (ou desconhecido) → máquina inteira
 }
 
 export function hasTwistMark(productName) {
