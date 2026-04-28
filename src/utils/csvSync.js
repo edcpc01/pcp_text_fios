@@ -208,6 +208,34 @@ function findCol(headers, candidates) {
 // Classificações do Microdata excluídas em todos os parsers (consignação/análise)
 const CLASSIF_EXCLUIDAS = ['a3', 'as'];
 
+// ─── Machine Name Mapping (Admin → CSV) ──────────────────────────────────────
+// Entries are checked in order — more specific patterns must come first.
+export const MACHINE_NAME_MAP = [
+  // Corradi Filial
+  { factory: 'filial', contains: 'AIKI TEXTURIZADORA',                          csvName: 'GRUPO AIKI TEXT A AR' },
+  { factory: 'filial', contains: 'RPR TEXTRIZADORA CONV. JUMBO',                csvName: 'RPR TWIN TEXT - JUMBO' },
+  // Corradi Matriz — SINGLE ENTRELACADORA before SINGLE (longer pattern first)
+  { factory: 'matriz', contains: 'RPR TEXTRIZADORA CONV. SINGLE ENTRELACADORA', csvName: 'RPR SINGLE ENTRELAÇADORA - AUT' },
+  { factory: 'matriz', contains: 'RPR TEXTRIZADORA CONV. SINGLE',               csvName: 'RPR SINGLE TEXT - AUTOMATICA' },
+  { factory: 'matriz', contains: 'SSM AIR COVERING',                            csvName: 'GRUPO SSM - ENTRELAÇADORA' },
+];
+
+const normMap = (s) =>
+  (s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+/**
+ * Returns the CSV machine group name for an admin machine name.
+ * Returns null if no mapping found (caller should fall back to machine ID).
+ */
+export function getCsvMachineName(adminMachineName, factory) {
+  const n = normMap(adminMachineName);
+  for (const entry of MACHINE_NAME_MAP) {
+    if (entry.factory && entry.factory !== factory) continue;
+    if (n.includes(normMap(entry.contains))) return entry.csvName;
+  }
+  return null;
+}
+
 // ─── Parse CSV de Produção Realizada ─────────────────────────────────────────
 
 /**
