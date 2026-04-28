@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus, Download, RefreshCw, AlertTriangle, FolderOpen, X } from 'lucide-react';
 import { useAppStore, useProductionStore, usePlanningStore, useAdminStore, useAuthStore, useCsvStore, MACHINES } from '../hooks/useStore';
-import { subscribeProductionRecords, subscribePlanningEntries, saveProductionRecord } from '../services/firebase';
+import { subscribeProductionRecords, subscribePlanningEntries, saveProductionRecord, uploadCsvSync } from '../services/firebase';
 import { getMonthLabel, getDaysInMonth, isSunday } from '../utils/dates';
 import { seedDemoData } from '../utils/seedData';
 import { pickOrReuseFile, clearFileHandle, readSavedFile, parseProducaoCSV, parseQualidadeCSV, findProductByCode, readFileText } from '../utils/csvSync';
@@ -185,10 +185,16 @@ export default function Production() {
     setSyncing(false);
 
     // Populate shared CSV store so OEE and Qualidade pages get the same data
+    const qualRows = parseQualidadeCSV(text);
     const { setRows, setFileName, setLastSync } = useCsvStore.getState();
-    setRows(parseQualidadeCSV(text));
+    setRows(qualRows);
     if (fileName) setFileName(fileName);
     setLastSync(new Date());
+
+    // Upload to Firebase Storage so other devices auto-sync (non-blocking)
+    uploadCsvSync(qualRows, fileName).catch((err) =>
+      console.warn('[csvSync] Upload to Storage failed:', err.message),
+    );
   };
 
   // No mobile, showOpenFilePicker envia o PWA para background causando tela preta ao retornar.
