@@ -71,7 +71,7 @@ function activeSpindlesForEntry(machine, cabos, twist) {
 }
 
 // ─── OEE Calculation ─────────────────────────────────────────────────────────
-function computeOEE({ planningEntries, csvRows, adminMachines, adminProducts, factory, yearMonth, cutoff }) {
+export function computeOEE({ planningEntries, csvRows, adminMachines, adminProducts, factory, yearMonth, cutoff }) {
   const monthStart = `${yearMonth}-01`;
 
   const factoriesToProcess = factory === 'all' ? ['matriz', 'filial'] : [factory];
