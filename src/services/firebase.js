@@ -3,9 +3,8 @@ import {
   getFirestore,
   collection, doc, getDoc, getDocs, setDoc, deleteDoc,
   query, where, orderBy, onSnapshot, Timestamp,
-  initializeFirestore, memoryLocalCache,
+  initializeFirestore, memoryLocalCache, writeBatch,
 } from 'firebase/firestore';
-import { getStorage, ref as storageRef, uploadBytes, getBytes } from 'firebase/storage';
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -42,7 +41,6 @@ export const db = initializeFirestore(app, {
 });
 
 export const auth = getAuth(app);
-const storage = getStorage(app);
 const googleProvider = new GoogleAuthProvider();
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -414,50 +412,68 @@ export async function saveAgentLog(log) {
   await setDoc(doc(collection(db, 'agent_logs')), { ...log, timestamp: Timestamp.now() });
 }
 
-// ─── CSV Cross-device Sync (Firebase Storage + Firestore) ────────────────────
-// Tracks the timestamp of the last upload FROM THIS device so we can suppress
-// the redundant download that would otherwise trigger on the uploading device.
+// ─── CSV Cross-device Sync (Firestore chunks) ────────────────────────────────
+// Rows are split into 500-row chunks stored as Firestore sub-documents.
+// Firestore is used instead of Storage to guarantee cross-device delivery
+// without any CORS, bucket, or Storage-rules configuration.
+
+const CSV_CHUNK_SIZE = 500;
+const CSV_META_REF   = () => doc(db, 'appSettings', 'csvSync');
+const CSV_CHUNK_REF  = (i) => doc(db, 'appSettings', 'csvSync', 'chunks', String(i));
+
 let _lastUploadMs = 0;
 
 /**
- * Uploads parsed CSV rows as JSON to Firebase Storage and updates the
- * Firestore metadata document so all other devices auto-reload.
+ * Splits rows into 500-row Firestore documents then writes the metadata doc.
+ * Writing metadata last ensures subscribers only fire once all chunks exist.
  */
 export async function uploadCsvSync(rows, fileName) {
   _lastUploadMs = Date.now();
-  const sRef = storageRef(storage, 'csv-data/producao.json');
-  const blob = new Blob([JSON.stringify(rows)], { type: 'application/json' });
-  await uploadBytes(sRef, blob);
-  await setDoc(doc(db, 'appSettings', 'csvSync'), {
-    fileName: fileName || 'producao.json',
-    syncedAt: Timestamp.now(),
-    rowCount: rows.length,
+
+  const chunks = [];
+  for (let i = 0; i < rows.length; i += CSV_CHUNK_SIZE) {
+    chunks.push(rows.slice(i, i + CSV_CHUNK_SIZE));
+  }
+
+  // Firestore batch (max 500 ops — we have at most ~100 chunks for any real CSV)
+  const batch = writeBatch(db);
+  chunks.forEach((chunk, i) => batch.set(CSV_CHUNK_REF(i), { rows: chunk }));
+  await batch.commit();
+
+  await setDoc(CSV_META_REF(), {
+    fileName:   fileName || 'producao.csv',
+    syncedAt:   Timestamp.now(),
+    rowCount:   rows.length,
+    chunkCount: chunks.length,
   }, { merge: true });
 }
 
 /**
- * Downloads CSV rows from Firebase Storage using the SDK (handles auth, no CORS issues).
- * Max 20 MB to cover even large CSV files.
+ * Reads all chunk documents and assembles the full row array.
  */
 export async function downloadCsvRows() {
-  const sRef = storageRef(storage, 'csv-data/producao.json');
-  const bytes = await getBytes(sRef, 20 * 1024 * 1024);
-  return JSON.parse(new TextDecoder().decode(bytes));
+  const metaSnap = await getDoc(CSV_META_REF());
+  if (!metaSnap.exists()) throw new Error('Nenhum CSV sincronizado');
+  const { chunkCount } = metaSnap.data();
+  if (!chunkCount) return [];
+
+  const snaps = await Promise.all(
+    Array.from({ length: chunkCount }, (_, i) => getDoc(CSV_CHUNK_REF(i))),
+  );
+  return snaps.flatMap((s) => s.data()?.rows || []);
 }
 
 /**
- * Subscribes to CSV sync metadata. The callback is suppressed on the device
- * that just uploaded (within a 30-second window) to avoid a redundant download.
- * callback receives { fileName, syncedAt (ms), rowCount, downloadUrl }
+ * Subscribes to CSV sync metadata. Callback is suppressed on the uploading
+ * device (30 s window) to avoid an unnecessary re-download of data just sent.
  */
 export function subscribeCsvSync(callback) {
   return onSnapshot(
-    doc(db, 'appSettings', 'csvSync'),
+    CSV_META_REF(),
     (snap) => {
       if (!snap.exists()) return;
-      const data = snap.data();
+      const data    = snap.data();
       const syncedAt = data.syncedAt?.toMillis?.() || 0;
-      // Suppress on the uploading device (avoids download of data we just pushed)
       if (Math.abs(syncedAt - _lastUploadMs) < 30_000) return;
       callback({ ...data, syncedAt });
     },
