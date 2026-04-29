@@ -191,10 +191,11 @@ export default function Production() {
     if (fileName) setFileName(fileName);
     setLastSync(new Date());
 
-    // Upload to Firebase Storage so other devices auto-sync (non-blocking)
-    uploadCsvSync(qualRows, fileName).catch((err) =>
-      console.warn('[csvSync] Upload to Storage failed:', err.message),
-    );
+    // Upload to Firestore chunks so other devices auto-sync
+    uploadCsvSync(qualRows, fileName).catch((err) => {
+      console.warn('[csvSync] Cross-device upload failed:', err.message);
+      setSyncResult((prev) => ({ ...prev, syncError: true }));
+    });
   };
 
   // No mobile, showOpenFilePicker envia o PWA para background causando tela preta ao retornar.
@@ -430,7 +431,7 @@ export default function Production() {
           <span>
             {syncResult.error
               ? `Erro: ${syncResult.error}`
-              : `${syncResult.imported} registros importados · ${syncResult.noProduct} produto(s) não encontrado(s) no PWA · ${syncResult.skipped} fora do mês`}
+              : `${syncResult.imported} registros importados · ${syncResult.noProduct} produto(s) não encontrado(s) · ${syncResult.skipped} fora do mês${syncResult.syncError ? ' · ⚠ sync entre dispositivos falhou' : ' · ✓ sincronizado entre dispositivos'}`}
           </span>
           <button onClick={() => setSyncResult(null)} className="ml-4 text-current opacity-60 hover:opacity-100">
             <X size={13} />
