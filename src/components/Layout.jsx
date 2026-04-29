@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, TrendingUp,
   Bot, LogOut, Settings, ChevronDown, X, Menu, LineChart, RefreshCw, Award, Gauge,
@@ -29,6 +29,7 @@ import PWAPrompt from './PWAPrompt';
 
 export default function Layout({ children }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuthStore();
   const { factory, setFactory, agentOpen, toggleAgent, closeAgent } = useAppStore();
   const [unitOpen, setUnitOpen] = useState(false);
@@ -98,6 +99,53 @@ export default function Layout({ children }) {
   }, []);
 
   const handleLogout = async () => { await signOut(); logout(); navigate('/'); };
+
+  // ── Swipe navigation (mobile only) ───────────────────────────────────────
+  useEffect(() => {
+    const NAV_ROUTES = NAV.map((n) => n.to);
+
+    // Returns true if the element (or any ancestor) scrolls horizontally
+    const isInsideHScroll = (el) => {
+      while (el && el !== document.body) {
+        const ox = window.getComputedStyle(el).overflowX;
+        if ((ox === 'auto' || ox === 'scroll') && el.scrollWidth > el.clientWidth + 4) return true;
+        el = el.parentElement;
+      }
+      return false;
+    };
+
+    let startX = 0, startY = 0, startTarget = null;
+
+    const onStart = (e) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      startTarget = e.target;
+    };
+
+    const onEnd = (e) => {
+      if (agentOpen) return;
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+
+      if (Math.abs(dx) < 70) return;                   // swipe muito curto
+      if (Math.abs(dx) < Math.abs(dy) * 1.5) return;   // mais vertical que horizontal
+      if (startX < 20 || startX > window.innerWidth - 20) return; // gesto de borda do Android
+      if (isInsideHScroll(startTarget)) return;         // dentro de scroll horizontal
+
+      const idx = NAV_ROUTES.indexOf(location.pathname);
+      if (idx === -1) return;
+
+      if (dx < 0 && idx < NAV_ROUTES.length - 1) navigate(NAV_ROUTES[idx + 1]); // ← próxima
+      if (dx > 0 && idx > 0)                     navigate(NAV_ROUTES[idx - 1]); // → anterior
+    };
+
+    document.addEventListener('touchstart', onStart, { passive: true });
+    document.addEventListener('touchend',   onEnd,   { passive: true });
+    return () => {
+      document.removeEventListener('touchstart', onStart);
+      document.removeEventListener('touchend',   onEnd);
+    };
+  }, [location.pathname, agentOpen, navigate]);
 
   const handleHardReload = async () => {
     // Nuclear reload: desregistra SW + limpa caches + recarrega ignorando cache.
