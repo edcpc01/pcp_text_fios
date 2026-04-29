@@ -5,7 +5,7 @@ import {
   query, where, orderBy, onSnapshot, Timestamp,
   initializeFirestore, memoryLocalCache,
 } from 'firebase/firestore';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref as storageRef, uploadBytes, getBytes } from 'firebase/storage';
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -425,17 +425,24 @@ let _lastUploadMs = 0;
  */
 export async function uploadCsvSync(rows, fileName) {
   _lastUploadMs = Date.now();
-  const path = 'csv-data/producao.json';
-  const sRef = storageRef(storage, path);
+  const sRef = storageRef(storage, 'csv-data/producao.json');
   const blob = new Blob([JSON.stringify(rows)], { type: 'application/json' });
   await uploadBytes(sRef, blob);
-  const downloadUrl = await getDownloadURL(sRef);
   await setDoc(doc(db, 'appSettings', 'csvSync'), {
     fileName: fileName || 'producao.json',
     syncedAt: Timestamp.now(),
     rowCount: rows.length,
-    downloadUrl,
   }, { merge: true });
+}
+
+/**
+ * Downloads CSV rows from Firebase Storage using the SDK (handles auth, no CORS issues).
+ * Max 20 MB to cover even large CSV files.
+ */
+export async function downloadCsvRows() {
+  const sRef = storageRef(storage, 'csv-data/producao.json');
+  const bytes = await getBytes(sRef, 20 * 1024 * 1024);
+  return JSON.parse(new TextDecoder().decode(bytes));
 }
 
 /**
