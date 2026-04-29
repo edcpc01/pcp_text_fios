@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore, useAdminStore, useCsvStore } from './hooks/useStore';
-import { onAuthChange, getUserRole, subscribeProducts, subscribeMachines, subscribeCsvSync } from './services/firebase';
+import { onAuthChange, getUserRole, subscribeProducts, subscribeMachines, subscribeCsvSync, downloadCsvRows } from './services/firebase';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Planning from './pages/Planning';
@@ -28,15 +28,14 @@ export default function App() {
     });
 
     // ── CSV cross-device sync ──────────────────────────────────────────────
-    // When another device uploads a new CSV, download and populate the shared store.
+    // When any device uploads a new CSV, all others download via Storage SDK
+    // (avoids CORS issues that affect fetch() on mobile PWAs).
     let prevSyncedAt = 0;
     const unsubCsv = subscribeCsvSync(async (meta) => {
-      if (!meta.downloadUrl || meta.syncedAt <= prevSyncedAt) return;
+      if (meta.syncedAt <= prevSyncedAt) return;
       prevSyncedAt = meta.syncedAt;
       try {
-        const res = await fetch(meta.downloadUrl);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const rows = await res.json();
+        const rows = await downloadCsvRows();
         const { setRows, setFileName, setLastSync } = useCsvStore.getState();
         setRows(rows);
         if (meta.fileName) setFileName(meta.fileName);
