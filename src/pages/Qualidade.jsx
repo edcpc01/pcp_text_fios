@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import {
   Award, ChevronLeft, ChevronRight, ChevronDown,
-  AlertTriangle, Building2, Activity,
+  AlertTriangle, Building2, Activity, Users,
 } from 'lucide-react';
-import { useAppStore, useCsvStore } from '../hooks/useStore';
+import { useAppStore, useCsvStore, useAdminStore } from '../hooks/useStore';
 import { getMonthLabel } from '../utils/dates';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -104,6 +104,7 @@ function MetricCols({ primeira, segunda, refugo, total }) {
 export default function Qualidade() {
   const { factory, month, changeMonth, getYearMonth } = useAppStore();
   const { rows: allRows, fileName: csvFile, lastSync } = useCsvStore();
+  const { products } = useAdminStore();
 
   const [expandedFactories, setExpandedFactories] = useState(new Set(['matriz', 'filial']));
   const [expandedMachines,  setExpandedMachines]  = useState(new Set());
@@ -151,6 +152,44 @@ export default function Qualidade() {
 
     return factMap;
   }, [allRows, yearMonth, factory]);
+
+  // ─── KPIs por Cliente ────────────────────────────────────────────────────────
+
+  const clientTree = useMemo(() => {
+    // Mapa: código microdata/id → nome do cliente
+    const codeToClient = {};
+    products.forEach((p) => {
+      const cli = p.cliente || '(sem cliente)';
+      if (p.codigoMicrodata) codeToClient[p.codigoMicrodata.trim().toUpperCase()] = cli;
+      if (p.id)              codeToClient[p.id.trim().toUpperCase()]              = cli;
+    });
+
+    const filtered = allRows.filter((r) => {
+      if (!r.date.startsWith(yearMonth)) return false;
+      if (factory !== 'all' && getFactory(r.empresa) !== factory) return false;
+      return true;
+    });
+
+    const factMap = {};
+    for (const r of filtered) {
+      const fKey = getFactory(r.empresa);
+      if (fKey === 'outra') continue;
+      const cli  = codeToClient[(r.productCode || '').trim().toUpperCase()] || '(sem cadastro)';
+      const tier = getTier(r.classif, r.lote);
+      const kg   = r.quantity || 0;
+
+      if (!factMap[fKey]) {
+        const meta = FACTORY_META[fKey] || FACTORY_META.outra;
+        factMap[fKey] = { label: meta.label, dot: meta.dot, clients: {} };
+      }
+      if (!factMap[fKey].clients[cli])
+        factMap[fKey].clients[cli] = { primeira: 0, segunda: 0, refugo: 0, total: 0 };
+
+      factMap[fKey].clients[cli][tier] += kg;
+      factMap[fKey].clients[cli].total += kg;
+    }
+    return factMap;
+  }, [allRows, yearMonth, factory, products]);
 
   // ─── KPIs globais ────────────────────────────────────────────────────────────
 
@@ -261,6 +300,56 @@ export default function Qualidade() {
           <p className="text-[9px] text-brand-muted/50 mt-1">AS, EJ, EI, EM, EP</p>
         </div>
       </div>
+
+      {/* KPI por Cliente */}
+      {Object.keys(clientTree).length > 0 && (
+        <div className="px-4 sm:px-6 py-3 border-b border-brand-border shrink-0">
+          <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+            <Users size={10} />
+            Qualidade por Cliente
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {Object.entries(clientTree).map(([fKey, fData]) => (
+              <div key={fKey} className="rounded-xl border border-brand-border bg-white/[0.02] overflow-hidden">
+                {/* Factory header */}
+                <div className="flex items-center gap-2 px-3 py-2 border-b border-brand-border/50 bg-white/[0.02]">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: fData.dot }} />
+                  <span className="text-xs font-bold text-white">{fData.label}</span>
+                </div>
+                {/* Client rows */}
+                <div className="divide-y divide-brand-border/30">
+                  {Object.entries(fData.clients)
+                    .sort((a, b) => b[1].total - a[1].total)
+                    .map(([clientName, cd]) => {
+                      const p1Pct  = pctN(cd.primeira, cd.total);
+                      const p2Pct  = pctN(cd.segunda,  cd.total);
+                      const refPct = pctN(cd.refugo,   cd.total);
+                      return (
+                        <div key={clientName} className="px-3 py-2.5">
+                          <div className="flex items-center justify-between mb-1.5 gap-2">
+                            <span className="text-xs font-semibold text-white/90 truncate">{clientName}</span>
+                            <div className="flex items-center gap-2.5 text-[10px] font-mono shrink-0">
+                              <span className="text-brand-muted">{fmtKg(cd.total)}</span>
+                              <span className="text-emerald-400">{p1Pct.toFixed(1)}%</span>
+                              {cd.segunda > 0 && <span className="text-amber-400">{p2Pct.toFixed(1)}%</span>}
+                              {cd.refugo  > 0 && <span className="text-red-400">{refPct.toFixed(1)}%</span>}
+                            </div>
+                          </div>
+                          {/* Stacked quality bar */}
+                          <div className="h-1.5 rounded-full overflow-hidden bg-brand-bg/40 flex">
+                            <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${p1Pct}%` }} />
+                            <div className="h-full bg-amber-500  transition-all duration-500" style={{ width: `${p2Pct}%` }} />
+                            <div className="h-full bg-red-500    transition-all duration-500" style={{ width: `${refPct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Árvore interativa */}
       <div className="flex-1 overflow-auto w-full">
