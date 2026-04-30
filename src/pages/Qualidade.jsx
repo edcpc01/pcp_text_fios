@@ -51,13 +51,13 @@ function MetricCols({ primeira, segunda, refugo, total }) {
   const p1   = pctN(primeira, total);
   return (
     <>
-      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+      <td className="hidden sm:table-cell px-3 py-2.5 text-right whitespace-nowrap">
         <span className="text-sm font-mono font-semibold text-emerald-400">{fmtKg(primeira)}</span>
         <span className="text-[10px] text-brand-muted/60 ml-1">kg</span>
         <span className="text-[10px] text-emerald-400/70 ml-1.5">({p1.toFixed(1)}%)</span>
       </td>
 
-      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+      <td className="hidden sm:table-cell px-3 py-2.5 text-right whitespace-nowrap">
         {segunda > 0 ? (
           <>
             <span className="text-sm font-mono font-semibold text-amber-400">{fmtKg(segunda)}</span>
@@ -67,7 +67,7 @@ function MetricCols({ primeira, segunda, refugo, total }) {
         ) : <span className="text-xs text-brand-muted/25">—</span>}
       </td>
 
-      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+      <td className="hidden sm:table-cell px-3 py-2.5 text-right whitespace-nowrap">
         {refugo > 0 ? (
           <>
             <span className="text-sm font-mono font-semibold text-red-400">{fmtKg(refugo)}</span>
@@ -77,12 +77,12 @@ function MetricCols({ primeira, segunda, refugo, total }) {
         ) : <span className="text-xs text-brand-muted/25">—</span>}
       </td>
 
-      <td className="px-3 py-2.5 pr-4 text-right whitespace-nowrap">
+      <td className="hidden sm:table-cell px-3 py-2.5 pr-4 text-right whitespace-nowrap">
         <span className="text-sm font-mono font-semibold text-white">{fmtKg(total)}</span>
         <span className="text-[10px] text-brand-muted/60 ml-1">kg</span>
       </td>
 
-      <td className="px-3 py-2.5 pr-5 w-32">
+      <td className="px-3 py-2.5 pr-4 sm:pr-5 w-28 sm:w-36">
         <div className="flex items-center gap-1.5">
           <div className="flex-1 h-1.5 bg-brand-surface/60 rounded-full overflow-hidden">
             <div
@@ -301,57 +301,7 @@ export default function Qualidade() {
         </div>
       </div>
 
-      {/* KPI por Cliente */}
-      {Object.keys(clientTree).length > 0 && (
-        <div className="px-4 sm:px-6 py-3 border-b border-brand-border shrink-0">
-          <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-            <Users size={10} />
-            Qualidade por Cliente
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {Object.entries(clientTree).map(([fKey, fData]) => (
-              <div key={fKey} className="rounded-xl border border-brand-border bg-white/[0.02] overflow-hidden">
-                {/* Factory header */}
-                <div className="flex items-center gap-2 px-3 py-2 border-b border-brand-border/50 bg-white/[0.02]">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: fData.dot }} />
-                  <span className="text-xs font-bold text-white">{fData.label}</span>
-                </div>
-                {/* Client rows */}
-                <div className="divide-y divide-brand-border/30">
-                  {Object.entries(fData.clients)
-                    .sort((a, b) => b[1].total - a[1].total)
-                    .map(([clientName, cd]) => {
-                      const p1Pct  = pctN(cd.primeira, cd.total);
-                      const p2Pct  = pctN(cd.segunda,  cd.total);
-                      const refPct = pctN(cd.refugo,   cd.total);
-                      return (
-                        <div key={clientName} className="px-3 py-2.5">
-                          <div className="flex items-center justify-between mb-1.5 gap-2">
-                            <span className="text-xs font-semibold text-white/90 truncate">{clientName}</span>
-                            <div className="flex items-center gap-2.5 text-[10px] font-mono shrink-0">
-                              <span className="text-brand-muted">{fmtKg(cd.total)}</span>
-                              <span className="text-emerald-400">{p1Pct.toFixed(1)}%</span>
-                              {cd.segunda > 0 && <span className="text-amber-400">{p2Pct.toFixed(1)}%</span>}
-                              {cd.refugo  > 0 && <span className="text-red-400">{refPct.toFixed(1)}%</span>}
-                            </div>
-                          </div>
-                          {/* Stacked quality bar */}
-                          <div className="h-1.5 rounded-full overflow-hidden bg-brand-bg/40 flex">
-                            <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${p1Pct}%` }} />
-                            <div className="h-full bg-amber-500  transition-all duration-500" style={{ width: `${p2Pct}%` }} />
-                            <div className="h-full bg-red-500    transition-all duration-500" style={{ width: `${refPct}%` }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Árvore interativa */}
+      {/* Árvore interativa + KPI por Cliente (mesmo scroll) */}
       <div className="flex-1 overflow-auto w-full">
         {Object.keys(tree).length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-16">
@@ -362,17 +312,17 @@ export default function Qualidade() {
             <p className="text-xs text-brand-muted/60 mt-1">Sincronize o CSV na página Realizado para carregar os dados</p>
           </div>
         ) : (
-          <table className="w-full border-collapse" style={{ minWidth: 780 }}>
+          <table className="w-full border-collapse">
             <thead>
               <tr className="sticky top-0 z-10 bg-brand-bg/95 backdrop-blur-sm border-b border-brand-border">
                 <th className="pl-5 pr-3 py-3 text-left text-[10px] font-semibold text-brand-muted uppercase tracking-wider">
                   Empresa / Máquina / Produto
                 </th>
-                <th className="px-3 py-3 text-right text-[10px] font-semibold text-emerald-400/80 uppercase tracking-wider">1ª Qualidade</th>
-                <th className="px-3 py-3 text-right text-[10px] font-semibold text-amber-400/80 uppercase tracking-wider">2ª Qualidade</th>
-                <th className="px-3 py-3 text-right text-[10px] font-semibold text-red-400/80 uppercase tracking-wider">Refugo / Sucata</th>
-                <th className="px-3 py-3 pr-4 text-right text-[10px] font-semibold text-brand-muted uppercase tracking-wider">Total</th>
-                <th className="px-3 py-3 pr-5 text-left text-[10px] font-semibold text-brand-muted uppercase tracking-wider w-36">1ª %</th>
+                <th className="hidden sm:table-cell px-3 py-3 text-right text-[10px] font-semibold text-emerald-400/80 uppercase tracking-wider">1ª Qualidade</th>
+                <th className="hidden sm:table-cell px-3 py-3 text-right text-[10px] font-semibold text-amber-400/80 uppercase tracking-wider">2ª Qualidade</th>
+                <th className="hidden sm:table-cell px-3 py-3 text-right text-[10px] font-semibold text-red-400/80 uppercase tracking-wider">Refugo / Sucata</th>
+                <th className="hidden sm:table-cell px-3 py-3 pr-4 text-right text-[10px] font-semibold text-brand-muted uppercase tracking-wider">Total</th>
+                <th className="px-3 py-3 pr-4 sm:pr-5 text-left text-[10px] font-semibold text-brand-muted uppercase tracking-wider w-28 sm:w-36">1ª %</th>
               </tr>
             </thead>
             <tbody>
@@ -436,6 +386,53 @@ export default function Qualidade() {
               })}
             </tbody>
           </table>
+        )}
+
+        {/* KPI por Cliente — abaixo da árvore por empresa */}
+        {Object.keys(clientTree).length > 0 && (
+          <div className="px-4 sm:px-6 py-4 border-t border-brand-border">
+            <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Users size={10} />
+              Qualidade por Cliente
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {Object.entries(clientTree).map(([fKey, fData]) => (
+                <div key={fKey} className="rounded-xl border border-brand-border bg-white/[0.02] overflow-hidden">
+                  <div className="flex items-center gap-2 px-3 py-2 border-b border-brand-border/50 bg-white/[0.02]">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: fData.dot }} />
+                    <span className="text-xs font-bold text-white">{fData.label}</span>
+                  </div>
+                  <div className="divide-y divide-brand-border/30">
+                    {Object.entries(fData.clients)
+                      .sort((a, b) => b[1].total - a[1].total)
+                      .map(([clientName, cd]) => {
+                        const p1Pct  = pctN(cd.primeira, cd.total);
+                        const p2Pct  = pctN(cd.segunda,  cd.total);
+                        const refPct = pctN(cd.refugo,   cd.total);
+                        return (
+                          <div key={clientName} className="px-3 py-2.5">
+                            <div className="flex items-center justify-between mb-1.5 gap-2">
+                              <span className="text-xs font-semibold text-white/90 truncate">{clientName}</span>
+                              <div className="flex items-center gap-2.5 text-[10px] font-mono shrink-0">
+                                <span className="text-brand-muted">{fmtKg(cd.total)}</span>
+                                <span className="text-emerald-400">{p1Pct.toFixed(1)}%</span>
+                                {cd.segunda > 0 && <span className="text-amber-400">{p2Pct.toFixed(1)}%</span>}
+                                {cd.refugo  > 0 && <span className="text-red-400">{refPct.toFixed(1)}%</span>}
+                              </div>
+                            </div>
+                            <div className="h-1.5 rounded-full overflow-hidden bg-brand-bg/40 flex">
+                              <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${p1Pct}%` }} />
+                              <div className="h-full bg-amber-500  transition-all duration-500" style={{ width: `${p2Pct}%` }} />
+                              <div className="h-full bg-red-500    transition-all duration-500" style={{ width: `${refPct}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>
