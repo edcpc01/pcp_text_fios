@@ -43,6 +43,11 @@ export default defineConfig({
         // quando registerType: 'autoUpdate' é usado.
         runtimeCaching: [
           {
+            // Gemini API — nunca cachear, sempre ir à rede diretamente
+            urlPattern: /^https:\/\/generativelanguage\.googleapis\.com\/.*/i,
+            handler: 'NetworkOnly',
+          },
+          {
             urlPattern: /^https:\/\/firestore\.googleapis\.com\/.*/i,
             handler: 'NetworkFirst',
             options: {
