@@ -446,7 +446,7 @@ export function computeDowntimeByReason(planningEntries, oeeTree) {
 const RADIAN = Math.PI / 180;
 function PieLabel({ cx, cy, midAngle, outerRadius, fill, motivo, pct }) {
   if (pct < 4) return null;
-  const r = outerRadius + 30;
+  const r = outerRadius + 36;
   const x = cx + r * Math.cos(-midAngle * RADIAN);
   const y = cy + r * Math.sin(-midAngle * RADIAN);
   const anchor = x > cx ? 'start' : 'end';
@@ -503,17 +503,17 @@ function DowntimePieChart({ data }) {
       </div>
 
       {/* Body: pie + table */}
-      <div className="flex flex-col lg:flex-row">
+      <div className="flex flex-col lg:flex-row items-center justify-center">
         {/* Pie chart — bigger */}
-        <div className="flex items-center justify-center px-8 py-6 shrink-0" style={{ width: 460 }}>
-          <ResponsiveContainer width={440} height={320}>
+        <div className="flex items-center justify-center px-10 py-8 shrink-0" style={{ width: 560 }}>
+          <ResponsiveContainer width={540} height={400}>
             <PieChart>
               <Pie
                 data={pieData}
                 cx="50%"
                 cy="50%"
-                innerRadius={78}
-                outerRadius={128}
+                innerRadius={100}
+                outerRadius={158}
                 dataKey="minutes"
                 nameKey="motivo"
                 paddingAngle={2}
