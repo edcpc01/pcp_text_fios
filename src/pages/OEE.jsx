@@ -446,7 +446,7 @@ export function computeDowntimeByReason(planningEntries, oeeTree) {
 const RADIAN = Math.PI / 180;
 function PieLabel({ cx, cy, midAngle, outerRadius, fill, motivo, pct }) {
   if (pct < 4) return null;
-  const r = outerRadius + 36;
+  const r = outerRadius + 28;
   const x = cx + r * Math.cos(-midAngle * RADIAN);
   const y = cy + r * Math.sin(-midAngle * RADIAN);
   const anchor = x > cx ? 'start' : 'end';
@@ -482,95 +482,100 @@ function PieTooltipContent({ active, payload }) {
   );
 }
 
-function DowntimePieChart({ data }) {
-  if (!data || data.length === 0) return null;
-  const totalMin  = data.reduce((s, d) => s + d.minutes, 0);
-  const totalVol  = data.reduce((s, d) => s + d.volumePerdido, 0);
-  const totalOccs = data.reduce((s, d) => s + d.occurrences, 0);
-  const pieData   = data.map((d, i) => ({ ...d, fill: getMotivoColor(d.motivo, i) }));
+function DowntimePieChart({ data, title, accentColor }) {
+  const isEmpty   = !data || data.length === 0;
+  const totalMin  = isEmpty ? 0 : data.reduce((s, d) => s + d.minutes, 0);
+  const totalVol  = isEmpty ? 0 : data.reduce((s, d) => s + d.volumePerdido, 0);
+  const totalOccs = isEmpty ? 0 : data.reduce((s, d) => s + d.occurrences, 0);
+  const pieData   = isEmpty ? [] : data.map((d, i) => ({ ...d, fill: getMotivoColor(d.motivo, i) }));
 
   return (
-    <div className="bg-brand-card sm:rounded-2xl border-y sm:border border-brand-border overflow-hidden">
+    <div className="bg-brand-card sm:rounded-2xl border-y sm:border border-brand-border overflow-hidden flex flex-col">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-brand-border/40">
-        <div className="w-7 h-7 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
-          <Clock size={13} className="text-red-400" />
-        </div>
-        <span className="text-xs font-bold text-white">Motivos de Parada — Disponibilidade</span>
-        <span className="ml-auto text-[10px] text-brand-muted hidden sm:block">
-          {(totalMin / 60).toFixed(1)}h paradas · {totalOccs} ocorrências
-        </span>
+        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: accentColor }} />
+        <span className="text-xs font-bold text-white">{title}</span>
+        {!isEmpty && (
+          <span className="ml-auto text-[10px] text-brand-muted">
+            {(totalMin / 60).toFixed(1)}h · {totalOccs} ocorr.
+          </span>
+        )}
       </div>
 
-      {/* Body: pie + table */}
-      <div className="flex flex-col lg:flex-row items-center justify-center">
-        {/* Pie chart — bigger */}
-        <div className="flex items-center justify-center px-10 py-8 shrink-0" style={{ width: 560 }}>
-          <ResponsiveContainer width={540} height={400}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                innerRadius={100}
-                outerRadius={158}
-                dataKey="minutes"
-                nameKey="motivo"
-                paddingAngle={2}
-                labelLine={false}
-                label={PieLabel}
-              >
-                {pieData.map((entry) => (
-                  <Cell key={entry.motivo} fill={entry.fill} stroke="rgba(0,0,0,0.3)" strokeWidth={1} />
-                ))}
-              </Pie>
-              <ReTooltip content={<PieTooltipContent />} />
-            </PieChart>
-          </ResponsiveContainer>
+      {isEmpty ? (
+        <div className="flex items-center justify-center py-16 text-xs text-brand-muted/40 italic">
+          Sem paradas registradas
         </div>
+      ) : (
+        <>
+          {/* Pie */}
+          <div className="flex items-center justify-center py-4 px-4">
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={72}
+                  outerRadius={112}
+                  dataKey="minutes"
+                  nameKey="motivo"
+                  paddingAngle={2}
+                  labelLine={false}
+                  label={PieLabel}
+                >
+                  {pieData.map((entry) => (
+                    <Cell key={entry.motivo} fill={entry.fill} stroke="rgba(0,0,0,0.3)" strokeWidth={1} />
+                  ))}
+                </Pie>
+                <ReTooltip content={<PieTooltipContent />} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
 
-        {/* Table — compact */}
-        <div className="flex-1 overflow-auto border-t lg:border-t-0 lg:border-l border-brand-border/30 self-center px-2">
-          <table className="text-xs">
-            <thead>
-              <tr className="border-b border-brand-border/30">
-                {['Motivo', 'Horas Parado', '% Tempo', 'Vol. Perdido', 'Ocorrências'].map((h, i) => (
-                  <th key={h} className={`px-3 py-1.5 text-[9px] font-bold text-brand-muted uppercase tracking-wider ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {pieData.map((d) => (
-                <tr key={d.motivo} className="border-b border-brand-border/10 hover:bg-white/[0.015]">
-                  <td className="px-3 py-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.fill }} />
-                      <span className="text-white font-medium">{d.motivo}</span>
-                    </div>
-                  </td>
-                  <td className="px-3 py-1.5 text-right font-mono text-white tabular-nums">{(d.minutes / 60).toFixed(1)}h</td>
-                  <td className="px-3 py-1.5 text-right font-mono tabular-nums font-bold" style={{ color: d.fill }}>{d.pct.toFixed(1)}%</td>
-                  <td className="px-3 py-1.5 text-right font-mono text-brand-muted tabular-nums">
-                    {d.volumePerdido > 0 ? `${(d.volumePerdido / 1000).toFixed(3)} t` : '—'}
-                  </td>
-                  <td className="px-3 py-1.5 text-right font-mono text-white tabular-nums">{d.occurrences}</td>
+          {/* Table */}
+          <div className="border-t border-brand-border/30 mt-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-brand-border/30">
+                  {['Motivo', 'Horas', '% Tempo', 'Vol. Perdido', 'Ocorr.'].map((h, i) => (
+                    <th key={h} className={`px-3 py-1.5 text-[9px] font-bold text-brand-muted uppercase tracking-wider ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t border-brand-border/30 bg-brand-surface/20">
-                <td className="px-3 py-1.5 text-[9px] font-bold text-brand-muted uppercase tracking-wider">Total Geral</td>
-                <td className="px-3 py-1.5 text-right font-mono font-bold text-white tabular-nums">{(totalMin / 60).toFixed(1)}h</td>
-                <td className="px-3 py-1.5 text-right font-mono font-bold text-white tabular-nums">100,00%</td>
-                <td className="px-3 py-1.5 text-right font-mono font-bold text-brand-muted tabular-nums">
-                  {totalVol > 0 ? `${(totalVol / 1000).toFixed(3)} t` : '—'}
-                </td>
-                <td className="px-3 py-1.5 text-right font-mono font-bold text-white tabular-nums">{totalOccs}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
+              </thead>
+              <tbody>
+                {pieData.map((d) => (
+                  <tr key={d.motivo} className="border-b border-brand-border/10 hover:bg-white/[0.015]">
+                    <td className="px-3 py-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.fill }} />
+                        <span className="text-white font-medium">{d.motivo}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-1.5 text-right font-mono text-white tabular-nums">{(d.minutes / 60).toFixed(1)}h</td>
+                    <td className="px-3 py-1.5 text-right font-mono tabular-nums font-bold" style={{ color: d.fill }}>{d.pct.toFixed(1)}%</td>
+                    <td className="px-3 py-1.5 text-right font-mono text-brand-muted tabular-nums">
+                      {d.volumePerdido > 0 ? `${(d.volumePerdido / 1000).toFixed(3)} t` : '—'}
+                    </td>
+                    <td className="px-3 py-1.5 text-right font-mono text-white tabular-nums">{d.occurrences}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-brand-border/30 bg-brand-surface/20">
+                  <td className="px-3 py-1.5 text-[9px] font-bold text-brand-muted uppercase">Total</td>
+                  <td className="px-3 py-1.5 text-right font-mono font-bold text-white tabular-nums">{(totalMin / 60).toFixed(1)}h</td>
+                  <td className="px-3 py-1.5 text-right font-mono font-bold text-white tabular-nums">100,00%</td>
+                  <td className="px-3 py-1.5 text-right font-mono font-bold text-brand-muted tabular-nums">
+                    {totalVol > 0 ? `${(totalVol / 1000).toFixed(3)} t` : '—'}
+                  </td>
+                  <td className="px-3 py-1.5 text-right font-mono font-bold text-white tabular-nums">{totalOccs}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -677,10 +682,6 @@ export default function OEEPage() {
 
   const hasTree = Object.keys(oeeTree).length > 0;
 
-  const downtimeData = useMemo(
-    () => computeDowntimeByReason(planningEntries, oeeTree),
-    [planningEntries, oeeTree],
-  );
 
   return (
     <div className="flex flex-col bg-brand-bg" style={{ minHeight: 'calc(100vh - 56px)' }}>
@@ -1099,9 +1100,22 @@ export default function OEEPage() {
           ))
         )}
 
-        {/* ── Downtime Pie Chart ── */}
-        {hasTree && downtimeData.length > 0 && (
-          <DowntimePieChart data={downtimeData} />
+        {/* ── Downtime Pie Charts (por fábrica) ── */}
+        {hasTree && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {Object.entries(oeeTree).map(([facId, facData]) => {
+              const facEntries = planningEntries.filter((e) => e.factory === facId);
+              const facDowntime = computeDowntimeByReason(facEntries, { [facId]: facData });
+              return (
+                <DowntimePieChart
+                  key={facId}
+                  data={facDowntime}
+                  title={`${facData.label} — Motivos de Parada`}
+                  accentColor={facData.color}
+                />
+              );
+            })}
+          </div>
         )}
 
         {/* ── Legend ── */}
