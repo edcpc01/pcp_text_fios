@@ -530,8 +530,8 @@ function DowntimePieChart({ data }) {
         </div>
 
         {/* Table — compact */}
-        <div className="flex-1 overflow-auto border-t lg:border-t-0 lg:border-l border-brand-border/30 self-center">
-          <table className="w-full text-xs">
+        <div className="flex-1 overflow-auto border-t lg:border-t-0 lg:border-l border-brand-border/30 self-center px-2">
+          <table className="text-xs">
             <thead>
               <tr className="border-b border-brand-border/30">
                 {['Motivo', 'Horas Parado', '% Tempo', 'Vol. Perdido', 'Ocorrências'].map((h, i) => (
