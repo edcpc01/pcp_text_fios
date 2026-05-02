@@ -315,38 +315,56 @@ export function computeOEEByClient(oeeTree, adminProducts) {
         const cliente = (adminProd?.cliente || '').trim() || 'Sem Cliente';
 
         if (!clientMap[cliente]) {
-          clientMap[cliente] = {
-            label: cliente,
-            actualKg: 0, firstQKg: 0, theoreticalKg: 0,
-            weightedDNum: 0,
-            products: [],
-          };
+          clientMap[cliente] = { label: cliente, actualKg: 0, firstQKg: 0, theoreticalKg: 0, weightedDNum: 0, byFactory: {} };
         }
         const c = clientMap[cliente];
         c.actualKg      += prod.actualKg;
         c.firstQKg      += prod.firstQKg;
         c.theoreticalKg += prod.theoreticalKg;
         c.weightedDNum  += prod.theoreticalKg * (prod.dFactor || 0);
-        c.products.push(prod);
+
+        const fac = prod.factory;
+        if (!c.byFactory[fac]) {
+          c.byFactory[fac] = { factory: fac, actualKg: 0, firstQKg: 0, theoreticalKg: 0, weightedDNum: 0, products: [] };
+        }
+        const cf = c.byFactory[fac];
+        cf.actualKg      += prod.actualKg;
+        cf.firstQKg      += prod.firstQKg;
+        cf.theoreticalKg += prod.theoreticalKg;
+        cf.weightedDNum  += prod.theoreticalKg * (prod.dFactor || 0);
+        cf.products.push(prod);
       });
     });
   });
+
+  const calcMetrics = (agg) => {
+    const dF = agg.theoreticalKg > 0 ? agg.weightedDNum / agg.theoreticalKg : 0;
+    const D = dF * 100;
+    const pDenom = agg.theoreticalKg * dF;
+    const P = pDenom > 0 ? Math.min(100, (agg.actualKg / pDenom) * 100) : 0;
+    const Q = agg.actualKg > 0 ? (agg.firstQKg / agg.actualKg) * 100 : null;
+    const OEE = (D / 100) * (P / 100) * ((Q ?? 100) / 100) * 100;
+    return { disponibilidade: D, performance: P, qualidade: Q, oee: OEE };
+  };
 
   const result = {};
   Object.entries(clientMap)
     .sort(([a], [b]) => (a === 'Sem Cliente' ? 1 : b === 'Sem Cliente' ? -1 : a.localeCompare(b)))
     .forEach(([key, c]) => {
-      const dFactor = c.theoreticalKg > 0 ? c.weightedDNum / c.theoreticalKg : 0;
-      const D = dFactor * 100;
-      const perfDenom = c.theoreticalKg * dFactor;
-      const P = perfDenom > 0 ? Math.min(100, (c.actualKg / perfDenom) * 100) : 0;
-      const Q = c.actualKg > 0 ? (c.firstQKg / c.actualKg) * 100 : null;
-      const OEE = (D / 100) * (P / 100) * ((Q ?? 100) / 100) * 100;
+      const byFactory = {};
+      Object.entries(c.byFactory).forEach(([fac, cf]) => {
+        byFactory[fac] = {
+          factory: fac,
+          actualKg: cf.actualKg, firstQKg: cf.firstQKg, theoreticalKg: cf.theoreticalKg,
+          ...calcMetrics(cf),
+          products: cf.products.sort((a, b) => b.theoreticalKg - a.theoreticalKg),
+        };
+      });
       result[key] = {
         label: c.label,
         actualKg: c.actualKg, firstQKg: c.firstQKg, theoreticalKg: c.theoreticalKg,
-        disponibilidade: D, performance: P, qualidade: Q, oee: OEE,
-        products: c.products.sort((a, b) => b.theoreticalKg - a.theoreticalKg),
+        ...calcMetrics(c),
+        byFactory,
       };
     });
 
@@ -605,78 +623,121 @@ export default function OEEPage() {
                     </div>
                   </button>
 
-                  {/* Product rows */}
+                  {/* Factory sub-groups */}
                   {expanded && (
-                    <div className="bg-brand-bg/40 border-t border-brand-border/40">
-                      {/* Column header */}
-                      <div className="hidden sm:grid grid-cols-[1fr_72px_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 py-1.5 border-b border-brand-border/10">
-                        {['Produto', 'Máquina', 'Realizado', 'Teórico', 'Disp.', 'Perf.', 'Qual.', 'OEE'].map((h) => (
-                          <span key={h} className="text-[8px] font-bold text-brand-muted uppercase tracking-wider text-right first:text-left">{h}</span>
-                        ))}
-                      </div>
-
-                      {clientData.products.map((prod, idx) => {
-                        const facInfo = FACTORIES.find((f) => f.id === prod.factory);
+                    <div className="border-t border-brand-border/40">
+                      {Object.entries(clientData.byFactory).map(([facId, facGroup]) => {
+                        const facInfo = FACTORIES.find((f) => f.id === facId);
                         return (
-                          <div key={`${prod.productId}-${prod.machineName}-${idx}`}
-                            className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_72px_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 py-2 border-b border-brand-border/10 last:border-b-0 hover:bg-white/[0.015] items-center">
-                            <div className="min-w-0">
-                              <p className="text-[11px] font-medium text-white truncate leading-tight">{prod.productName}</p>
-                              <p className="text-[9px] text-brand-muted font-mono leading-tight">{prod.codigoMicrodata || prod.productId}</p>
+                          <div key={facId} className="border-b border-brand-border/20 last:border-b-0">
+
+                            {/* Factory sub-header */}
+                            <div className="flex items-center gap-3 px-4 sm:px-6 py-2 bg-brand-surface/30">
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: facInfo?.color || '#64748b' }} />
+                              <span className="text-[10px] font-black uppercase tracking-widest flex-1" style={{ color: facInfo?.color || '#64748b' }}>
+                                {facInfo?.name || facId}
+                              </span>
+                              <div className="hidden sm:flex items-center gap-5 shrink-0">
+                                <MetricPill label="Disp."  value={facGroup.disponibilidade} color="#22d3ee" />
+                                <MetricPill label="Perf."  value={facGroup.performance}     color="#a78bfa" />
+                                <MetricPill label="Qual."  value={facGroup.qualidade}        color="#34d399" />
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="hidden sm:block text-[9px] font-bold text-brand-muted uppercase">OEE</span>
+                                <GaugeBar pct={facGroup.oee} width={60} />
+                              </div>
                             </div>
-                            <div className="hidden sm:flex flex-col items-end gap-0.5">
-                              <span className="text-[9px] font-mono text-white truncate max-w-[68px]">{prod.machineName}</span>
-                              {facInfo && (
-                                <span className="text-[8px] font-bold uppercase tracking-wide" style={{ color: facInfo.color }}>
-                                  {facInfo.name?.split(' ')[0]}
+
+                            {/* Column header */}
+                            <div className="hidden sm:grid grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-10 py-1.5 border-b border-brand-border/10 bg-brand-bg/20">
+                              {['Produto / Máquina', 'Realizado', 'Teórico', 'Disp.', 'Perf.', 'Qual.', 'OEE'].map((h) => (
+                                <span key={h} className="text-[8px] font-bold text-brand-muted uppercase tracking-wider text-right first:text-left">{h}</span>
+                              ))}
+                            </div>
+
+                            {/* Products */}
+                            {facGroup.products.map((prod, idx) => (
+                              <div key={`${prod.productId}-${prod.machineName}-${idx}`}
+                                className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-10 py-2 border-b border-brand-border/10 last:border-b-0 hover:bg-white/[0.015] items-center">
+                                <div className="min-w-0">
+                                  <p className="text-[11px] font-medium text-white truncate leading-tight">{prod.productName}</p>
+                                  <p className="text-[9px] text-brand-muted/70 font-mono leading-tight">
+                                    {prod.codigoMicrodata || prod.productId}
+                                    <span className="ml-2 text-brand-muted/40">·</span>
+                                    <span className="ml-2">{prod.machineName}</span>
+                                  </p>
+                                </div>
+                                <span className="hidden sm:block text-[10px] font-mono text-white text-right">
+                                  {prod.actualKg > 0 ? `${(prod.actualKg / 1000).toFixed(2)}t` : '—'}
                                 </span>
-                              )}
-                            </div>
-                            <span className="hidden sm:block text-[10px] font-mono text-white text-right">
-                              {prod.actualKg > 0 ? `${(prod.actualKg / 1000).toFixed(2)}t` : '—'}
-                            </span>
-                            <span className="hidden sm:block text-[10px] font-mono text-brand-muted text-right">
-                              {prod.theoreticalKg > 0 ? `${(prod.theoreticalKg / 1000).toFixed(2)}t` : '—'}
-                            </span>
-                            <span className="hidden sm:block text-[10px] font-mono text-right tabular-nums" style={{ color: '#22d3ee' }}>
-                              {(prod.dFactor * 100).toFixed(1)}%
-                            </span>
-                            <span className="hidden sm:block text-[10px] font-mono text-right tabular-nums" style={{ color: '#a78bfa' }}>
-                              {prod.performance.toFixed(1)}%
-                            </span>
-                            <span className="hidden sm:block text-[10px] font-mono text-right tabular-nums" style={{ color: prod.qualidade != null ? '#34d399' : '#475569' }}>
-                              {prod.qualidade != null ? `${prod.qualidade.toFixed(1)}%` : '—'}
-                            </span>
-                            <div className="flex justify-end">
-                              <GaugeBar pct={prod.oee} width={52} />
+                                <span className="hidden sm:block text-[10px] font-mono text-brand-muted text-right">
+                                  {prod.theoreticalKg > 0 ? `${(prod.theoreticalKg / 1000).toFixed(2)}t` : '—'}
+                                </span>
+                                <span className="hidden sm:block text-[10px] font-mono text-right tabular-nums" style={{ color: '#22d3ee' }}>
+                                  {(prod.dFactor * 100).toFixed(1)}%
+                                </span>
+                                <span className="hidden sm:block text-[10px] font-mono text-right tabular-nums" style={{ color: '#a78bfa' }}>
+                                  {prod.performance.toFixed(1)}%
+                                </span>
+                                <span className="hidden sm:block text-[10px] font-mono text-right tabular-nums" style={{ color: prod.qualidade != null ? '#34d399' : '#475569' }}>
+                                  {prod.qualidade != null ? `${prod.qualidade.toFixed(1)}%` : '—'}
+                                </span>
+                                <div className="flex justify-end">
+                                  <GaugeBar pct={prod.oee} width={52} />
+                                </div>
+                              </div>
+                            ))}
+
+                            {/* Factory subtotal */}
+                            <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-10 py-2 bg-brand-surface/20 border-t border-brand-border/10 items-center">
+                              <span className="text-[9px] font-bold text-brand-muted uppercase tracking-wider">Subtotal</span>
+                              <span className="hidden sm:block text-[10px] font-mono font-bold text-white text-right">
+                                {(facGroup.actualKg / 1000).toFixed(2)}t
+                              </span>
+                              <span className="hidden sm:block text-[10px] font-mono text-brand-muted text-right">
+                                {(facGroup.theoreticalKg / 1000).toFixed(2)}t
+                              </span>
+                              <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: '#22d3ee' }}>
+                                {facGroup.disponibilidade.toFixed(1)}%
+                              </span>
+                              <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: '#a78bfa' }}>
+                                {facGroup.performance.toFixed(1)}%
+                              </span>
+                              <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: facGroup.qualidade != null ? '#34d399' : '#475569' }}>
+                                {facGroup.qualidade != null ? `${facGroup.qualidade.toFixed(1)}%` : '—'}
+                              </span>
+                              <div className="flex justify-end">
+                                <GaugeBar pct={facGroup.oee} width={60} />
+                              </div>
                             </div>
                           </div>
                         );
                       })}
 
-                      {/* Client summary */}
-                      <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_72px_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 py-2 bg-brand-surface/40 border-t border-brand-border/20 items-center">
-                        <span className="text-[9px] font-bold text-brand-muted uppercase tracking-wider">Total</span>
-                        <span className="hidden sm:block" />
-                        <span className="hidden sm:block text-[10px] font-mono font-bold text-white text-right">
-                          {(clientData.actualKg / 1000).toFixed(2)}t
-                        </span>
-                        <span className="hidden sm:block text-[10px] font-mono text-brand-muted text-right">
-                          {(clientData.theoreticalKg / 1000).toFixed(2)}t
-                        </span>
-                        <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: '#22d3ee' }}>
-                          {clientData.disponibilidade.toFixed(1)}%
-                        </span>
-                        <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: '#a78bfa' }}>
-                          {clientData.performance.toFixed(1)}%
-                        </span>
-                        <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: clientData.qualidade != null ? '#34d399' : '#475569' }}>
-                          {clientData.qualidade != null ? `${clientData.qualidade.toFixed(1)}%` : '—'}
-                        </span>
-                        <div className="flex justify-end">
-                          <GaugeBar pct={clientData.oee} width={60} />
+                      {/* Client total (only when multiple factories) */}
+                      {Object.keys(clientData.byFactory).length > 1 && (
+                        <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 py-2 bg-brand-surface/40 border-t border-brand-border/30 items-center">
+                          <span className="text-[9px] font-bold text-white uppercase tracking-wider">Total Cliente</span>
+                          <span className="hidden sm:block text-[10px] font-mono font-bold text-white text-right">
+                            {(clientData.actualKg / 1000).toFixed(2)}t
+                          </span>
+                          <span className="hidden sm:block text-[10px] font-mono text-brand-muted text-right">
+                            {(clientData.theoreticalKg / 1000).toFixed(2)}t
+                          </span>
+                          <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: '#22d3ee' }}>
+                            {clientData.disponibilidade.toFixed(1)}%
+                          </span>
+                          <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: '#a78bfa' }}>
+                            {clientData.performance.toFixed(1)}%
+                          </span>
+                          <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: clientData.qualidade != null ? '#34d399' : '#475569' }}>
+                            {clientData.qualidade != null ? `${clientData.qualidade.toFixed(1)}%` : '—'}
+                          </span>
+                          <div className="flex justify-end">
+                            <GaugeBar pct={clientData.oee} width={60} />
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   )}
                 </div>
