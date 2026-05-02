@@ -391,27 +391,38 @@ function getMotivoColor(motivo, index) {
 }
 
 export function computeDowntimeByReason(planningEntries, oeeTree) {
-  // Build theoretical kg-per-minute rate per machine id
-  const rateMap = {};
+  const rateMap      = {}; // machineId → kg/min
+  const machNameMap  = {}; // machineId → csvName
+
   Object.values(oeeTree).forEach((facData) => {
     Object.values(facData.machines).forEach((mach) => {
       const totalMin = mach.workingDays * 1440;
       const rate = totalMin > 0 ? mach.theoreticalKg / totalMin : 0;
-      mach.machineIds.forEach((id) => { rateMap[id] = rate; });
+      mach.machineIds.forEach((id) => {
+        rateMap[id]     = rate;
+        machNameMap[id] = mach.csvName;
+      });
     });
   });
 
-  const byMotivo = {};
-  const addMin = (motivo, minutes, rate) => {
+  // byMachine: csvName → { csvName, minutes, occurrences, volumePerdido, byMotivo }
+  const byMachine = {};
+
+  const addEntry = (csvName, motivo, minutes, rate) => {
     if (minutes <= 0) return;
     const m = motivo || 'Outros';
-    if (!byMotivo[m]) byMotivo[m] = { motivo: m, minutes: 0, occurrences: 0, volumePerdido: 0 };
-    byMotivo[m].minutes += minutes;
-    byMotivo[m].occurrences += 1;
-    byMotivo[m].volumePerdido += minutes * rate;
+    if (!byMachine[csvName]) byMachine[csvName] = { csvName, minutes: 0, occurrences: 0, volumePerdido: 0, byMotivo: {} };
+    const mac = byMachine[csvName];
+    mac.minutes       += minutes;
+    mac.occurrences   += 1;
+    mac.volumePerdido += minutes * rate;
+    if (!mac.byMotivo[m]) mac.byMotivo[m] = { motivo: m, minutes: 0, occurrences: 0, volumePerdido: 0 };
+    mac.byMotivo[m].minutes       += minutes;
+    mac.byMotivo[m].occurrences   += 1;
+    mac.byMotivo[m].volumePerdido += minutes * rate;
   };
 
-  // Group by machine+date to get the primary entry per day (same logic as computeOEE)
+  // Group entries by machine+date → primary entry per day
   const byMachineDate = {};
   planningEntries.forEach((entry) => {
     const k = `${entry.machine}__${entry.date}`;
@@ -420,26 +431,31 @@ export function computeDowntimeByReason(planningEntries, oeeTree) {
   });
 
   Object.values(byMachineDate).forEach((dayEntries) => {
-    const primary = dayEntries.find((e) => e.twist === 'S' || !e.twist) || dayEntries[0];
-    const rate = rateMap[primary.machine] || 0;
-    const ct = primary.cellType;
-    const pnps = primary.pnps || [];
+    const primary  = dayEntries.find((e) => e.twist === 'S' || !e.twist) || dayEntries[0];
+    const rate     = rateMap[primary.machine] || 0;
+    const csvName  = machNameMap[primary.machine] || primary.machine;
+    const ct       = primary.cellType;
+    const pnps     = primary.pnps || [];
 
     if (ct === 'parada_np') {
       if (pnps.length > 0) {
-        pnps.forEach((pnp) => addMin(pnp.motivo, pnp.minutos || 0, rate));
+        pnps.forEach((pnp) => addEntry(csvName, pnp.motivo, pnp.minutos || 0, rate));
       } else {
-        // Dia inteiro parado sem motivo registrado → 24h
-        addMin('Sem Registro', 1440, rate);
+        addEntry(csvName, 'Sem Registro', 1440, rate);
       }
     } else if (ct === 'producao' && pnps.length > 0) {
-      pnps.forEach((pnp) => addMin(pnp.motivo, pnp.minutos || 0, rate));
+      pnps.forEach((pnp) => addEntry(csvName, pnp.motivo, pnp.minutos || 0, rate));
     }
   });
 
-  const total = Object.values(byMotivo).reduce((s, v) => s + v.minutes, 0);
-  return Object.values(byMotivo)
-    .map((v) => ({ ...v, pct: total > 0 ? (v.minutes / total) * 100 : 0 }))
+  const total = Object.values(byMachine).reduce((s, v) => s + v.minutes, 0);
+  return Object.values(byMachine)
+    .map((mac) => {
+      const motivos = Object.values(mac.byMotivo)
+        .map((mv) => ({ ...mv, pct: mac.minutes > 0 ? (mv.minutes / mac.minutes) * 100 : 0 }))
+        .sort((a, b) => b.minutes - a.minutes);
+      return { ...mac, pct: total > 0 ? (mac.minutes / total) * 100 : 0, motivos };
+    })
     .sort((a, b) => b.minutes - a.minutes);
 }
 
@@ -483,11 +499,28 @@ function PieTooltipContent({ active, payload }) {
 }
 
 function DowntimePieChart({ data, title, accentColor }) {
+  const [expandedMachines, setExpandedMachines] = useState(new Set());
+  const toggleMachine = (name) => setExpandedMachines((prev) => {
+    const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n;
+  });
+
   const isEmpty   = !data || data.length === 0;
   const totalMin  = isEmpty ? 0 : data.reduce((s, d) => s + d.minutes, 0);
   const totalVol  = isEmpty ? 0 : data.reduce((s, d) => s + d.volumePerdido, 0);
   const totalOccs = isEmpty ? 0 : data.reduce((s, d) => s + d.occurrences, 0);
-  const pieData   = isEmpty ? [] : data.map((d, i) => ({ ...d, fill: getMotivoColor(d.motivo, i) }));
+
+  // Aggregate motivos across all machines for the pie
+  const motivoMap = {};
+  if (!isEmpty) {
+    data.forEach((mac) => mac.motivos.forEach((mv) => {
+      if (!motivoMap[mv.motivo]) motivoMap[mv.motivo] = { motivo: mv.motivo, minutes: 0 };
+      motivoMap[mv.motivo].minutes += mv.minutes;
+    }));
+  }
+  const pieData = Object.values(motivoMap)
+    .map((m, i) => ({ ...m, pct: totalMin > 0 ? (m.minutes / totalMin) * 100 : 0, fill: getMotivoColor(m.motivo, i) }))
+    .sort((a, b) => b.minutes - a.minutes);
+  const colorByMotivo = Object.fromEntries(pieData.map((d) => [d.motivo, d.fill]));
 
   return (
     <div className="bg-brand-card sm:rounded-2xl border-y sm:border border-brand-border overflow-hidden flex flex-col">
@@ -512,18 +545,8 @@ function DowntimePieChart({ data, title, accentColor }) {
           <div className="flex items-center justify-center py-4 px-4">
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={72}
-                  outerRadius={112}
-                  dataKey="minutes"
-                  nameKey="motivo"
-                  paddingAngle={2}
-                  labelLine={false}
-                  label={PieLabel}
-                >
+                <Pie data={pieData} cx="50%" cy="50%" innerRadius={72} outerRadius={112}
+                  dataKey="minutes" nameKey="motivo" paddingAngle={2} labelLine={false} label={PieLabel}>
                   {pieData.map((entry) => (
                     <Cell key={entry.motivo} fill={entry.fill} stroke="rgba(0,0,0,0.3)" strokeWidth={1} />
                   ))}
@@ -533,33 +556,59 @@ function DowntimePieChart({ data, title, accentColor }) {
             </ResponsiveContainer>
           </div>
 
-          {/* Table */}
+          {/* Tree table: Máquina → Motivo */}
           <div className="border-t border-brand-border/30 mt-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-brand-border/30">
-                  {['Motivo', 'Horas', '% Tempo', 'Vol. Perdido', 'Ocorr.'].map((h, i) => (
+                  {['Máquina / Motivo', 'Horas', '% Tempo', 'Vol. Perdido', 'Ocorr.'].map((h, i) => (
                     <th key={h} className={`px-3 py-1.5 text-[9px] font-bold text-brand-muted uppercase tracking-wider ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {pieData.map((d) => (
-                  <tr key={d.motivo} className="border-b border-brand-border/10 hover:bg-white/[0.015]">
-                    <td className="px-3 py-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.fill }} />
-                        <span className="text-white font-medium">{d.motivo}</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-1.5 text-right font-mono text-white tabular-nums">{(d.minutes / 60).toFixed(1)}h</td>
-                    <td className="px-3 py-1.5 text-right font-mono tabular-nums font-bold" style={{ color: d.fill }}>{d.pct.toFixed(1)}%</td>
-                    <td className="px-3 py-1.5 text-right font-mono text-brand-muted tabular-nums">
-                      {d.volumePerdido > 0 ? `${(d.volumePerdido / 1000).toFixed(3)} t` : '—'}
-                    </td>
-                    <td className="px-3 py-1.5 text-right font-mono text-white tabular-nums">{d.occurrences}</td>
-                  </tr>
-                ))}
+                {data.flatMap((mac) => {
+                  const expanded = expandedMachines.has(mac.csvName);
+                  const machRow = (
+                    <tr key={mac.csvName}
+                      className="border-b border-brand-border/20 hover:bg-white/[0.02] cursor-pointer"
+                      onClick={() => toggleMachine(mac.csvName)}>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          {expanded
+                            ? <ChevronDown size={11} className="text-brand-muted shrink-0" />
+                            : <ChevronRight size={11} className="text-brand-muted shrink-0" />}
+                          <span className="text-white font-semibold text-[11px] truncate">{mac.csvName}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono font-bold text-white tabular-nums">{(mac.minutes / 60).toFixed(1)}h</td>
+                      <td className="px-3 py-2 text-right font-mono font-bold tabular-nums" style={{ color: accentColor }}>{mac.pct.toFixed(1)}%</td>
+                      <td className="px-3 py-2 text-right font-mono text-brand-muted tabular-nums">
+                        {mac.volumePerdido > 0 ? `${(mac.volumePerdido / 1000).toFixed(3)} t` : '—'}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono font-bold text-white tabular-nums">{mac.occurrences}</td>
+                    </tr>
+                  );
+                  if (!expanded) return [machRow];
+                  const motivoRows = mac.motivos.map((mv) => (
+                    <tr key={`${mac.csvName}__${mv.motivo}`}
+                      className="border-b border-brand-border/10 bg-brand-bg/40">
+                      <td className="px-3 py-1.5 pl-9">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: colorByMotivo[mv.motivo] || '#64748b' }} />
+                          <span className="text-brand-muted">{mv.motivo}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-1.5 text-right font-mono text-white tabular-nums">{(mv.minutes / 60).toFixed(1)}h</td>
+                      <td className="px-3 py-1.5 text-right font-mono tabular-nums font-bold" style={{ color: colorByMotivo[mv.motivo] || '#64748b' }}>{mv.pct.toFixed(1)}%</td>
+                      <td className="px-3 py-1.5 text-right font-mono text-brand-muted tabular-nums">
+                        {mv.volumePerdido > 0 ? `${(mv.volumePerdido / 1000).toFixed(3)} t` : '—'}
+                      </td>
+                      <td className="px-3 py-1.5 text-right font-mono text-white tabular-nums">{mv.occurrences}</td>
+                    </tr>
+                  ));
+                  return [machRow, ...motivoRows];
+                })}
               </tbody>
               <tfoot>
                 <tr className="border-t border-brand-border/30 bg-brand-surface/20">
