@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Gauge, ChevronDown, ChevronRight, ChevronLeft,
-  Activity, TrendingUp, Award,
+  Activity, TrendingUp, Award, Users, Factory,
 } from 'lucide-react';
 import {
   useAppStore, useAdminStore, useCsvStore, FACTORIES,
@@ -260,7 +260,7 @@ export function computeOEE({ planningEntries, csvRows, adminMachines, adminProdu
         const pPerf = pPerfDenom > 0 ? Math.min(100, (pa.actualKg / pPerfDenom) * 100) : 0;
         const pQual = pa.actualKg > 0 ? (pa.firstQKg / pa.actualKg) * 100 : null;
         const pOee  = (disponibilidade / 100) * (pPerf / 100) * ((pQual ?? 100) / 100) * 100;
-        productsResult[pa.productId] = { ...pa, performance: pPerf, qualidade: pQual, oee: pOee };
+        productsResult[pa.productId] = { ...pa, dFactor, machineName: csvName, factory: fac, performance: pPerf, qualidade: pQual, oee: pOee };
       });
 
       machineResults[csvName] = {
@@ -298,6 +298,57 @@ export function computeOEE({ planningEntries, csvRows, adminMachines, adminProdu
       machines: machineResults,
     };
   });
+
+  return result;
+}
+
+// ─── OEE by Client ───────────────────────────────────────────────────────────
+export function computeOEEByClient(oeeTree, adminProducts) {
+  const clientMap = {};
+
+  Object.values(oeeTree).forEach((facData) => {
+    Object.values(facData.machines).forEach((mach) => {
+      Object.values(mach.products).forEach((prod) => {
+        const adminProd = adminProducts.find(
+          (p) => p.id === prod.productId || p.codigoMicrodata === prod.productId,
+        );
+        const cliente = (adminProd?.cliente || '').trim() || 'Sem Cliente';
+
+        if (!clientMap[cliente]) {
+          clientMap[cliente] = {
+            label: cliente,
+            actualKg: 0, firstQKg: 0, theoreticalKg: 0,
+            weightedDNum: 0,
+            products: [],
+          };
+        }
+        const c = clientMap[cliente];
+        c.actualKg      += prod.actualKg;
+        c.firstQKg      += prod.firstQKg;
+        c.theoreticalKg += prod.theoreticalKg;
+        c.weightedDNum  += prod.theoreticalKg * (prod.dFactor || 0);
+        c.products.push(prod);
+      });
+    });
+  });
+
+  const result = {};
+  Object.entries(clientMap)
+    .sort(([a], [b]) => (a === 'Sem Cliente' ? 1 : b === 'Sem Cliente' ? -1 : a.localeCompare(b)))
+    .forEach(([key, c]) => {
+      const dFactor = c.theoreticalKg > 0 ? c.weightedDNum / c.theoreticalKg : 0;
+      const D = dFactor * 100;
+      const perfDenom = c.theoreticalKg * dFactor;
+      const P = perfDenom > 0 ? Math.min(100, (c.actualKg / perfDenom) * 100) : 0;
+      const Q = c.actualKg > 0 ? (c.firstQKg / c.actualKg) * 100 : null;
+      const OEE = (D / 100) * (P / 100) * ((Q ?? 100) / 100) * 100;
+      result[key] = {
+        label: c.label,
+        actualKg: c.actualKg, firstQKg: c.firstQKg, theoreticalKg: c.theoreticalKg,
+        disponibilidade: D, performance: P, qualidade: Q, oee: OEE,
+        products: c.products.sort((a, b) => b.theoreticalKg - a.theoreticalKg),
+      };
+    });
 
   return result;
 }
@@ -351,7 +402,10 @@ export default function OEEPage() {
     return () => unsub();
   }, [factory, yearMonth]);
 
-  // Accordion
+  // View toggle
+  const [view, setView] = useState('maquina'); // 'maquina' | 'cliente'
+
+  // Accordion – machines
   const [expandedFactories, setExpandedFactories] = useState(new Set(['matriz', 'filial']));
   const [expandedMachines,  setExpandedMachines]  = useState(new Set());
 
@@ -362,10 +416,21 @@ export default function OEEPage() {
     const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n;
   });
 
+  // Accordion – clients
+  const [expandedClients, setExpandedClients] = useState(new Set());
+  const toggleClient = (key) => setExpandedClients((prev) => {
+    const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n;
+  });
+
   // Compute OEE tree
   const oeeTree = useMemo(() => computeOEE({
     planningEntries, csvRows, adminMachines, adminProducts, factory, yearMonth, cutoff,
   }), [planningEntries, csvRows, adminMachines, adminProducts, factory, yearMonth, cutoff]);
+
+  const oeeByClient = useMemo(
+    () => computeOEEByClient(oeeTree, adminProducts),
+    [oeeTree, adminProducts],
+  );
 
   // Global KPIs
   const global = useMemo(() => {
@@ -417,6 +482,24 @@ export default function OEEPage() {
             </span>
             <button onClick={() => changeMonth(1)} className="p-1 sm:p-1.5 hover:bg-white/5 rounded-lg text-brand-muted hover:text-white transition-colors">
               <ChevronRight size={14} />
+            </button>
+          </div>
+
+          {/* View toggle */}
+          <div className="flex items-center bg-brand-card border border-brand-border rounded-xl p-1 gap-1">
+            <button
+              onClick={() => setView('maquina')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${view === 'maquina' ? 'bg-brand-cyan/15 text-brand-cyan' : 'text-brand-muted hover:text-white'}`}
+            >
+              <Factory size={11} />
+              <span className="hidden sm:inline">Máquina</span>
+            </button>
+            <button
+              onClick={() => setView('cliente')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${view === 'cliente' ? 'bg-brand-cyan/15 text-brand-cyan' : 'text-brand-muted hover:text-white'}`}
+            >
+              <Users size={11} />
+              <span className="hidden sm:inline">Cliente</span>
             </button>
           </div>
 
@@ -483,7 +566,126 @@ export default function OEEPage() {
               </p>
             </div>
           </div>
+
+        ) : view === 'cliente' ? (
+          /* ── Client view ── */
+          Object.entries(oeeByClient).length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 gap-3">
+              <Users size={28} className="text-brand-muted" />
+              <p className="text-sm text-brand-muted">Nenhum cliente encontrado. Verifique o cadastro de produtos.</p>
+            </div>
+          ) : (
+            Object.entries(oeeByClient).map(([clientKey, clientData]) => {
+              const expanded = expandedClients.has(clientKey);
+              return (
+                <div key={clientKey} className="bg-brand-card sm:rounded-2xl border-y sm:border border-brand-border overflow-hidden">
+
+                  {/* Client row */}
+                  <button onClick={() => toggleClient(clientKey)}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left">
+                    <div className="w-7 h-7 rounded-lg bg-brand-cyan/10 border border-brand-cyan/20 flex items-center justify-center shrink-0">
+                      <Users size={13} className="text-brand-cyan" />
+                    </div>
+                    <span className="text-sm font-bold text-white flex-1 truncate">{clientData.label}</span>
+
+                    <div className="hidden sm:flex items-center gap-5 mr-3 shrink-0">
+                      <MetricPill label="Disp."  value={clientData.disponibilidade} color="#22d3ee" />
+                      <MetricPill label="Perf."  value={clientData.performance}     color="#a78bfa" />
+                      <MetricPill label="Qual."  value={clientData.qualidade}        color="#34d399" />
+                    </div>
+                    <div className="hidden sm:flex items-center gap-1.5 mr-2">
+                      <span className="text-[9px] font-bold text-brand-muted uppercase">OEE</span>
+                      <GaugeBar pct={clientData.oee} width={72} />
+                    </div>
+                    <div className="sm:hidden mr-2">
+                      <GaugeBar pct={clientData.oee} width={52} />
+                    </div>
+                    <div className="text-brand-muted shrink-0">
+                      {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </div>
+                  </button>
+
+                  {/* Product rows */}
+                  {expanded && (
+                    <div className="bg-brand-bg/40 border-t border-brand-border/40">
+                      {/* Column header */}
+                      <div className="hidden sm:grid grid-cols-[1fr_72px_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 py-1.5 border-b border-brand-border/10">
+                        {['Produto', 'Máquina', 'Realizado', 'Teórico', 'Disp.', 'Perf.', 'Qual.', 'OEE'].map((h) => (
+                          <span key={h} className="text-[8px] font-bold text-brand-muted uppercase tracking-wider text-right first:text-left">{h}</span>
+                        ))}
+                      </div>
+
+                      {clientData.products.map((prod, idx) => {
+                        const facInfo = FACTORIES.find((f) => f.id === prod.factory);
+                        return (
+                          <div key={`${prod.productId}-${prod.machineName}-${idx}`}
+                            className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_72px_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 py-2 border-b border-brand-border/10 last:border-b-0 hover:bg-white/[0.015] items-center">
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-medium text-white truncate leading-tight">{prod.productName}</p>
+                              <p className="text-[9px] text-brand-muted font-mono leading-tight">{prod.codigoMicrodata || prod.productId}</p>
+                            </div>
+                            <div className="hidden sm:flex flex-col items-end gap-0.5">
+                              <span className="text-[9px] font-mono text-white truncate max-w-[68px]">{prod.machineName}</span>
+                              {facInfo && (
+                                <span className="text-[8px] font-bold uppercase tracking-wide" style={{ color: facInfo.color }}>
+                                  {facInfo.name?.split(' ')[0]}
+                                </span>
+                              )}
+                            </div>
+                            <span className="hidden sm:block text-[10px] font-mono text-white text-right">
+                              {prod.actualKg > 0 ? `${(prod.actualKg / 1000).toFixed(2)}t` : '—'}
+                            </span>
+                            <span className="hidden sm:block text-[10px] font-mono text-brand-muted text-right">
+                              {prod.theoreticalKg > 0 ? `${(prod.theoreticalKg / 1000).toFixed(2)}t` : '—'}
+                            </span>
+                            <span className="hidden sm:block text-[10px] font-mono text-right tabular-nums" style={{ color: '#22d3ee' }}>
+                              {(prod.dFactor * 100).toFixed(1)}%
+                            </span>
+                            <span className="hidden sm:block text-[10px] font-mono text-right tabular-nums" style={{ color: '#a78bfa' }}>
+                              {prod.performance.toFixed(1)}%
+                            </span>
+                            <span className="hidden sm:block text-[10px] font-mono text-right tabular-nums" style={{ color: prod.qualidade != null ? '#34d399' : '#475569' }}>
+                              {prod.qualidade != null ? `${prod.qualidade.toFixed(1)}%` : '—'}
+                            </span>
+                            <div className="flex justify-end">
+                              <GaugeBar pct={prod.oee} width={52} />
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Client summary */}
+                      <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_72px_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 py-2 bg-brand-surface/40 border-t border-brand-border/20 items-center">
+                        <span className="text-[9px] font-bold text-brand-muted uppercase tracking-wider">Total</span>
+                        <span className="hidden sm:block" />
+                        <span className="hidden sm:block text-[10px] font-mono font-bold text-white text-right">
+                          {(clientData.actualKg / 1000).toFixed(2)}t
+                        </span>
+                        <span className="hidden sm:block text-[10px] font-mono text-brand-muted text-right">
+                          {(clientData.theoreticalKg / 1000).toFixed(2)}t
+                        </span>
+                        <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: '#22d3ee' }}>
+                          {clientData.disponibilidade.toFixed(1)}%
+                        </span>
+                        <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: '#a78bfa' }}>
+                          {clientData.performance.toFixed(1)}%
+                        </span>
+                        <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: clientData.qualidade != null ? '#34d399' : '#475569' }}>
+                          {clientData.qualidade != null ? `${clientData.qualidade.toFixed(1)}%` : '—'}
+                        </span>
+                        <div className="flex justify-end">
+                          <GaugeBar pct={clientData.oee} width={60} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )
+
         ) : (
+          /* ── Machine view (original) ── */
           Object.entries(oeeTree).map(([facId, facData]) => (
             <div key={facId} className="bg-brand-card sm:rounded-2xl border-y sm:border border-brand-border overflow-hidden">
 
