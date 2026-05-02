@@ -187,6 +187,7 @@ export async function savePlanningEntry(entry) {
     planned:     Number(entry.planned) || 0,
     cellType:    entry.cellType    || 'producao',
     twist:       entry.twist       || null,
+    pnps:        entry.pnps        || [],
     updatedAt:   Timestamp.now(),
     createdAt:   Timestamp.now(),
   };
