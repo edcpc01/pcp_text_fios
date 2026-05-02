@@ -1,8 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Gauge, ChevronDown, ChevronRight, ChevronLeft,
-  Activity, TrendingUp, Award, Users, Factory,
+  Activity, TrendingUp, Award, Users, Factory, Clock,
 } from 'lucide-react';
+import {
+  PieChart, Pie, Cell, Tooltip as ReTooltip, ResponsiveContainer,
+} from 'recharts';
 import {
   useAppStore, useAdminStore, useCsvStore, FACTORIES,
   parseCabos,
@@ -371,6 +374,175 @@ export function computeOEEByClient(oeeTree, adminProducts) {
   return result;
 }
 
+// ─── Downtime by Reason ───────────────────────────────────────────────────────
+const MOTIVO_COLORS = {
+  'Mecânico':        '#f97316',
+  'Elétrico':        '#3b82f6',
+  'Programação':     '#94a3b8',
+  'Operacional':     '#22c55e',
+  'Pico de energia': '#f59e0b',
+  'Compressor':      '#a78bfa',
+};
+
+function getMotivoColor(motivo, index) {
+  return MOTIVO_COLORS[motivo] || `hsl(${(index * 67) % 360}, 60%, 55%)`;
+}
+
+export function computeDowntimeByReason(planningEntries, oeeTree) {
+  // Build theoretical kg-per-minute rate per machine id
+  const rateMap = {};
+  Object.values(oeeTree).forEach((facData) => {
+    Object.values(facData.machines).forEach((mach) => {
+      const totalMin = mach.workingDays * 1440;
+      const rate = totalMin > 0 ? mach.theoreticalKg / totalMin : 0;
+      mach.machineIds.forEach((id) => { rateMap[id] = rate; });
+    });
+  });
+
+  const byMotivo = {};
+  planningEntries.forEach((entry) => {
+    if (!entry.pnps || entry.pnps.length === 0) return;
+    const rate = rateMap[entry.machine] || 0;
+    entry.pnps.forEach((pnp) => {
+      const m = pnp.motivo || 'Outros';
+      if (!byMotivo[m]) byMotivo[m] = { motivo: m, minutes: 0, occurrences: 0, volumePerdido: 0 };
+      byMotivo[m].minutes += pnp.minutos || 0;
+      byMotivo[m].occurrences += 1;
+      byMotivo[m].volumePerdido += (pnp.minutos || 0) * rate;
+    });
+  });
+
+  const total = Object.values(byMotivo).reduce((s, v) => s + v.minutes, 0);
+  return Object.values(byMotivo)
+    .map((v) => ({ ...v, pct: total > 0 ? (v.minutes / total) * 100 : 0 }))
+    .sort((a, b) => b.minutes - a.minutes);
+}
+
+const RADIAN = Math.PI / 180;
+function PieLabel({ cx, cy, midAngle, outerRadius, fill, motivo, pct }) {
+  if (pct < 7) return null;
+  const r = outerRadius + 18;
+  const x = cx + r * Math.cos(-midAngle * RADIAN);
+  const y = cy + r * Math.sin(-midAngle * RADIAN);
+  return (
+    <text x={x} y={y} fill={fill} textAnchor={x > cx ? 'start' : 'end'}
+      dominantBaseline="central" fontSize={9} fontWeight="bold" fontFamily="monospace">
+      {motivo.toUpperCase()} {pct.toFixed(0)}%
+    </text>
+  );
+}
+
+function PieTooltipContent({ active, payload }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  if (!d) return null;
+  return (
+    <div className="bg-brand-card border border-brand-border rounded-xl px-3 py-2 shadow-xl text-xs space-y-1">
+      <div className="flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.fill }} />
+        <span className="font-bold text-white">{d.motivo}</span>
+      </div>
+      <div className="text-brand-muted">{d.minutes.toLocaleString('pt-BR')} min · {d.occurrences} ocorr. · {d.pct.toFixed(1)}%</div>
+      {d.volumePerdido > 0 && (
+        <div className="text-brand-muted">Vol. perdido: <span className="text-white font-mono">{(d.volumePerdido / 1000).toFixed(3)} t</span></div>
+      )}
+    </div>
+  );
+}
+
+function DowntimePieChart({ data }) {
+  if (!data || data.length === 0) return null;
+  const totalMin  = data.reduce((s, d) => s + d.minutes, 0);
+  const totalVol  = data.reduce((s, d) => s + d.volumePerdido, 0);
+  const totalOccs = data.reduce((s, d) => s + d.occurrences, 0);
+  const pieData   = data.map((d, i) => ({ ...d, fill: getMotivoColor(d.motivo, i) }));
+
+  return (
+    <div className="bg-brand-card sm:rounded-2xl border-y sm:border border-brand-border overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-brand-border/40">
+        <div className="w-7 h-7 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+          <Clock size={13} className="text-red-400" />
+        </div>
+        <span className="text-xs font-bold text-white">Motivos de Parada — Disponibilidade</span>
+        <span className="ml-auto text-[10px] text-brand-muted hidden sm:block">
+          {totalMin.toLocaleString('pt-BR')} min parados · {totalOccs} ocorrências
+        </span>
+      </div>
+
+      {/* Body: pie + table */}
+      <div className="flex flex-col lg:flex-row">
+        {/* Pie chart */}
+        <div className="flex items-center justify-center px-4 py-4 shrink-0" style={{ minWidth: 300 }}>
+          <ResponsiveContainer width={280} height={220}>
+            <PieChart>
+              <Pie
+                data={pieData}
+                cx="50%"
+                cy="50%"
+                innerRadius={52}
+                outerRadius={86}
+                dataKey="minutes"
+                nameKey="motivo"
+                paddingAngle={2}
+                labelLine={false}
+                label={PieLabel}
+              >
+                {pieData.map((entry) => (
+                  <Cell key={entry.motivo} fill={entry.fill} stroke="rgba(0,0,0,0.3)" strokeWidth={1} />
+                ))}
+              </Pie>
+              <ReTooltip content={<PieTooltipContent />} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Table */}
+        <div className="flex-1 overflow-auto border-t lg:border-t-0 lg:border-l border-brand-border/30 self-center">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-brand-border/30">
+                {['Motivo', 'Min. Parado', '% Tempo', 'Vol. Perdido', 'Ocorrências'].map((h, i) => (
+                  <th key={h} className={`px-4 py-2 text-[9px] font-bold text-brand-muted uppercase tracking-wider ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {pieData.map((d) => (
+                <tr key={d.motivo} className="border-b border-brand-border/10 hover:bg-white/[0.015]">
+                  <td className="px-4 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.fill }} />
+                      <span className="text-white font-medium">{d.motivo}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-2 text-right font-mono text-white tabular-nums">{d.minutes.toLocaleString('pt-BR')}</td>
+                  <td className="px-4 py-2 text-right font-mono tabular-nums font-bold" style={{ color: d.fill }}>{d.pct.toFixed(1)}%</td>
+                  <td className="px-4 py-2 text-right font-mono text-brand-muted tabular-nums">
+                    {d.volumePerdido > 0 ? `${(d.volumePerdido / 1000).toFixed(3)} t` : '—'}
+                  </td>
+                  <td className="px-4 py-2 text-right font-mono text-white tabular-nums">{d.occurrences}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-brand-border/30 bg-brand-surface/20">
+                <td className="px-4 py-2 text-[9px] font-bold text-brand-muted uppercase tracking-wider">Total Geral</td>
+                <td className="px-4 py-2 text-right font-mono font-bold text-white tabular-nums">{totalMin.toLocaleString('pt-BR')}</td>
+                <td className="px-4 py-2 text-right font-mono font-bold text-white tabular-nums">100,00%</td>
+                <td className="px-4 py-2 text-right font-mono font-bold text-brand-muted tabular-nums">
+                  {totalVol > 0 ? `${(totalVol / 1000).toFixed(3)} t` : '—'}
+                </td>
+                <td className="px-4 py-2 text-right font-mono font-bold text-white tabular-nums">{totalOccs}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── UI Components ────────────────────────────────────────────────────────────
 function GaugeBar({ pct, width = 72 }) {
   const v = Math.min(100, Math.max(0, pct || 0));
@@ -472,6 +644,11 @@ export default function OEEPage() {
   }, [oeeTree]);
 
   const hasTree = Object.keys(oeeTree).length > 0;
+
+  const downtimeData = useMemo(
+    () => computeDowntimeByReason(planningEntries, oeeTree),
+    [planningEntries, oeeTree],
+  );
 
   return (
     <div className="flex flex-col bg-brand-bg" style={{ minHeight: 'calc(100vh - 56px)' }}>
@@ -888,6 +1065,11 @@ export default function OEEPage() {
               )}
             </div>
           ))
+        )}
+
+        {/* ── Downtime Pie Chart ── */}
+        {hasTree && downtimeData.length > 0 && (
+          <DowntimePieChart data={downtimeData} />
         )}
 
         {/* ── Legend ── */}
