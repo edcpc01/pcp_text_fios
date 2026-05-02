@@ -445,15 +445,22 @@ export function computeDowntimeByReason(planningEntries, oeeTree) {
 
 const RADIAN = Math.PI / 180;
 function PieLabel({ cx, cy, midAngle, outerRadius, fill, motivo, pct }) {
-  if (pct < 7) return null;
-  const r = outerRadius + 18;
+  if (pct < 4) return null;
+  const r = outerRadius + 30;
   const x = cx + r * Math.cos(-midAngle * RADIAN);
   const y = cy + r * Math.sin(-midAngle * RADIAN);
+  const anchor = x > cx ? 'start' : 'end';
   return (
-    <text x={x} y={y} fill={fill} textAnchor={x > cx ? 'start' : 'end'}
-      dominantBaseline="central" fontSize={9} fontWeight="bold" fontFamily="monospace">
-      {motivo.toUpperCase()} {pct.toFixed(0)}%
-    </text>
+    <g>
+      <text x={x} y={y - 7} fill={fill} textAnchor={anchor} dominantBaseline="central"
+        fontSize={9} fontWeight="bold" fontFamily="monospace">
+        {motivo.toUpperCase()}
+      </text>
+      <text x={x} y={y + 8} fill="#e2e8f0" textAnchor={anchor} dominantBaseline="central"
+        fontSize={12} fontWeight="bold" fontFamily="monospace">
+        {pct.toFixed(1)}%
+      </text>
+    </g>
   );
 }
 
@@ -497,16 +504,16 @@ function DowntimePieChart({ data }) {
 
       {/* Body: pie + table */}
       <div className="flex flex-col lg:flex-row">
-        {/* Pie chart */}
-        <div className="flex items-center justify-center px-4 py-4 shrink-0" style={{ minWidth: 300 }}>
-          <ResponsiveContainer width={280} height={220}>
+        {/* Pie chart — bigger */}
+        <div className="flex items-center justify-center px-8 py-6 shrink-0" style={{ width: 460 }}>
+          <ResponsiveContainer width={440} height={320}>
             <PieChart>
               <Pie
                 data={pieData}
                 cx="50%"
                 cy="50%"
-                innerRadius={52}
-                outerRadius={86}
+                innerRadius={78}
+                outerRadius={128}
                 dataKey="minutes"
                 nameKey="motivo"
                 paddingAngle={2}
@@ -522,43 +529,43 @@ function DowntimePieChart({ data }) {
           </ResponsiveContainer>
         </div>
 
-        {/* Table */}
+        {/* Table — compact */}
         <div className="flex-1 overflow-auto border-t lg:border-t-0 lg:border-l border-brand-border/30 self-center">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-brand-border/30">
                 {['Motivo', 'Horas Parado', '% Tempo', 'Vol. Perdido', 'Ocorrências'].map((h, i) => (
-                  <th key={h} className={`px-4 py-2 text-[9px] font-bold text-brand-muted uppercase tracking-wider ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+                  <th key={h} className={`px-3 py-1.5 text-[9px] font-bold text-brand-muted uppercase tracking-wider ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {pieData.map((d) => (
                 <tr key={d.motivo} className="border-b border-brand-border/10 hover:bg-white/[0.015]">
-                  <td className="px-4 py-2">
+                  <td className="px-3 py-1.5">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.fill }} />
                       <span className="text-white font-medium">{d.motivo}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-2 text-right font-mono text-white tabular-nums">{(d.minutes / 60).toFixed(1)}h</td>
-                  <td className="px-4 py-2 text-right font-mono tabular-nums font-bold" style={{ color: d.fill }}>{d.pct.toFixed(1)}%</td>
-                  <td className="px-4 py-2 text-right font-mono text-brand-muted tabular-nums">
+                  <td className="px-3 py-1.5 text-right font-mono text-white tabular-nums">{(d.minutes / 60).toFixed(1)}h</td>
+                  <td className="px-3 py-1.5 text-right font-mono tabular-nums font-bold" style={{ color: d.fill }}>{d.pct.toFixed(1)}%</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-brand-muted tabular-nums">
                     {d.volumePerdido > 0 ? `${(d.volumePerdido / 1000).toFixed(3)} t` : '—'}
                   </td>
-                  <td className="px-4 py-2 text-right font-mono text-white tabular-nums">{d.occurrences}</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-white tabular-nums">{d.occurrences}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="border-t border-brand-border/30 bg-brand-surface/20">
-                <td className="px-4 py-2 text-[9px] font-bold text-brand-muted uppercase tracking-wider">Total Geral</td>
-                <td className="px-4 py-2 text-right font-mono font-bold text-white tabular-nums">{(totalMin / 60).toFixed(1)}h</td>
-                <td className="px-4 py-2 text-right font-mono font-bold text-white tabular-nums">100,00%</td>
-                <td className="px-4 py-2 text-right font-mono font-bold text-brand-muted tabular-nums">
+                <td className="px-3 py-1.5 text-[9px] font-bold text-brand-muted uppercase tracking-wider">Total Geral</td>
+                <td className="px-3 py-1.5 text-right font-mono font-bold text-white tabular-nums">{(totalMin / 60).toFixed(1)}h</td>
+                <td className="px-3 py-1.5 text-right font-mono font-bold text-white tabular-nums">100,00%</td>
+                <td className="px-3 py-1.5 text-right font-mono font-bold text-brand-muted tabular-nums">
                   {totalVol > 0 ? `${(totalVol / 1000).toFixed(3)} t` : '—'}
                 </td>
-                <td className="px-4 py-2 text-right font-mono font-bold text-white tabular-nums">{totalOccs}</td>
+                <td className="px-3 py-1.5 text-right font-mono font-bold text-white tabular-nums">{totalOccs}</td>
               </tr>
             </tfoot>
           </table>
