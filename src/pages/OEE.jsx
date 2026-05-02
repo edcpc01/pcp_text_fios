@@ -382,6 +382,8 @@ const MOTIVO_COLORS = {
   'Operacional':     '#22c55e',
   'Pico de energia': '#f59e0b',
   'Compressor':      '#a78bfa',
+  'Sem Registro':    '#475569',
+  'Outros':          '#64748b',
 };
 
 function getMotivoColor(motivo, index) {
@@ -400,16 +402,39 @@ export function computeDowntimeByReason(planningEntries, oeeTree) {
   });
 
   const byMotivo = {};
+  const addMin = (motivo, minutes, rate) => {
+    if (minutes <= 0) return;
+    const m = motivo || 'Outros';
+    if (!byMotivo[m]) byMotivo[m] = { motivo: m, minutes: 0, occurrences: 0, volumePerdido: 0 };
+    byMotivo[m].minutes += minutes;
+    byMotivo[m].occurrences += 1;
+    byMotivo[m].volumePerdido += minutes * rate;
+  };
+
+  // Group by machine+date to get the primary entry per day (same logic as computeOEE)
+  const byMachineDate = {};
   planningEntries.forEach((entry) => {
-    if (!entry.pnps || entry.pnps.length === 0) return;
-    const rate = rateMap[entry.machine] || 0;
-    entry.pnps.forEach((pnp) => {
-      const m = pnp.motivo || 'Outros';
-      if (!byMotivo[m]) byMotivo[m] = { motivo: m, minutes: 0, occurrences: 0, volumePerdido: 0 };
-      byMotivo[m].minutes += pnp.minutos || 0;
-      byMotivo[m].occurrences += 1;
-      byMotivo[m].volumePerdido += (pnp.minutos || 0) * rate;
-    });
+    const k = `${entry.machine}__${entry.date}`;
+    if (!byMachineDate[k]) byMachineDate[k] = [];
+    byMachineDate[k].push(entry);
+  });
+
+  Object.values(byMachineDate).forEach((dayEntries) => {
+    const primary = dayEntries.find((e) => e.twist === 'S' || !e.twist) || dayEntries[0];
+    const rate = rateMap[primary.machine] || 0;
+    const ct = primary.cellType;
+    const pnps = primary.pnps || [];
+
+    if (ct === 'parada_np') {
+      if (pnps.length > 0) {
+        pnps.forEach((pnp) => addMin(pnp.motivo, pnp.minutos || 0, rate));
+      } else {
+        // Dia inteiro parado sem motivo registrado → 24h
+        addMin('Sem Registro', 1440, rate);
+      }
+    } else if (ct === 'producao' && pnps.length > 0) {
+      pnps.forEach((pnp) => addMin(pnp.motivo, pnp.minutos || 0, rate));
+    }
   });
 
   const total = Object.values(byMotivo).reduce((s, v) => s + v.minutes, 0);
@@ -442,7 +467,7 @@ function PieTooltipContent({ active, payload }) {
         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.fill }} />
         <span className="font-bold text-white">{d.motivo}</span>
       </div>
-      <div className="text-brand-muted">{d.minutes.toLocaleString('pt-BR')} min · {d.occurrences} ocorr. · {d.pct.toFixed(1)}%</div>
+      <div className="text-brand-muted">{(d.minutes / 60).toFixed(1)}h · {d.occurrences} ocorr. · {d.pct.toFixed(1)}%</div>
       {d.volumePerdido > 0 && (
         <div className="text-brand-muted">Vol. perdido: <span className="text-white font-mono">{(d.volumePerdido / 1000).toFixed(3)} t</span></div>
       )}
@@ -466,7 +491,7 @@ function DowntimePieChart({ data }) {
         </div>
         <span className="text-xs font-bold text-white">Motivos de Parada — Disponibilidade</span>
         <span className="ml-auto text-[10px] text-brand-muted hidden sm:block">
-          {totalMin.toLocaleString('pt-BR')} min parados · {totalOccs} ocorrências
+          {(totalMin / 60).toFixed(1)}h paradas · {totalOccs} ocorrências
         </span>
       </div>
 
@@ -502,7 +527,7 @@ function DowntimePieChart({ data }) {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-brand-border/30">
-                {['Motivo', 'Min. Parado', '% Tempo', 'Vol. Perdido', 'Ocorrências'].map((h, i) => (
+                {['Motivo', 'Horas Parado', '% Tempo', 'Vol. Perdido', 'Ocorrências'].map((h, i) => (
                   <th key={h} className={`px-4 py-2 text-[9px] font-bold text-brand-muted uppercase tracking-wider ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
                 ))}
               </tr>
@@ -516,7 +541,7 @@ function DowntimePieChart({ data }) {
                       <span className="text-white font-medium">{d.motivo}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-2 text-right font-mono text-white tabular-nums">{d.minutes.toLocaleString('pt-BR')}</td>
+                  <td className="px-4 py-2 text-right font-mono text-white tabular-nums">{(d.minutes / 60).toFixed(1)}h</td>
                   <td className="px-4 py-2 text-right font-mono tabular-nums font-bold" style={{ color: d.fill }}>{d.pct.toFixed(1)}%</td>
                   <td className="px-4 py-2 text-right font-mono text-brand-muted tabular-nums">
                     {d.volumePerdido > 0 ? `${(d.volumePerdido / 1000).toFixed(3)} t` : '—'}
@@ -528,7 +553,7 @@ function DowntimePieChart({ data }) {
             <tfoot>
               <tr className="border-t border-brand-border/30 bg-brand-surface/20">
                 <td className="px-4 py-2 text-[9px] font-bold text-brand-muted uppercase tracking-wider">Total Geral</td>
-                <td className="px-4 py-2 text-right font-mono font-bold text-white tabular-nums">{totalMin.toLocaleString('pt-BR')}</td>
+                <td className="px-4 py-2 text-right font-mono font-bold text-white tabular-nums">{(totalMin / 60).toFixed(1)}h</td>
                 <td className="px-4 py-2 text-right font-mono font-bold text-white tabular-nums">100,00%</td>
                 <td className="px-4 py-2 text-right font-mono font-bold text-brand-muted tabular-nums">
                   {totalVol > 0 ? `${(totalVol / 1000).toFixed(3)} t` : '—'}
