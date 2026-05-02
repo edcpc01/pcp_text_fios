@@ -13,7 +13,7 @@ export default defineConfig({
       // controle total e garantir que o módulo virtual seja importado.
       injectRegister: null,
       devOptions: { enabled: true },
-      includeAssets: ['favicon.ico'],
+      includeAssets: ['icons/favicon.ico'],
       manifest: {
         name: 'Doptex | Planejamento de Produção',
         short_name: 'PCP Fios',
@@ -27,12 +27,12 @@ export default defineConfig({
         start_url: '/',
         lang: 'pt-BR',
         icons: [
-          { src: '/icons/icon-192.png',          sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png',          sizes: '512x512', type: 'image/png' },
+          { src: '/icons/icon-192x192.png',          sizes: '192x192', type: 'image/png' },
+          { src: '/icons/icon-512x512.png',          sizes: '512x512', type: 'image/png' },
         ],
         shortcuts: [
-          { name: 'Planejamento', url: '/planning', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
-          { name: 'Realizado', url: '/production', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
+          { name: 'Planejamento', url: '/planning', icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192' }] },
+          { name: 'Realizado', url: '/production', icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192' }] },
         ],
       },
       workbox: {

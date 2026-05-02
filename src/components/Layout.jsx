@@ -72,7 +72,7 @@ export default function Layout({ children }) {
           // Dispara notificação via SW (obrigatório em PWA standalone)
           if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
             const body = `${critical} produto${critical > 1 ? 's' : ''} com estoque crítico para ${currentYM}`;
-            const opts = { body, icon: '/icons/icon-192.png', tag: 'ruptura-forecast' };
+            const opts = { body, icon: '/icons/icon-192x192.png', tag: 'ruptura-forecast' };
             if ('serviceWorker' in navigator) {
               navigator.serviceWorker.ready
                 .then((reg) => reg.showNotification('Alerta de Ruptura — PCP Fios', opts))
@@ -185,7 +185,7 @@ export default function Layout({ children }) {
           {/* Logo */}
           <div className="flex items-center gap-2.5 pr-4 border-r border-brand-border mr-3 shrink-0">
             <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0">
-              <img src="/icons/icon-192.png" alt="Doptex" className="w-full h-full object-cover" />
+              <img src="/icons/icon-192x192.png" alt="Doptex" className="w-full h-full object-cover" />
             </div>
             <div className="hidden sm:block">
               <p className="text-sm font-bold text-white leading-none">PCP Fios</p>
