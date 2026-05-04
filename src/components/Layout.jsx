@@ -300,7 +300,7 @@ export default function Layout({ children }) {
 
       {/* ── Content ── */}
       <main className="flex-1 flex overflow-hidden">
-        <div className="flex-1 overflow-auto pb-16 md:pb-0">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden pb-16 md:pb-0">
           {children}
         </div>
         {agentOpen && <AgentPanel />}

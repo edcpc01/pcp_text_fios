@@ -545,7 +545,7 @@ function DowntimePieChart({ data, title, accentColor }) {
           <div className="flex items-center justify-center py-4 px-4">
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" innerRadius={72} outerRadius={112}
+                <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90}
                   dataKey="minutes" nameKey="motivo" paddingAngle={2} labelLine={false} label={PieLabel}>
                   {pieData.map((entry) => (
                     <Cell key={entry.motivo} fill={entry.fill} stroke="rgba(0,0,0,0.3)" strokeWidth={1} />
@@ -562,7 +562,7 @@ function DowntimePieChart({ data, title, accentColor }) {
               <thead>
                 <tr className="border-b border-brand-border/30">
                   {['Máquina / Motivo', 'Horas', '% Tempo', 'Vol. Perdido', 'Ocorr.'].map((h, i) => (
-                    <th key={h} className={`px-3 py-1.5 text-[9px] font-bold text-brand-muted uppercase tracking-wider ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+                    <th key={h} className={`px-3 py-1.5 text-[9px] font-bold text-brand-muted uppercase tracking-wider ${i === 0 ? 'text-left' : 'text-right'} ${i >= 3 ? 'hidden sm:table-cell' : ''}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -583,10 +583,10 @@ function DowntimePieChart({ data, title, accentColor }) {
                       </td>
                       <td className="px-3 py-2 text-right font-mono font-bold text-white tabular-nums">{(mac.minutes / 60).toFixed(1)}h</td>
                       <td className="px-3 py-2 text-right font-mono font-bold tabular-nums" style={{ color: accentColor }}>{mac.pct.toFixed(1)}%</td>
-                      <td className="px-3 py-2 text-right font-mono text-brand-muted tabular-nums">
+                      <td className="px-3 py-2 text-right font-mono text-brand-muted tabular-nums hidden sm:table-cell">
                         {mac.volumePerdido > 0 ? `${(mac.volumePerdido / 1000).toFixed(3)} t` : '—'}
                       </td>
-                      <td className="px-3 py-2 text-right font-mono font-bold text-white tabular-nums">{mac.occurrences}</td>
+                      <td className="px-3 py-2 text-right font-mono font-bold text-white tabular-nums hidden sm:table-cell">{mac.occurrences}</td>
                     </tr>
                   );
                   if (!expanded) return [machRow];
@@ -601,10 +601,10 @@ function DowntimePieChart({ data, title, accentColor }) {
                       </td>
                       <td className="px-3 py-1.5 text-right font-mono text-white tabular-nums">{(mv.minutes / 60).toFixed(1)}h</td>
                       <td className="px-3 py-1.5 text-right font-mono tabular-nums font-bold" style={{ color: colorByMotivo[mv.motivo] || '#64748b' }}>{mv.pct.toFixed(1)}%</td>
-                      <td className="px-3 py-1.5 text-right font-mono text-brand-muted tabular-nums">
+                      <td className="px-3 py-1.5 text-right font-mono text-brand-muted tabular-nums hidden sm:table-cell">
                         {mv.volumePerdido > 0 ? `${(mv.volumePerdido / 1000).toFixed(3)} t` : '—'}
                       </td>
-                      <td className="px-3 py-1.5 text-right font-mono text-white tabular-nums">{mv.occurrences}</td>
+                      <td className="px-3 py-1.5 text-right font-mono text-white tabular-nums hidden sm:table-cell">{mv.occurrences}</td>
                     </tr>
                   ));
                   return [machRow, ...motivoRows];
@@ -615,10 +615,10 @@ function DowntimePieChart({ data, title, accentColor }) {
                   <td className="px-3 py-1.5 text-[9px] font-bold text-brand-muted uppercase">Total</td>
                   <td className="px-3 py-1.5 text-right font-mono font-bold text-white tabular-nums">{(totalMin / 60).toFixed(1)}h</td>
                   <td className="px-3 py-1.5 text-right font-mono font-bold text-white tabular-nums">100,00%</td>
-                  <td className="px-3 py-1.5 text-right font-mono font-bold text-brand-muted tabular-nums">
+                  <td className="px-3 py-1.5 text-right font-mono font-bold text-brand-muted tabular-nums hidden sm:table-cell">
                     {totalVol > 0 ? `${(totalVol / 1000).toFixed(3)} t` : '—'}
                   </td>
-                  <td className="px-3 py-1.5 text-right font-mono font-bold text-white tabular-nums">{totalOccs}</td>
+                  <td className="px-3 py-1.5 text-right font-mono font-bold text-white tabular-nums hidden sm:table-cell">{totalOccs}</td>
                 </tr>
               </tfoot>
             </table>
@@ -733,7 +733,7 @@ export default function OEEPage() {
 
 
   return (
-    <div className="flex flex-col bg-brand-bg" style={{ minHeight: 'calc(100vh - 56px)' }}>
+    <div className="flex flex-col bg-brand-bg overflow-x-hidden" style={{ minHeight: 'calc(100vh - 56px)' }}>
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-brand-border bg-brand-surface/30 shrink-0 gap-2 flex-wrap">
@@ -798,7 +798,7 @@ export default function OEEPage() {
 
       {/* ── Global KPI bar ── */}
       {global && (
-        <div className="px-4 sm:px-6 py-2 sm:py-3 flex items-center gap-5 sm:gap-10 border-b border-brand-border/40 bg-brand-surface/10 shrink-0 flex-wrap">
+        <div className="px-4 sm:px-6 py-2 sm:py-3 flex items-center gap-3 sm:gap-10 border-b border-brand-border/40 bg-brand-surface/10 shrink-0 flex-wrap">
           {[
             { label: 'OEE Global',  value: global.OEE, icon: Gauge,     color: oeeColor(global.OEE) },
             { label: 'Disponibil.', value: global.D,   icon: Activity,   color: '#22d3ee' },
@@ -829,7 +829,7 @@ export default function OEEPage() {
       )}
 
       {/* ── Content ── */}
-      <div className="flex-1 overflow-auto px-0 sm:px-4 lg:px-6 py-0 sm:py-4 space-y-0 sm:space-y-3">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden pb-16 md:pb-0 px-0 sm:px-4 lg:px-6 py-0 sm:py-4 space-y-0 sm:space-y-3">
 
         {!hasTree ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
@@ -908,7 +908,7 @@ export default function OEEPage() {
                             </div>
 
                             {/* Column header */}
-                            <div className="hidden sm:grid grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-10 py-1.5 border-b border-brand-border/10 bg-brand-bg/20">
+                            <div className="hidden sm:grid grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 sm:px-10 py-1.5 border-b border-brand-border/10 bg-brand-bg/20">
                               {['Produto / Máquina', 'Realizado', 'Teórico', 'Disp.', 'Perf.', 'Qual.', 'OEE'].map((h) => (
                                 <span key={h} className="text-[8px] font-bold text-brand-muted uppercase tracking-wider text-right first:text-left">{h}</span>
                               ))}
@@ -917,7 +917,7 @@ export default function OEEPage() {
                             {/* Products */}
                             {facGroup.products.map((prod, idx) => (
                               <div key={`${prod.productId}-${prod.machineName}-${idx}`}
-                                className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-10 py-2 border-b border-brand-border/10 last:border-b-0 hover:bg-white/[0.015] items-center">
+                                className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 sm:px-10 py-2 border-b border-brand-border/10 last:border-b-0 hover:bg-white/[0.015] items-center">
                                 <div className="min-w-0">
                                   <p className="text-[11px] font-medium text-white truncate leading-tight">{prod.productName}</p>
                                   <p className="text-[9px] text-brand-muted/70 font-mono leading-tight">
@@ -948,7 +948,7 @@ export default function OEEPage() {
                             ))}
 
                             {/* Factory subtotal */}
-                            <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-10 py-2 bg-brand-surface/20 border-t border-brand-border/10 items-center">
+                             <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 sm:px-10 py-2 bg-brand-surface/20 border-t border-brand-border/10 items-center">
                               <span className="text-[9px] font-bold text-brand-muted uppercase tracking-wider">Subtotal</span>
                               <span className="hidden sm:block text-[10px] font-mono font-bold text-white text-right">
                                 {(facGroup.actualKg / 1000).toFixed(2)}t
@@ -1072,14 +1072,14 @@ export default function OEEPage() {
                           <div className="bg-brand-bg/40 border-t border-brand-border/20">
 
                             {/* Column header */}
-                            <div className="hidden sm:grid grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-12 py-1.5 border-b border-brand-border/10">
+                            <div className="hidden sm:grid grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 sm:px-12 py-1.5 border-b border-brand-border/10">
                               {['Produto', 'Realizado', 'Teórico', 'Disp.', 'Perf.', 'Qual.', 'OEE'].map((h) => (
                                 <span key={h} className="text-[8px] font-bold text-brand-muted uppercase tracking-wider text-right first:text-left">{h}</span>
                               ))}
                             </div>
 
                             {Object.values(mach.products).length === 0 ? (
-                              <p className="px-12 py-3 text-[10px] text-brand-muted/40 italic">
+                              <p className="px-6 sm:px-12 py-3 text-[10px] text-brand-muted/40 italic">
                                 {csvRows.length === 0
                                   ? 'Carregue o CSV para ver dados por produto.'
                                   : 'Sem produção realizada neste período.'}
@@ -1087,7 +1087,7 @@ export default function OEEPage() {
                             ) : (
                               Object.values(mach.products).map((prod) => (
                                 <div key={prod.productId}
-                                  className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-12 py-2 border-b border-brand-border/10 last:border-b-0 hover:bg-white/[0.015] items-center">
+                                  className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 sm:px-12 py-2 border-b border-brand-border/10 last:border-b-0 hover:bg-white/[0.015] items-center">
                                   <div className="min-w-0">
                                     <p className="text-[11px] font-medium text-white truncate leading-tight">{prod.productName}</p>
                                     <p className="text-[9px] text-brand-muted font-mono leading-tight">{prod.codigoMicrodata || prod.productId}</p>
@@ -1115,7 +1115,7 @@ export default function OEEPage() {
                             )}
 
                             {/* Machine summary */}
-                            <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-12 py-2 bg-brand-surface/40 border-t border-brand-border/20 items-center">
+                            <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 sm:px-12 py-2 bg-brand-surface/40 border-t border-brand-border/20 items-center">
                               <span className="text-[9px] font-bold text-brand-muted uppercase tracking-wider truncate">
                                 Total
                               </span>
