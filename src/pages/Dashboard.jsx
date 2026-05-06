@@ -3,7 +3,7 @@ import {
   TrendingUp, TrendingDown, Minus, Activity, Package,
   Calendar, ChevronLeft, ChevronRight, FlaskConical, BarChart2,
 } from 'lucide-react';
-import { useAppStore, usePlanningStore, useProductionStore, useAdminStore } from '../hooks/useStore';
+import { useAppStore, usePlanningStore, useProductionStore, useAdminStore, pnpFactor } from '../hooks/useStore';
 import {
   subscribeProductionRecords, subscribePlanningEntries,
   subscribeRawMaterialStock, subscribeFinishedGoodsStock,
@@ -100,14 +100,35 @@ export default function Dashboard() {
     ? records.filter((r) => r.date >= dateRange.start && r.date <= dateRange.end)
     : records;
 
-  // Total planejado (mês inteiro ou range)
-  const totalPlanned = Math.round(activePlanning.reduce((s, e) => s + (e.planned || 0), 0));
+  // Mapa (factory__machine__date) → fator de PNP do dia, derivado da entry primária
+  // (S ou flat). Permite descontar PNPs do "planejado" exibido aqui — alinhando
+  // o Dashboard com o que a tela de Planejamento mostra.
+  const buildPnpFactorMap = (entries) => {
+    const m = new Map();
+    entries.forEach((e) => {
+      if (!(e.pnps && e.pnps.length)) return;
+      if (!(e.twist === 'S' || !e.twist)) return;
+      m.set(`${e.factory || 'matriz'}__${e.machine}__${e.date}`, pnpFactor(e.pnps));
+    });
+    return m;
+  };
+  const adjustEntry = (e, factorMap) => {
+    const f = factorMap.get(`${e.factory || 'matriz'}__${e.machine}__${e.date}`) ?? 1;
+    return (e.planned || 0) * f;
+  };
 
-  // Planejado até D-1 (sempre calcula no mês corrente, ignora range)
+  const pnpMapAll = buildPnpFactorMap(activePlanning);
+
+  // Total planejado (mês inteiro ou range) — desconta PNPs por dia
+  const totalPlanned = Math.round(activePlanning.reduce((s, e) => s + adjustEntry(e, pnpMapAll), 0));
+
+  // Planejado até D-1 (sempre calcula no mês corrente, ignora range) — desconta PNPs
+  const planningD1 = basePlanning.filter(
+    (e) => e.date && e.date.startsWith(yearMonth) && e.date <= yesterday,
+  );
+  const pnpMapD1 = buildPnpFactorMap(planningD1);
   const plannedD1 = Math.round(
-    basePlanning
-      .filter((e) => e.date && e.date.startsWith(yearMonth) && e.date <= yesterday)
-      .reduce((s, e) => s + (e.planned || 0), 0),
+    planningD1.reduce((s, e) => s + adjustEntry(e, pnpMapD1), 0),
   );
 
   // Par (produto__fábrica) com planejamento — evita dupla-contagem cross-factory em 'Todas as Unidades'
@@ -149,16 +170,17 @@ export default function Dashboard() {
       if (p.name)           clienteByName[p.name]         = cliente;
     });
 
-    // Agrupa por cliente → por produto
+    // Agrupa por cliente → por produto (desconta PNPs do dia para alinhar com Planejamento)
     const clientMap = {}; // { cliente: { products: { name: kg }, total: kg } }
     activePlanning.forEach((e) => {
       const pName  = e.productName || 'Sem nome';
       const rawC   = clienteById[e.product] ?? clienteByName[e.productName] ?? '';
       const cliente = rawC || 'Sem Cliente';
+      const adj = adjustEntry(e, pnpMapAll);
       if (!clientMap[cliente]) clientMap[cliente] = { products: {}, total: 0 };
       if (!clientMap[cliente].products[pName]) clientMap[cliente].products[pName] = 0;
-      clientMap[cliente].products[pName] += e.planned || 0;
-      clientMap[cliente].total            += e.planned || 0;
+      clientMap[cliente].products[pName] += adj;
+      clientMap[cliente].total            += adj;
     });
 
     return Object.entries(clientMap)
@@ -197,27 +219,39 @@ export default function Dashboard() {
 
   const forecastDelta = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
+    const isInScope = (e) =>
+      (e.cellType === 'producao' || !e.cellType) &&
+      (factory === 'all' || e.factory === factory) &&
+      e.date >= today;
 
-    // Planejado de hoje até fim do mês por codigoMicrodata
+    const futureEntries = Object.values(entriesMap).filter(isInScope);
+    const fcMap = new Map();
+    futureEntries.forEach((e) => {
+      if (!(e.pnps && e.pnps.length)) return;
+      if (!(e.twist === 'S' || !e.twist)) return;
+      fcMap.set(`${e.factory || 'matriz'}__${e.machine}__${e.date}`, pnpFactor(e.pnps));
+    });
+    const adjFuture = (e) => {
+      const f = fcMap.get(`${e.factory || 'matriz'}__${e.machine}__${e.date}`) ?? 1;
+      return (e.planned || 0) * f;
+    };
+
+    // Planejado de hoje até fim do mês por codigoMicrodata (desconta PNPs)
     const planejadoByCode = {};
-    Object.values(entriesMap).forEach((e) => {
-      if (!((e.cellType === 'producao' || !e.cellType) && (factory === 'all' || e.factory === factory))) return;
-      if (e.date < today) return;
+    futureEntries.forEach((e) => {
       const prod = productList.find((p) => p.id === e.product);
       if (!prod?.codigoMicrodata) return;
-      planejadoByCode[prod.codigoMicrodata] = (planejadoByCode[prod.codigoMicrodata] || 0) + (e.planned || 0);
+      planejadoByCode[prod.codigoMicrodata] = (planejadoByCode[prod.codigoMicrodata] || 0) + adjFuture(e);
     });
 
     // Planejado por produto por dia (hoje em diante), para projeção de cobertura
     const dailyByCode = {}; // codigoMicrodata → [{date, kg}] sorted asc
-    Object.values(entriesMap).forEach((e) => {
-      if (!((e.cellType === 'producao' || !e.cellType) && (factory === 'all' || e.factory === factory))) return;
-      if (e.date < today) return;
+    futureEntries.forEach((e) => {
       const prod = productList.find((p) => p.id === e.product);
       if (!prod?.codigoMicrodata) return;
       const code = prod.codigoMicrodata;
       if (!dailyByCode[code]) dailyByCode[code] = [];
-      dailyByCode[code].push({ date: e.date, kg: e.planned || 0 });
+      dailyByCode[code].push({ date: e.date, kg: adjFuture(e) });
     });
     // Ordena cada produto por data
     Object.values(dailyByCode).forEach((arr) => arr.sort((a, b) => a.date.localeCompare(b.date)));

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, ChevronLeft, ChevronRight, X, Save, Trash2, CalendarDays, Package, Cpu, Activity, AlertTriangle, Clock } from 'lucide-react';
-import { useAppStore, usePlanningStore, useAdminStore, useAuthStore, CELL_TYPES, makeEntryId, FACTORIES, parseCabos, spindlesForProduct, isTwistSplit, hasTwistMark, isSplitMachine } from '../hooks/useStore';
+import { useAppStore, usePlanningStore, useAdminStore, useAuthStore, CELL_TYPES, makeEntryId, FACTORIES, parseCabos, spindlesForProduct, isTwistSplit, hasTwistMark, isSplitMachine, pnpFactor, adjustedPlannedTotal } from '../hooks/useStore';
 import { subscribePlanningEntries, savePlanningEntry, deletePlanningEntry } from '../services/firebase';
 import { getDaysInMonth, getWeekday, formatDate, getMonthLabel, isToday } from '../utils/dates';
 
@@ -18,17 +18,8 @@ function minToTime(min) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-function calcFactor(pnps) {
-  const min = (pnps || []).reduce((s, p) => s + (p.minutos || 0), 0);
-  return min > 0 ? Math.max(0, (1440 - min) / 1440) : 1;
-}
-
-function adjustedPlannedTotal(entries) {
-  const pnps   = entries[0]?.pnps || [];
-  const factor = calcFactor(pnps);
-  const raw    = entries.reduce((s, e) => s + (e?.cellType === 'producao' ? (e.planned || 0) : 0), 0);
-  return Math.round(raw * factor);
-}
+// pnpFactor / adjustedPlannedTotal vêm de useStore para serem compartilhados
+// pelo Dashboard e demais páginas que precisam exibir "planejado − PNPs".
 
 // ─── Legend ───────────────────────────────────────────────────────────────────
 function Legend() {
@@ -97,7 +88,7 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
   const [newPnpTime,   setNewPnpTime]   = useState('');
 
   const totalPnpMin   = pnps.reduce((s, p) => s + (p.minutos || 0), 0);
-  const adjPlanned    = Math.round((Number(form.planned) || 0) * calcFactor(pnps));
+  const adjPlanned    = Math.round((Number(form.planned) || 0) * pnpFactor(pnps));
 
   const addPnp = () => {
     const min = timeToMin(newPnpTime);

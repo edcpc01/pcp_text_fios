@@ -8,7 +8,6 @@ import {
 } from 'recharts';
 import {
   useAppStore, useAdminStore, useCsvStore, FACTORIES,
-  parseCabos,
 } from '../hooks/useStore';
 import { subscribePlanningEntries } from '../services/firebase';
 import {
@@ -56,21 +55,6 @@ function groupByCsvName(machineList, factory) {
     groups[csvName].machines.push(m);
   });
   return groups;
-}
-
-// Spindles for OEE theoretical:
-// - flat entry (twist=null): full machine capacity for those cabos
-// - S/Z entry: half the machine (split between two products)
-// This mirrors how Planning stores 'planned' — flat entries use full spindles.
-function activeSpindlesForEntry(machine, cabos, twist) {
-  const total = machine?.spindles || 0;
-  const byCount = cabos === 2 ? Math.floor(total / 2)
-    : cabos === 3 ? Math.floor(total / 3)
-    : total;
-  if (twist && /SINGLE/i.test(machine?.name || '') && (cabos === 1 || cabos === 3)) {
-    return Math.floor(byCount / 2);
-  }
-  return byCount;
 }
 
 // ─── OEE Calculation ─────────────────────────────────────────────────────────
@@ -144,34 +128,33 @@ export function computeOEE({ planningEntries, csvRows, adminMachines, adminProdu
       const dFactor = runMin / plannedMin;
       const disponibilidade = dFactor * 100;
 
-      // ── Theoretical max (100% capacity, no efficiency discount) ───────────
+      // ── Theoretical = total planejado bruto (sem desconto de PNP) ─────────
+      // Fonte da verdade: `e.planned` gravado pelo Planejamento (já reflete
+      // fusos × prodDiaPosicao × eficiência). A disponibilidade abaixo é quem
+      // desconta as PNPs separadamente — não duplicamos esse desconto aqui.
       let theoreticalKg = 0;
       const productAccum = {}; // productId → { productName, theoreticalKg, actualKg, firstQKg }
 
-      Object.entries(byDate).forEach(([dayKey, dayEntries]) => {
+      Object.entries(byDate).forEach(([, dayEntries]) => {
         const primary = dayEntries.find((e) => e.twist === 'S' || !e.twist) || dayEntries[0];
         if (primary.cellType !== 'producao') return;
 
-        // Find the correct machine object for spindle lookup
-        const mObj = machines.find((m) => m.id === primary.machine) || machines[0];
-
         dayEntries.forEach((e) => {
           if (!e.product) return;
+          const theoDay = e.planned || 0;
+          if (theoDay === 0) return;
+
           const prod = adminProducts.find(
             (p) => p.id === e.product || p.codigoMicrodata === e.product,
           );
-          if (!prod?.prodDiaPosicao) return;
 
-          const cabos = parseCabos(prod.nome || e.productName) || 1;
-          const fusos = activeSpindlesForEntry(mObj, cabos, e.twist);
-          const theoDay = fusos * prod.prodDiaPosicao;
           theoreticalKg += theoDay;
 
           if (!productAccum[e.product]) {
             productAccum[e.product] = {
               productId: e.product,
-              codigoMicrodata: prod.codigoMicrodata || '',
-              productName: e.productName || prod.nome || e.product,
+              codigoMicrodata: prod?.codigoMicrodata || '',
+              productName: e.productName || prod?.nome || e.product,
               theoreticalKg: 0, actualKg: 0, firstQKg: 0,
             };
           }

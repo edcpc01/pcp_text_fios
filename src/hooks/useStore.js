@@ -110,6 +110,22 @@ export function isTwistSplit(machine, cabos, productName) {
     && hasTwistMark(productName);
 }
 
+// Fator de desconto por PNPs (1 quando não há PNP, 0..1 conforme minutos parados).
+// Usado para "planejado ajustado" exibido no Dashboard e Planning.
+export function pnpFactor(pnps) {
+  const min = (pnps || []).reduce((s, p) => s + (p.minutos || 0), 0);
+  return min > 0 ? Math.max(0, (1440 - min) / 1440) : 1;
+}
+
+// Soma o `planned` das entries do dia e desconta PNPs (PNPs ficam na entry primária).
+export function adjustedPlannedTotal(entries) {
+  if (!entries?.length) return 0;
+  const primary = entries.find((e) => e.twist === 'S' || !e.twist) || entries[0];
+  const factor  = pnpFactor(primary?.pnps);
+  const raw     = entries.reduce((s, e) => s + (e?.cellType === 'producao' ? (e.planned || 0) : 0), 0);
+  return Math.round(raw * factor);
+}
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const useAuthStore = create((set) => ({
   user: null, loading: true, error: null,
