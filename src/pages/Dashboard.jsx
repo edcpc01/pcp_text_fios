@@ -272,7 +272,7 @@ export default function Dashboard() {
         const coberturaDias = previsaoPorDia > 0 ? Math.floor(estoqueKg / previsaoPorDia) : 999;
 
         let coverageDate = null;
-        if (delta < 0 && forecastKg > 0) {
+        if (forecastKg > 0) {
            const t = new Date();
            const current = new Date(t.getFullYear(), t.getMonth(), t.getDate());
            const y = parseInt(yearMonth.split('-')[0], 10);
@@ -543,9 +543,9 @@ export default function Dashboard() {
                     const isWarning  = row.delta < 0 && row.delta >= -(row.forecastKg * 0.3);
                     const deltaColor = isOk ? '#10b981' : isWarning ? '#f59e0b' : '#ef4444';
                     const coverageLabel = isOk
-                      ? <span className="text-xs text-green-400 font-medium">Coberto ✓</span>
+                      ? <span className="text-xs text-green-400 font-mono font-medium">{row.coverageDate || 'Coberto'} ✓</span>
                       : row.coverageDate
-                        ? <span className="text-xs font-mono text-amber-400">{row.coverageDate.split('-').reverse().slice(0, 2).join('/')}</span>
+                        ? <span className="text-xs font-mono text-amber-400">{row.coverageDate}</span>
                         : <span className="text-xs text-red-400">Insuf. no mês</span>;
                     return (
                       <tr key={row.code} className="border-b border-brand-border/40 hover:bg-white/[0.02] transition-colors">
@@ -626,9 +626,9 @@ export default function Dashboard() {
                       <div className="mt-1.5 flex items-center gap-1.5">
                         <span className="text-[9px] text-brand-muted uppercase tracking-widest">Cobertura:</span>
                         {isOk
-                          ? <span className="text-[10px] font-medium text-green-400">Coberto ✓</span>
+                          ? <span className="text-[10px] font-mono font-medium text-green-400">{row.coverageDate || 'Coberto'} ✓</span>
                           : row.coverageDate
-                            ? <span className="text-[10px] font-mono text-amber-400">{row.coverageDate.split('-').reverse().slice(0, 2).join('/')}</span>
+                            ? <span className="text-[10px] font-mono text-amber-400">{row.coverageDate}</span>
                             : <span className="text-[10px] text-red-400">Insuficiente no mês</span>}
                       </div>
                     </div>
