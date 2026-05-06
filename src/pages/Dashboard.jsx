@@ -244,17 +244,22 @@ export default function Dashboard() {
       planejadoByCode[prod.codigoMicrodata] = (planejadoByCode[prod.codigoMicrodata] || 0) + adjFuture(e);
     });
 
-    // Planejado por produto por dia (hoje em diante), para projeção de cobertura
-    const dailyByCode = {}; // codigoMicrodata → [{date, kg}] sorted asc
-    futureEntries.forEach((e) => {
-      const prod = productList.find((p) => p.id === e.product);
-      if (!prod?.codigoMicrodata) return;
-      const code = prod.codigoMicrodata;
-      if (!dailyByCode[code]) dailyByCode[code] = [];
-      dailyByCode[code].push({ date: e.date, kg: adjFuture(e) });
-    });
-    // Ordena cada produto por data
-    Object.values(dailyByCode).forEach((arr) => arr.sort((a, b) => a.date.localeCompare(b.date)));
+    const getDaysRemaining = () => {
+      const t = new Date();
+      const current = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+      const y = parseInt(yearMonth.split('-')[0], 10);
+      const m = parseInt(yearMonth.split('-')[1], 10);
+      const firstDay = new Date(y, m - 1, 1);
+      const lastDay = new Date(y, m, 0);
+      
+      if (current > lastDay) return 1;
+      
+      const start = current > firstDay ? current : firstDay;
+      const diffDays = Math.ceil((lastDay - start) / (1000 * 60 * 60 * 24)) + 1;
+      return diffDays > 0 ? diffDays : 1;
+    };
+    
+    const diasRestantes = getDaysRemaining();
 
     return forecastList
       .map((item) => {
@@ -263,15 +268,22 @@ export default function Dashboard() {
         const planejadoRestante = planejadoByCode[item.code] || 0;
         const delta             = estoqueKg - forecastKg;
 
-        // Projeção de cobertura: acumula estoque + produção dia a dia
+        const previsaoPorDia = forecastKg / diasRestantes;
+        const coberturaDias = previsaoPorDia > 0 ? Math.floor(estoqueKg / previsaoPorDia) : 999;
+
         let coverageDate = null;
-        if (delta < 0) {
-          let acc = estoqueKg;
-          const days = dailyByCode[item.code] || [];
-          for (const day of days) {
-            acc += day.kg;
-            if (acc >= forecastKg) { coverageDate = day.date; break; }
-          }
+        if (delta < 0 && forecastKg > 0) {
+           const t = new Date();
+           const current = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+           const y = parseInt(yearMonth.split('-')[0], 10);
+           const m = parseInt(yearMonth.split('-')[1], 10);
+           const firstDay = new Date(y, m - 1, 1);
+           const start = current > firstDay ? current : firstDay;
+           
+           const covDateObj = new Date(start.getTime() + (coberturaDias * 1000 * 60 * 60 * 24));
+           const covDay = String(covDateObj.getDate()).padStart(2, '0');
+           const covMonth = String(covDateObj.getMonth() + 1).padStart(2, '0');
+           coverageDate = `${covDay}/${covMonth}`;
         }
 
         return { code: item.code, descricao: item.descricao, forecastKg, estoqueKg, planejadoRestante, delta, coverageDate };
