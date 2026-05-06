@@ -43,13 +43,21 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
   const isEdit   = existing.length > 0;
   const defaultProduct = products[0];
 
-  // Recalcula kg/dia considerando cabos e split S/Z.
-  const recalc = (m, p) => {
-    if (!m?.spindles || !p?.prodDiaPosicao) return 0;
+  // Recalcula kg/dia considerando cabos, split S/Z e custom fusos.
+  const getFusos = (m, p, programAll, custom) => {
+    if (!m) return 0;
     const cabos  = parseCabos(p?.nome) || 1;
-    const fusos  = spindlesForProduct(m, cabos);
+    const maxFusos = spindlesForProduct(m, cabos);
+    return programAll ? maxFusos : (custom || maxFusos);
+  };
+
+  const recalc = (m, p, programAll, custom) => {
+    if (!m?.spindles || !p?.prodDiaPosicao) return { planned: 0, planned100: 0 };
+    const fusos  = getFusos(m, p, programAll, custom);
     const eff    = (m.efficiency || 95) / 100;
-    return Math.round(fusos * p.prodDiaPosicao * eff);
+    const planned100 = Math.round(fusos * p.prodDiaPosicao);
+    const planned = Math.round(planned100 * eff);
+    return { planned, planned100 };
   };
 
   const machineObj = machines?.find((x) => x.id === (primary?.machine || machine?.id)) || machine || null;
@@ -63,19 +71,32 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
 
   const primaryProd = products.find((x) => x.id === primaryE?.product) || defaultProduct;
 
+  const initPrimProgramAll = primaryE?.programAllSpindles ?? true;
+  const initPrimCustom = primaryE?.customSpindles ?? (machineObj ? spindlesForProduct(machineObj, parseCabos(primaryProd?.nome) || 1) : 0);
+  const initPrimCalc = recalc(machineObj, primaryProd, initPrimProgramAll, initPrimCustom);
+
+  const initSecProgramAll = secondaryE?.programAllSpindles ?? true;
+  const initSecCustom = secondaryE?.customSpindles ?? (machineObj ? spindlesForProduct(machineObj, 1) : 0); // fallback
+
   const [form, setForm] = useState({
     machine:      primary?.machine     || machine?.id    || '',
     machineName:  primary?.machineName || machine?.name  || '',
     date:         primary?.date        || date           || '',
     cellType:     primary?.cellType    || 'producao',
-    // Produto primário (flat OU torção S quando houver split)
+    // Produto primário
     product:      primaryE?.product     || primaryProd?.id   || '',
     productName:  primaryE?.productName || primaryProd?.nome || '',
-    planned:      primaryE?.planned     ?? recalc(machineObj, primaryProd),
-    // Produto secundário (torção Z, aparece se primário gatilhar split)
+    planned:      primaryE?.planned     ?? initPrimCalc.planned,
+    planned100:   primaryE?.planned100  ?? initPrimCalc.planned100,
+    programAllSpindles: initPrimProgramAll,
+    customSpindles: initPrimCustom,
+    // Produto secundário
     productZ:     secondaryE?.product     || '',
     productZName: secondaryE?.productName || '',
     plannedZ:     secondaryE?.planned     ?? 0,
+    plannedZ100:  secondaryE?.planned100  ?? 0,
+    programAllSpindlesZ: initSecProgramAll,
+    customSpindlesZ: initSecCustom,
   });
 
   const [saving,   setSaving]   = useState(false);
@@ -114,12 +135,14 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
   const handleProduct = (id) => {
     const p = products.find((x) => x.id === id);
     if (!p) return;
-    setForm((f) => ({ ...f, product: p.id, productName: p.nome, planned: recalc(currentMachine, p) }));
+    const calc = recalc(currentMachine, p, form.programAllSpindles, form.customSpindles);
+    setForm((f) => ({ ...f, product: p.id, productName: p.nome, planned: calc.planned, planned100: calc.planned100 }));
   };
   const handleProductZ = (id) => {
     const p = products.find((x) => x.id === id);
     if (!p) return;
-    setForm((f) => ({ ...f, productZ: p.id, productZName: p.nome, plannedZ: recalc(currentMachine, p) }));
+    const calc = recalc(currentMachine, p, form.programAllSpindlesZ, form.customSpindlesZ);
+    setForm((f) => ({ ...f, productZ: p.id, productZName: p.nome, plannedZ: calc.planned, plannedZ100: calc.planned100 }));
   };
 
   const handleMachine = (id) => {
@@ -127,12 +150,16 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
     if (!m) return;
     const p  = products.find((x) => x.id === form.product);
     const pZ = products.find((x) => x.id === form.productZ);
+    const calc = recalc(m, p, form.programAllSpindles, form.customSpindles);
+    const calcZ = pZ ? recalc(m, pZ, form.programAllSpindlesZ, form.customSpindlesZ) : { planned: form.plannedZ, planned100: form.plannedZ100 };
     setForm((f) => ({
       ...f,
       machine: m.id,
       machineName: m.name,
-      planned:  recalc(m, p),
-      plannedZ: pZ ? recalc(m, pZ) : f.plannedZ,
+      planned: calc.planned,
+      planned100: calc.planned100,
+      plannedZ: calcZ.planned,
+      plannedZ100: calcZ.planned100,
     }));
   };
 
@@ -149,19 +176,19 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
       if (!isProducao) {
         // Parada/manutenção: salva pnps se parada_np, vazio para outros tipos.
         const pnpsSave = form.cellType === 'parada_np' ? pnps : [];
-        await onSave({ ...base, product: '', productName: '', planned: 0, twist: null, pnps: pnpsSave });
+        await onSave({ ...base, product: '', productName: '', planned: 0, planned100: 0, twist: null, pnps: pnpsSave });
         if (entryS) await onDelete(entryS.id);
         if (entryZ) await onDelete(entryZ.id);
       } else if (splitMode && form.productZ) {
         // Split S/Z — primário carrega pnps; secundário não.
-        await onSave({ ...base, product: form.product,  productName: form.productName,  planned: Number(form.planned)  || 0, twist: primaryTwist,   pnps });
-        await onSave({ ...base, product: form.productZ, productName: form.productZName, planned: Number(form.plannedZ) || 0, twist: secondaryTwist, pnps: [] });
+        await onSave({ ...base, product: form.product,  productName: form.productName,  planned: Number(form.planned)  || 0, planned100: Number(form.planned100) || 0, programAllSpindles: form.programAllSpindles, customSpindles: form.customSpindles, twist: primaryTwist,   pnps });
+        await onSave({ ...base, product: form.productZ, productName: form.productZName, planned: Number(form.plannedZ) || 0, planned100: Number(form.plannedZ100) || 0, programAllSpindles: form.programAllSpindlesZ, customSpindles: form.customSpindlesZ, twist: secondaryTwist, pnps: [] });
         if (entryFlat && !entryFlat.twist) await onDelete(entryFlat.id);
         if (entryS && entryS.twist !== primaryTwist && entryS.twist !== secondaryTwist) await onDelete(entryS.id);
         if (entryZ && entryZ.twist !== primaryTwist && entryZ.twist !== secondaryTwist) await onDelete(entryZ.id);
       } else {
         // Produto único.
-        await onSave({ ...base, product: form.product, productName: form.productName, planned: Number(form.planned) || 0, twist: null, pnps });
+        await onSave({ ...base, product: form.product, productName: form.productName, planned: Number(form.planned) || 0, planned100: Number(form.planned100) || 0, programAllSpindles: form.programAllSpindles, customSpindles: form.customSpindles, twist: null, pnps });
         if (entryS) await onDelete(entryS.id);
         if (entryZ) await onDelete(entryZ.id);
       }
@@ -222,7 +249,7 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
           </div>
 
           {isProducao && (<>
-            <div className="border border-brand-border rounded-xl p-3 space-y-2">
+            <div className="border border-brand-border rounded-xl p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-brand-cyan">
                   {splitMode && primaryTwist ? `Torção ${primaryTwist}` : 'Produto'}
@@ -231,8 +258,74 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
                   {cabos} cabo{cabos > 1 ? 's' : ''} · {spindlesForProduct(currentMachine, cabos)} fusos
                 </span>
               </div>
-                <select value={form.product} onChange={(e) => handleProduct(e.target.value)}
+              <select value={form.product} onChange={(e) => handleProduct(e.target.value)}
+                className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
+                {[...products]
+                  .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.codigoMicrodata || (String(p.id).startsWith('P') ? 'Pendente' : p.id)} — {p.nome}
+                    </option>
+                  ))}
+              </select>
+
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1.5 text-xs text-brand-muted cursor-pointer hover:text-white transition-colors">
+                  <input type="checkbox" checked={form.programAllSpindles}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      const calc = recalc(currentMachine, currentProduct, checked, form.customSpindles);
+                      setForm(f => ({ ...f, programAllSpindles: checked, planned: calc.planned, planned100: calc.planned100 }));
+                    }}
+                    className="rounded border-brand-border bg-brand-surface text-brand-cyan focus:ring-brand-cyan/50" />
+                  Programar todos os fusos
+                </label>
+                {!form.programAllSpindles && (
+                  <div className="flex items-center gap-1.5 ml-auto">
+                    <span className="text-[10px] text-brand-muted uppercase">Fusos:</span>
+                    <input type="number" min="1" max={spindlesForProduct(currentMachine, cabos)}
+                      value={form.customSpindles}
+                      onChange={(e) => {
+                        const val = Math.max(1, Number(e.target.value));
+                        const calc = recalc(currentMachine, currentProduct, form.programAllSpindles, val);
+                        setForm(f => ({ ...f, customSpindles: val, planned: calc.planned, planned100: calc.planned100 }));
+                      }}
+                      className="w-16 bg-brand-surface border border-brand-border rounded px-1.5 py-1 text-xs text-white font-mono text-center focus:outline-none focus:border-brand-cyan/50 transition-all" />
+                  </div>
+                )}
+              </div>
+
+              {currentProduct && currentMachine && (
+                <div className="bg-brand-bg rounded-lg p-2.5 border border-brand-border/50 space-y-2">
+                  <div>
+                    <span className="block text-[10px] text-brand-muted uppercase tracking-wider mb-1">
+                      Valor Planejado ({(currentMachine.efficiency || 95)}% Eficiência)
+                    </span>
+                    <div className="text-xs text-white font-mono flex items-center gap-1 flex-wrap">
+                      <span className="text-brand-cyan">{String(currentProduct.prodDiaPosicao || 0).replace('.', ',')}kg</span> <span className="text-brand-muted text-[10px]">(fuso)</span> <span className="text-brand-muted">x</span> <span className="text-brand-cyan">{getFusos(currentMachine, currentProduct, form.programAllSpindles, form.customSpindles)}</span> <span className="text-brand-muted text-[10px]">(fusos)</span> <span className="text-brand-muted">x</span> <span className="text-brand-cyan">{(currentMachine.efficiency || 95)}%</span> <span className="text-brand-muted text-[10px]">(eficiên.)</span> <span className="text-brand-muted">=</span> <span className="font-bold text-brand-cyan">{form.planned}kg</span>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-brand-border/30">
+                    <span className="block text-[10px] text-brand-muted uppercase tracking-wider mb-1">
+                      Produção 100% (Teórico OEE)
+                    </span>
+                    <div className="text-xs text-white font-mono flex items-center gap-1 flex-wrap">
+                      <span className="text-brand-cyan">{String(currentProduct.prodDiaPosicao || 0).replace('.', ',')}kg</span> <span className="text-brand-muted text-[10px]">(fuso)</span> <span className="text-brand-muted">x</span> <span className="text-brand-cyan">{getFusos(currentMachine, currentProduct, form.programAllSpindles, form.customSpindles)}</span> <span className="text-brand-muted text-[10px]">(fusos)</span> <span className="text-brand-muted">=</span> <span className="font-bold text-amber-400">{form.planned100}kg</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {splitMode && (
+              <div className="border border-brand-cyan/30 rounded-xl p-3 space-y-3 bg-brand-cyan/5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-brand-cyan">Torção {secondaryTwist}</span>
+                  <span className="text-[10px] text-brand-muted">mesma máquina</span>
+                </div>
+                <select value={form.productZ} onChange={(e) => handleProductZ(e.target.value)}
                   className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
+                  <option value="">— selecione —</option>
                   {[...products]
                     .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
                     .map((p) => (
@@ -241,33 +334,59 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
                       </option>
                     ))}
                 </select>
-              <input type="number" value={form.planned} min={0} max={99999}
-                onChange={(e) => setForm((f) => ({ ...f, planned: Number(e.target.value) }))}
-                placeholder="Kg/dia"
-                className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-brand-cyan/50 transition-all" />
-            </div>
 
-            {splitMode && (
-              <div className="border border-brand-cyan/30 rounded-xl p-3 space-y-2 bg-brand-cyan/5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-brand-cyan">Torção {secondaryTwist}</span>
-                  <span className="text-[10px] text-brand-muted">mesma máquina</span>
-                </div>
-                  <select value={form.productZ} onChange={(e) => handleProductZ(e.target.value)}
-                    className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
-                    <option value="">— selecione —</option>
-                    {[...products]
-                      .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
-                      .map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.codigoMicrodata || (String(p.id).startsWith('P') ? 'Pendente' : p.id)} — {p.nome}
-                        </option>
-                      ))}
-                  </select>
-                <input type="number" value={form.plannedZ} min={0} max={99999}
-                  onChange={(e) => setForm((f) => ({ ...f, plannedZ: Number(e.target.value) }))}
-                  placeholder="Kg/dia"
-                  className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-brand-cyan/50 transition-all" />
+                {form.productZ && (() => {
+                  const prodZ = products.find(p => p.id === form.productZ);
+                  if (!prodZ) return null;
+                  return (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <label className="flex items-center gap-1.5 text-xs text-brand-muted cursor-pointer hover:text-white transition-colors">
+                          <input type="checkbox" checked={form.programAllSpindlesZ}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              const calc = recalc(currentMachine, prodZ, checked, form.customSpindlesZ);
+                              setForm(f => ({ ...f, programAllSpindlesZ: checked, plannedZ: calc.planned, plannedZ100: calc.planned100 }));
+                            }}
+                            className="rounded border-brand-border bg-brand-surface text-brand-cyan focus:ring-brand-cyan/50" />
+                          Programar todos os fusos
+                        </label>
+                        {!form.programAllSpindlesZ && (
+                          <div className="flex items-center gap-1.5 ml-auto">
+                            <span className="text-[10px] text-brand-muted uppercase">Fusos:</span>
+                            <input type="number" min="1" max={spindlesForProduct(currentMachine, parseCabos(prodZ?.nome) || 1)}
+                              value={form.customSpindlesZ}
+                              onChange={(e) => {
+                                const val = Math.max(1, Number(e.target.value));
+                                const calc = recalc(currentMachine, prodZ, form.programAllSpindlesZ, val);
+                                setForm(f => ({ ...f, customSpindlesZ: val, plannedZ: calc.planned, plannedZ100: calc.planned100 }));
+                              }}
+                              className="w-16 bg-brand-surface border border-brand-border rounded px-1.5 py-1 text-xs text-white font-mono text-center focus:outline-none focus:border-brand-cyan/50 transition-all" />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="bg-brand-bg rounded-lg p-2.5 border border-brand-cyan/20 space-y-2">
+                        <div>
+                          <span className="block text-[10px] text-brand-muted uppercase tracking-wider mb-1">
+                            Valor Planejado ({(currentMachine.efficiency || 95)}% Eficiência)
+                          </span>
+                          <div className="text-xs text-white font-mono flex items-center gap-1 flex-wrap">
+                            <span className="text-brand-cyan">{String(prodZ.prodDiaPosicao || 0).replace('.', ',')}kg</span> <span className="text-brand-muted text-[10px]">(fuso)</span> <span className="text-brand-muted">x</span> <span className="text-brand-cyan">{getFusos(currentMachine, prodZ, form.programAllSpindlesZ, form.customSpindlesZ)}</span> <span className="text-brand-muted text-[10px]">(fusos)</span> <span className="text-brand-muted">x</span> <span className="text-brand-cyan">{(currentMachine.efficiency || 95)}%</span> <span className="text-brand-muted text-[10px]">(eficiên.)</span> <span className="text-brand-muted">=</span> <span className="font-bold text-brand-cyan">{form.plannedZ}kg</span>
+                          </div>
+                        </div>
+                        <div className="pt-2 border-t border-brand-cyan/20">
+                          <span className="block text-[10px] text-brand-muted uppercase tracking-wider mb-1">
+                            Produção 100% (Teórico OEE)
+                          </span>
+                          <div className="text-xs text-white font-mono flex items-center gap-1 flex-wrap">
+                            <span className="text-brand-cyan">{String(prodZ.prodDiaPosicao || 0).replace('.', ',')}kg</span> <span className="text-brand-muted text-[10px]">(fuso)</span> <span className="text-brand-muted">x</span> <span className="text-brand-cyan">{getFusos(currentMachine, prodZ, form.programAllSpindlesZ, form.customSpindlesZ)}</span> <span className="text-brand-muted text-[10px]">(fusos)</span> <span className="text-brand-muted">=</span> <span className="font-bold text-amber-400">{form.plannedZ100}kg</span>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
                 <p className="text-[10px] text-brand-muted">Mesma máquina, torção {secondaryTwist}.</p>
               </div>
             )}

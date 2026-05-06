@@ -128,9 +128,9 @@ export function computeOEE({ planningEntries, csvRows, adminMachines, adminProdu
       const dFactor = runMin / plannedMin;
       const disponibilidade = dFactor * 100;
 
-      // ── Theoretical = total planejado bruto (sem desconto de PNP) ─────────
-      // Fonte da verdade: `e.planned` gravado pelo Planejamento (já reflete
-      // fusos × prodDiaPosicao × eficiência). A disponibilidade abaixo é quem
+      // ── Theoretical = total planejado bruto (sem desconto de PNP e sem fator de eficiência)
+      // Fonte da verdade: `e.planned100` gravado pelo Planejamento (fusos × prodDiaPosicao).
+      // Fallback para `e.planned` em dados antigos. A disponibilidade abaixo é quem
       // desconta as PNPs separadamente — não duplicamos esse desconto aqui.
       let theoreticalKg = 0;
       const productAccum = {}; // productId → { productName, theoreticalKg, actualKg, firstQKg }
@@ -141,7 +141,7 @@ export function computeOEE({ planningEntries, csvRows, adminMachines, adminProdu
 
         dayEntries.forEach((e) => {
           if (!e.product) return;
-          const theoDay = e.planned || 0;
+          const theoDay = e.planned100 || e.planned || 0;
           if (theoDay === 0) return;
 
           const prod = adminProducts.find(
@@ -232,8 +232,10 @@ export function computeOEE({ planningEntries, csvRows, adminMachines, adminProdu
         });
 
       // ── OEE metrics ───────────────────────────────────────────────────────
+      // Performance = realizado / disponível (sem teto: pode passar de 100%
+      // quando a produção real supera o teórico ajustado pela disponibilidade).
       const perfDenom   = theoreticalKg * dFactor;
-      const performance = perfDenom > 0 ? Math.min(100, (actualKg / perfDenom) * 100) : 0;
+      const performance = perfDenom > 0 ? (actualKg / perfDenom) * 100 : 0;
       // qualidade = null quando sem dados CSV (não exibir como 100% falso)
       const qualidade   = actualKg > 0 ? (firstQKg / actualKg) * 100 : null;
       const oee         = (disponibilidade / 100) * (performance / 100) * ((qualidade ?? 100) / 100) * 100;
@@ -243,7 +245,7 @@ export function computeOEE({ planningEntries, csvRows, adminMachines, adminProdu
       Object.values(productAccum).forEach((pa) => {
         if (pa.theoreticalKg === 0 && pa.actualKg === 0) return;
         const pPerfDenom = pa.theoreticalKg * dFactor;
-        const pPerf = pPerfDenom > 0 ? Math.min(100, (pa.actualKg / pPerfDenom) * 100) : 0;
+        const pPerf = pPerfDenom > 0 ? (pa.actualKg / pPerfDenom) * 100 : 0;
         const pQual = pa.actualKg > 0 ? (pa.firstQKg / pa.actualKg) * 100 : null;
         const pOee  = (disponibilidade / 100) * (pPerf / 100) * ((pQual ?? 100) / 100) * 100;
         productsResult[pa.productId] = { ...pa, dFactor, machineName: csvName, factory: fac, performance: pPerf, qualidade: pQual, oee: pOee };
@@ -271,7 +273,7 @@ export function computeOEE({ planningEntries, csvRows, adminMachines, adminProdu
     const fDFactor = fPlannedMin > 0 ? fRunMin / fPlannedMin : 0;
     const fD = fDFactor * 100;
     const fP = (fTheoretical * fDFactor) > 0
-      ? Math.min(100, (fActual / (fTheoretical * fDFactor)) * 100) : 0;
+      ? (fActual / (fTheoretical * fDFactor)) * 100 : 0;
     const fQ   = fActual > 0 ? (fFirstQ / fActual) * 100 : null;
     const fOEE = fD * fP * ((fQ ?? 100)) / 10000;
 
@@ -327,7 +329,7 @@ export function computeOEEByClient(oeeTree, adminProducts) {
     const dF = agg.theoreticalKg > 0 ? agg.weightedDNum / agg.theoreticalKg : 0;
     const D = dF * 100;
     const pDenom = agg.theoreticalKg * dF;
-    const P = pDenom > 0 ? Math.min(100, (agg.actualKg / pDenom) * 100) : 0;
+    const P = pDenom > 0 ? (agg.actualKg / pDenom) * 100 : 0;
     const Q = agg.actualKg > 0 ? (agg.firstQKg / agg.actualKg) * 100 : null;
     const OEE = (D / 100) * (P / 100) * ((Q ?? 100) / 100) * 100;
     return { disponibilidade: D, performance: P, qualidade: Q, oee: OEE };
@@ -614,15 +616,16 @@ function DowntimePieChart({ data, title, accentColor }) {
 
 // ─── UI Components ────────────────────────────────────────────────────────────
 function GaugeBar({ pct, width = 72 }) {
-  const v = Math.min(100, Math.max(0, pct || 0));
-  const c = oeeColor(v);
+  const real = Math.max(0, pct || 0);
+  const fill = Math.min(100, real); // largura 0..100 só pra visual
+  const c = oeeColor(fill);
   return (
     <div className="flex items-center gap-1.5">
       <div className="relative rounded-full overflow-hidden bg-white/10" style={{ width, height: 5 }}>
-        <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${v}%`, backgroundColor: c }} />
+        <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${fill}%`, backgroundColor: c }} />
       </div>
       <span className="text-[10px] font-mono font-bold tabular-nums" style={{ color: c }}>
-        {v.toFixed(1)}%
+        {real.toFixed(1)}%
       </span>
     </div>
   );
@@ -633,7 +636,7 @@ function MetricPill({ label, value, color }) {
     <div className="flex flex-col items-end sm:items-center">
       <span className="text-[8px] text-brand-muted uppercase font-bold tracking-wider leading-none mb-0.5">{label}</span>
       <span className="text-[11px] font-mono font-bold tabular-nums" style={{ color: value === null ? '#475569' : color }}>
-        {value === null ? '—' : `${Math.min(100, value).toFixed(1)}%`}
+        {value === null ? '—' : `${value.toFixed(1)}%`}
       </span>
     </div>
   );
@@ -706,7 +709,7 @@ export default function OEEPage() {
     if (pMin === 0) return null;
     const dF  = rMin / pMin;
     const D   = dF * 100;
-    const P   = (theo * dF) > 0 ? Math.min(100, actual / (theo * dF) * 100) : 0;
+    const P   = (theo * dF) > 0 ? actual / (theo * dF) * 100 : 0;
     const Q   = actual > 0 ? firstQ / actual * 100 : null;
     const OEE = D * P * (Q ?? 100) / 10000;
     return { D, P, Q, OEE, actual, theo };
