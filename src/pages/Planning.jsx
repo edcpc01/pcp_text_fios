@@ -70,13 +70,33 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
   const secondaryE = entryS ? entryZ : null;
 
   const primaryProd = products.find((x) => x.id === primaryE?.product) || defaultProduct;
+  const secondaryProd = secondaryE ? products.find((x) => x.id === secondaryE.product) : null;
 
-  const initPrimProgramAll = primaryE?.programAllSpindles ?? true;
-  const initPrimCustom = primaryE?.customSpindles ?? (machineObj ? spindlesForProduct(machineObj, parseCabos(primaryProd?.nome) || 1) : 0);
-  const initPrimCalc = recalc(machineObj, primaryProd, initPrimProgramAll, initPrimCustom);
+  const resolveInitSpindles = (entry, m, p) => {
+    if (entry?.programAllSpindles !== undefined) {
+      return {
+        programAll: entry.programAllSpindles,
+        custom: entry.customSpindles || (m ? spindlesForProduct(m, parseCabos(p?.nome) || 1) : 0)
+      };
+    }
+    const cabos = parseCabos(p?.nome) || 1;
+    const maxFusos = m ? spindlesForProduct(m, cabos) : 0;
+    if (entry?.planned && m && p?.prodDiaPosicao) {
+      const eff = (m.efficiency || 95) / 100;
+      const inferredFusos = Math.round(entry.planned / (p.prodDiaPosicao * eff));
+      // allow small margin of error in inferred fusos due to rounding of original planned
+      if (inferredFusos > 0 && Math.abs(inferredFusos - maxFusos) > 2 && inferredFusos < maxFusos) {
+        return { programAll: false, custom: inferredFusos };
+      }
+    }
+    return { programAll: true, custom: maxFusos };
+  };
 
-  const initSecProgramAll = secondaryE?.programAllSpindles ?? true;
-  const initSecCustom = secondaryE?.customSpindles ?? (machineObj ? spindlesForProduct(machineObj, 1) : 0); // fallback
+  const primInit = resolveInitSpindles(primaryE, machineObj, primaryProd);
+  const initPrimCalc = recalc(machineObj, primaryProd, primInit.programAll, primInit.custom);
+
+  const secInit = resolveInitSpindles(secondaryE, machineObj, secondaryProd);
+  const initSecCalc = secondaryProd ? recalc(machineObj, secondaryProd, secInit.programAll, secInit.custom) : { planned: 0, planned100: 0 };
 
   const [form, setForm] = useState({
     machine:      primary?.machine     || machine?.id    || '',
@@ -88,15 +108,15 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
     productName:  primaryE?.productName || primaryProd?.nome || '',
     planned:      primaryE?.planned     ?? initPrimCalc.planned,
     planned100:   primaryE?.planned100  ?? initPrimCalc.planned100,
-    programAllSpindles: initPrimProgramAll,
-    customSpindles: initPrimCustom,
+    programAllSpindles: primInit.programAll,
+    customSpindles: primInit.custom,
     // Produto secundário
     productZ:     secondaryE?.product     || '',
     productZName: secondaryE?.productName || '',
-    plannedZ:     secondaryE?.planned     ?? 0,
-    plannedZ100:  secondaryE?.planned100  ?? 0,
-    programAllSpindlesZ: initSecProgramAll,
-    customSpindlesZ: initSecCustom,
+    plannedZ:     secondaryE?.planned     ?? initSecCalc.planned,
+    plannedZ100:  secondaryE?.planned100  ?? initSecCalc.planned100,
+    programAllSpindlesZ: secInit.programAll,
+    customSpindlesZ: secInit.custom,
   });
 
   const [saving,   setSaving]   = useState(false);

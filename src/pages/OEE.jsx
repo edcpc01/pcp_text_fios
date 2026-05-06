@@ -141,7 +141,15 @@ export function computeOEE({ planningEntries, csvRows, adminMachines, adminProdu
 
         dayEntries.forEach((e) => {
           if (!e.product) return;
-          const theoDay = e.planned100 || e.planned || 0;
+          
+          let theoDay = e.planned100;
+          if (theoDay == null) {
+            // Fallback for old entries without planned100
+            const mObj = machines.find((x) => x.id === e.machine);
+            const eff = (mObj?.efficiency || 95) / 100;
+            theoDay = Math.round((e.planned || 0) / eff);
+          }
+
           if (theoDay === 0) return;
 
           const prod = adminProducts.find(
