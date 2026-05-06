@@ -392,11 +392,12 @@ export default function Materiais() {
     // 1. Atualiza estoque de MPs — drive a partir dos MPs cadastrados/planejados no app
     for (const m of (mpNecessidadeLocal || [])) {
       const match = findInCsv(m.codigoMicrodata, m.descricao);
+      const key = m.codigoMicrodata || m.descricao;
       if (match) {
-        const key = m.codigoMicrodata || m.descricao;
         await saveRawMaterialStock(key, { descricao: m.descricao || match.description, estoqueKg: match.stockKg, lots: match.lots || [] });
         mp++;
       } else {
+        await saveRawMaterialStock(key, { descricao: m.descricao, estoqueKg: 0, lots: [] });
         skipped++;
       }
     }
@@ -407,6 +408,8 @@ export default function Materiais() {
       if (match) {
         await saveFinishedGoodStock(product.id, { productName: product.nome, codigoMicrodata: product.codigoMicrodata || null, estoqueKg: match.stockKg, lots: match.lots || [] });
         pa++;
+      } else {
+        await saveFinishedGoodStock(product.id, { productName: product.nome, codigoMicrodata: product.codigoMicrodata || null, estoqueKg: 0, lots: [] });
       }
     }
 
