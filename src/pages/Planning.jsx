@@ -122,6 +122,13 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
   const [saving,   setSaving]   = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // ── Cliente filter for product selection ──
+  const [clienteFilter, setClienteFilter] = useState('');
+  const clienteList = [...new Set(products.map((p) => p.cliente || 'Sem Cliente'))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const filteredProducts = clienteFilter
+    ? products.filter((p) => (p.cliente || 'Sem Cliente') === clienteFilter || p.id === form.product || p.id === form.productZ)
+    : products;
+
   // ── PNP state ──
   const [pnps,         setPnps]         = useState(primaryE?.pnps || []);
   const [addingPnp,    setAddingPnp]    = useState(false);
@@ -269,6 +276,16 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
           </div>
 
           {isProducao && (<>
+            {/* Cliente filter */}
+            <div>
+              <label className="block text-xs font-bold text-brand-muted mb-1.5 uppercase tracking-wider">Cliente</label>
+              <select value={clienteFilter} onChange={(e) => setClienteFilter(e.target.value)}
+                className="w-full bg-brand-surface border border-brand-border rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
+                <option value="">Todos os clientes</option>
+                {clienteList.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+
             <div className="border border-brand-border rounded-xl p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-brand-cyan">
@@ -280,8 +297,8 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
               </div>
               <select value={form.product} onChange={(e) => handleProduct(e.target.value)}
                 className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
-                {[...products]
-                  .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+                {[...filteredProducts]
+                  .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'))
                   .map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.codigoMicrodata || (String(p.id).startsWith('P') ? 'Pendente' : p.id)} — {p.nome}
@@ -346,8 +363,8 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
                 <select value={form.productZ} onChange={(e) => handleProductZ(e.target.value)}
                   className="w-full bg-brand-surface border border-brand-border rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-brand-cyan/50 transition-all">
                   <option value="">— selecione —</option>
-                  {[...products]
-                    .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+                  {[...filteredProducts]
+                    .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'))
                     .map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.codigoMicrodata || (String(p.id).startsWith('P') ? 'Pendente' : p.id)} — {p.nome}

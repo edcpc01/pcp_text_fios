@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, X, Save, Package, Cpu, ChevronDown } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Save, Package, Cpu, ChevronDown, CopyPlus } from 'lucide-react';
 import { useAdminStore, FACTORIES } from '../hooks/useStore';
 import { saveProduct, saveMachineConfig } from '../services/firebase';
 
@@ -160,6 +160,7 @@ const PRODUCT_TYPES = ['DTY', 'ATY', 'FDY', 'POY', 'Outro'];
 function ProductsSection() {
   const { products, addProduct, updateProduct, deleteProduct } = useAdminStore();
   const [modal, setModal] = useState(null);
+  const [clienteFilter, setClienteFilter] = useState('');
   const EMPTY_FORM = { id: '', nome: '', cliente: '', type: 'DTY', dtex: 150, filaments: 48, prodDiaPosicao: 0 };
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -181,6 +182,20 @@ function ProductsSection() {
       prodDiaPosicao: p.prodDiaPosicao || 0,
     });
     setModal({ mode: 'edit', original: p });
+  };
+
+  const openCopyFrom = (p) => {
+    const nextId = `P${String(products.length + 1).padStart(3, '0')}`;
+    setForm({
+      id:             nextId,
+      nome:           p.nome || p.name || '',
+      cliente:        p.cliente || '',
+      type:           p.type || 'DTY',
+      dtex:           p.dtex || 150,
+      filaments:      p.filaments || 48,
+      prodDiaPosicao: p.prodDiaPosicao || 0,
+    });
+    setModal({ mode: 'add' });
   };
 
   const handleSave = async () => {
@@ -219,14 +234,18 @@ function ProductsSection() {
     Outro: 'text-slate-400 bg-slate-500/10',
   };
 
-  // Group products by cliente for display
+  // Group products by cliente, sorted alphabetically within each group
   const byCliente = {};
   products.forEach((p) => {
     const c = p.cliente || 'Sem Cliente';
     if (!byCliente[c]) byCliente[c] = [];
     byCliente[c].push(p);
   });
+  Object.keys(byCliente).forEach((c) => {
+    byCliente[c].sort((a, b) => (a.nome || a.name || '').localeCompare(b.nome || b.name || '', 'pt-BR'));
+  });
   const clienteList = Object.keys(byCliente).sort();
+  const filteredClienteList = clienteFilter ? clienteList.filter((c) => c === clienteFilter) : clienteList;
 
   return (
     <div className="bg-brand-navy border border-white/[0.06] rounded-2xl">
@@ -236,10 +255,21 @@ function ProductsSection() {
           <h2 className="text-sm font-semibold text-slate-200">Produtos</h2>
           <span className="text-[10px] font-bold text-slate-500 bg-brand-slate/40 px-1.5 py-0.5 rounded-full">{products.length}</span>
         </div>
-        <button onClick={openAdd}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-all">
-          <Plus size={12} />Novo
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Filter by client */}
+          <div className="relative">
+            <select value={clienteFilter} onChange={(e) => setClienteFilter(e.target.value)}
+              className="appearance-none bg-brand-slate/60 border border-white/[0.08] rounded-xl pl-3 pr-8 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-indigo-500/40 cursor-pointer">
+              <option value="">Todos os clientes</option>
+              {clienteList.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+          </div>
+          <button onClick={openAdd}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-all">
+            <Plus size={12} />Novo
+          </button>
+        </div>
       </div>
 
       <div className="p-4">
@@ -247,7 +277,7 @@ function ProductsSection() {
           <p className="text-center text-slate-600 text-sm py-8">Nenhum produto cadastrado</p>
         ) : (
           <div className="space-y-4">
-            {clienteList.map((cliente) => (
+            {filteredClienteList.map((cliente) => (
               <div key={cliente}>
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 px-1">{cliente}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -259,6 +289,10 @@ function ProductsSection() {
                         <p className="text-[11px] text-slate-500">{p.dtex} dtex · {p.filaments} fil.</p>
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => openCopyFrom(p)} title="Cadastrar a partir deste"
+                          className="p-1.5 text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-all">
+                          <CopyPlus size={13} />
+                        </button>
                         <button onClick={() => openEdit(p)} className="p-1.5 text-slate-500 hover:text-slate-200 hover:bg-white/[0.06] rounded-lg transition-all"><Pencil size={13} /></button>
                         <button onClick={() => handleRemove(p.id)} className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={13} /></button>
                       </div>
