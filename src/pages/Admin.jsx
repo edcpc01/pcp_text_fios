@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, X, Save, Package, Cpu, ChevronDown, ChevronUp, Loader2, Users, ShieldCheck, Eye, Edit3 } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Save, Package, Cpu, ChevronDown, ChevronUp, Loader2, Users, ShieldCheck, Eye, Edit3, CopyPlus } from 'lucide-react';
 import { useAdminStore, FACTORIES } from '../hooks/useStore';
 import {
   saveProduct, saveMachineConfig,
@@ -133,12 +133,14 @@ function MPRow({ label, data, onChange, accent, allProducts }) {
 }
 
 // ─── Product Modal ────────────────────────────────────────────────────────────
-function ProductModal({ product, allProducts, onSave, onClose }) {
+function ProductModal({ product, copyFrom, allProducts, onSave, onClose }) {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(
     product
       ? { ...EMPTY_PRODUCT, ...product, mp1: { ...EMPTY_MP, ...product.mp1 }, mp2: { ...EMPTY_MP, ...product.mp2 }, mp3: { ...EMPTY_MP, ...product.mp3 } }
-      : { ...EMPTY_PRODUCT }
+      : copyFrom
+        ? { ...EMPTY_PRODUCT, ...copyFrom, id: '', codigoMicrodata: '', mp1: { ...EMPTY_MP, ...copyFrom.mp1 }, mp2: { ...EMPTY_MP, ...copyFrom.mp2 }, mp3: { ...EMPTY_MP, ...copyFrom.mp3 } }
+        : { ...EMPTY_PRODUCT }
   );
 
   const setMP = (key, field, val) => setForm((f) => ({ ...f, [key]: { ...f[key], [field]: val } }));
@@ -292,7 +294,7 @@ function MachineModal({ machine, factory, onSave, onClose }) {
 }
 
 // ─── Product Card ─────────────────────────────────────────────────────────────
-function ProductCard({ product, onEdit, onDelete }) {
+function ProductCard({ product, onEdit, onDelete, onCopy }) {
   const [expanded, setExpanded] = useState(false);
   const MPs = [
     { key: 'mp1', label: 'Matéria Prima 1', color: '#22d3ee' },
@@ -319,6 +321,10 @@ function ProductCard({ product, onEdit, onDelete }) {
         <div className="flex items-center gap-1 shrink-0">
           <button onClick={() => setExpanded((v) => !v)} className="p-1.5 text-brand-muted hover:text-brand-cyan hover:bg-brand-cyan/10 rounded-lg transition-all">
             {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          </button>
+          <button onClick={() => onCopy(product)} title="Cadastrar a partir deste"
+            className="p-1.5 text-brand-muted hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-all">
+            <CopyPlus size={13} />
           </button>
           <button onClick={() => onEdit(product)} className="p-1.5 text-brand-muted hover:text-brand-cyan hover:bg-brand-cyan/10 rounded-lg transition-all"><Pencil size={13} /></button>
           <button onClick={() => onDelete(product.id)} className="p-1.5 text-brand-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={13} /></button>
@@ -473,8 +479,14 @@ export default function Admin() {
   const [selectedFactory, setSelectedFactory] = useState('matriz');
   const [modal, setModal] = useState(null);
   const [users, setUsers] = useState([]);
+  const [clienteFilter, setClienteFilter] = useState('');
 
   const { products, machines, setMachines } = useAdminStore();
+
+  const clienteList = [...new Set(products.map((p) => p.cliente || 'Sem Cliente'))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const filteredProducts = clienteFilter
+    ? products.filter((p) => (p.cliente || 'Sem Cliente') === clienteFilter)
+    : products;
 
   useEffect(() => {
     const unsub = subscribeUsers(setUsers);
@@ -499,6 +511,10 @@ export default function Admin() {
     if (window.confirm("Deseja realmente excluir este produto?")) {
       await deleteDoc(doc(db, "products", id));
     }
+  };
+
+  const handleCopyProduct = (product) => {
+    setModal({ type: 'product', data: null, copyFrom: product });
   };
 
   const handleSaveUser = async (form, uid) => {
@@ -540,18 +556,28 @@ export default function Admin() {
 
       {tab === 'products' && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-brand-muted">{products.length} produtos cadastrados</p>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <p className="text-sm text-brand-muted shrink-0">{products.length} produtos cadastrados</p>
+              <div className="relative">
+                <select value={clienteFilter} onChange={(e) => setClienteFilter(e.target.value)}
+                  className="appearance-none bg-brand-surface border border-brand-border rounded-xl pl-3 pr-7 py-1.5 text-xs text-white focus:outline-none focus:border-brand-cyan/50 cursor-pointer">
+                  <option value="">Todos os clientes</option>
+                  {clienteList.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-brand-muted pointer-events-none" />
+              </div>
+            </div>
             <button onClick={() => setModal({ type: 'product', data: null })}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan text-xs font-semibold rounded-xl hover:bg-brand-cyan/20 transition-all">
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan text-xs font-semibold rounded-xl hover:bg-brand-cyan/20 transition-all shrink-0">
               <Plus size={12} /> Novo produto
             </button>
           </div>
           {products.length === 0
             ? <div className="text-center py-12 text-brand-muted text-sm">Nenhum produto no banco de dados</div>
-            : [...products]
-                .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
-                .map((p) => <ProductCard key={p.id} product={p} onEdit={(prod) => setModal({ type: 'product', data: prod })} onDelete={handleDeleteProduct} />)
+            : [...filteredProducts]
+                .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'))
+                .map((p) => <ProductCard key={p.id} product={p} onEdit={(prod) => setModal({ type: 'product', data: prod })} onDelete={handleDeleteProduct} onCopy={handleCopyProduct} />)
           }
         </div>
       )}
@@ -738,7 +764,7 @@ export default function Admin() {
         </div>
       )}
 
-      {modal?.type === 'product' && <ProductModal product={modal.data} allProducts={products} onSave={handleSaveProduct} onClose={() => setModal(null)} />}
+      {modal?.type === 'product' && <ProductModal product={modal.data} copyFrom={modal.copyFrom} allProducts={products} onSave={handleSaveProduct} onClose={() => setModal(null)} />}
       {modal?.type === 'machine' && <MachineModal machine={modal.data} factory={modal.factory} onSave={handleSaveMachine} onClose={() => setModal(null)} />}
       {modal?.type === 'user'    && <UserModal    user={modal.data}    onSave={handleSaveUser}    onClose={() => setModal(null)} />}
     </div>

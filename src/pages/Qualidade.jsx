@@ -100,26 +100,77 @@ function MetricCols({ primeira, segunda, refugo, total }) {
 }
 
 // ─── Linha de cliente (usada no painel por cliente) ──────────────────────────
-function ClientRow({ name, cd }) {
+function ClientRow({ name, cd, isExpanded, onToggle }) {
   const p1Pct  = pctN(cd.primeira, cd.total);
   const p2Pct  = pctN(cd.segunda,  cd.total);
   const refPct = pctN(cd.refugo,   cd.total);
+  
+  const products = Object.values(cd.products || {}).sort((a, b) => b.total - a.total);
+  const hasProducts = products.length > 0;
+
   return (
-    <div className="px-3 py-2.5">
-      <div className="flex items-center justify-between mb-1.5 gap-2">
-        <span className="text-xs font-semibold text-white/90 truncate">{name}</span>
-        <div className="flex items-center gap-2.5 text-[10px] font-mono shrink-0">
-          <span className="text-brand-muted">{fmtKg(cd.total)}</span>
-          <span className="text-emerald-400">{p1Pct.toFixed(1)}%</span>
-          {cd.segunda > 0 && <span className="text-amber-400">{p2Pct.toFixed(1)}%</span>}
-          {cd.refugo  > 0 && <span className="text-red-400">{refPct.toFixed(1)}%</span>}
+    <div className="flex flex-col">
+      <div 
+        className={`px-3 py-2.5 ${hasProducts ? 'cursor-pointer hover:bg-white/[0.04] transition-colors' : ''}`}
+        onClick={hasProducts ? onToggle : undefined}
+      >
+        <div className="flex items-center justify-between mb-1.5 gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            {hasProducts ? (
+              <ChevronDown size={12} className={`text-brand-muted transition-transform duration-200 shrink-0 ${isExpanded ? '' : '-rotate-90'}`} />
+            ) : (
+              <div className="w-3 h-3 shrink-0" />
+            )}
+            <span className="text-xs font-semibold text-white/90 truncate">{name}</span>
+          </div>
+          <div className="flex items-center gap-2.5 text-[10px] font-mono shrink-0">
+            <span className="text-brand-muted">{fmtKg(cd.total)}</span>
+            <span className="text-emerald-400">{p1Pct.toFixed(1)}%</span>
+            {cd.segunda > 0 && <span className="text-amber-400">{p2Pct.toFixed(1)}%</span>}
+            {cd.refugo  > 0 && <span className="text-red-400">{refPct.toFixed(1)}%</span>}
+          </div>
+        </div>
+        <div style={{ paddingLeft: '18px' }}>
+          <div className="h-1.5 rounded-full overflow-hidden bg-brand-bg/40 flex">
+            <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${p1Pct}%` }} />
+            <div className="h-full bg-amber-500  transition-all duration-500" style={{ width: `${p2Pct}%` }} />
+            <div className="h-full bg-red-500    transition-all duration-500" style={{ width: `${refPct}%` }} />
+          </div>
         </div>
       </div>
-      <div className="h-1.5 rounded-full overflow-hidden bg-brand-bg/40 flex">
-        <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${p1Pct}%` }} />
-        <div className="h-full bg-amber-500  transition-all duration-500" style={{ width: `${p2Pct}%` }} />
-        <div className="h-full bg-red-500    transition-all duration-500" style={{ width: `${refPct}%` }} />
-      </div>
+      
+      {isExpanded && hasProducts && (
+        <div className="pl-[30px] pr-3 pb-3 pt-1 bg-black/10 border-t border-brand-border/10">
+          <div className="space-y-2.5">
+            {products.map(prod => {
+              const pp1Pct  = pctN(prod.primeira, prod.total);
+              const pp2Pct  = pctN(prod.segunda,  prod.total);
+              const prefPct = pctN(prod.refugo,   prod.total);
+              return (
+                <div key={prod.code} className="flex flex-col">
+                  <div className="flex items-center justify-between mb-1 gap-2">
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[11px] font-medium text-brand-muted/90 truncate">{prod.name}</span>
+                      <span className="text-[9px] text-brand-muted/40">{prod.code}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[9px] font-mono shrink-0">
+                      <span className="text-brand-muted">{fmtKg(prod.total)}</span>
+                      <span className="text-emerald-400/80">{pp1Pct.toFixed(1)}%</span>
+                      {prod.segunda > 0 && <span className="text-amber-400/80">{pp2Pct.toFixed(1)}%</span>}
+                      {prod.refugo  > 0 && <span className="text-red-400/80">{prefPct.toFixed(1)}%</span>}
+                    </div>
+                  </div>
+                  <div className="h-1 rounded-full overflow-hidden bg-brand-bg/40 flex">
+                    <div className="h-full bg-emerald-500/80 transition-all duration-500" style={{ width: `${pp1Pct}%` }} />
+                    <div className="h-full bg-amber-500/80  transition-all duration-500" style={{ width: `${pp2Pct}%` }} />
+                    <div className="h-full bg-red-500/80    transition-all duration-500" style={{ width: `${prefPct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -133,6 +184,7 @@ export default function Qualidade() {
 
   const [expandedFactories, setExpandedFactories] = useState(new Set(['matriz', 'filial']));
   const [expandedMachines,  setExpandedMachines]  = useState(new Set());
+  const [expandedClients,   setExpandedClients]   = useState(new Set());
 
   const yearMonth  = getYearMonth();
   const monthLabel = getMonthLabel(month.year, month.month);
@@ -208,10 +260,18 @@ export default function Qualidade() {
         factMap[fKey] = { label: meta.label, dot: meta.dot, clients: {} };
       }
       if (!factMap[fKey].clients[cli])
-        factMap[fKey].clients[cli] = { primeira: 0, segunda: 0, refugo: 0, total: 0 };
+        factMap[fKey].clients[cli] = { primeira: 0, segunda: 0, refugo: 0, total: 0, products: {} };
 
       factMap[fKey].clients[cli][tier] += kg;
       factMap[fKey].clients[cli].total += kg;
+
+      const pKey = `${r.productCode}||${r.productName || r.productCode}`;
+      if (!factMap[fKey].clients[cli].products[pKey]) {
+        const [code, ...rest] = pKey.split('||');
+        factMap[fKey].clients[cli].products[pKey] = { code, name: rest.join('||') || code, primeira: 0, segunda: 0, refugo: 0, total: 0 };
+      }
+      factMap[fKey].clients[cli].products[pKey][tier] += kg;
+      factMap[fKey].clients[cli].products[pKey].total += kg;
     }
     return factMap;
   }, [allRows, yearMonth, factory, products]);
@@ -228,6 +288,9 @@ export default function Qualidade() {
 
   const toggleMachine = (key) =>
     setExpandedMachines((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+
+  const toggleClient = (key) =>
+    setExpandedClients((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
 
   const factoryLabel = factory === 'all' ? 'Todas as Unidades' : factory === 'matriz' ? 'Corradi Matriz' : 'Corradi Filial';
 
@@ -433,7 +496,18 @@ export default function Qualidade() {
 
                     {/* Clientes cadastrados */}
                     <div className="divide-y divide-brand-border/30">
-                      {known.map(([clientName, cd]) => <ClientRow key={clientName} name={clientName} cd={cd} />)}
+                      {known.map(([clientName, cd]) => {
+                        const cExpKey = `${fKey}__${clientName}`;
+                        return (
+                          <ClientRow 
+                            key={clientName} 
+                            name={clientName} 
+                            cd={cd} 
+                            isExpanded={expandedClients.has(cExpKey)} 
+                            onToggle={() => toggleClient(cExpKey)} 
+                          />
+                        );
+                      })}
                     </div>
 
                     {/* Sem cadastro — separado */}
@@ -443,7 +517,18 @@ export default function Qualidade() {
                           <span className="text-[9px] text-brand-muted/50 uppercase tracking-wider">Sem cadastro no sistema</span>
                         </div>
                         <div className="divide-y divide-brand-border/20 opacity-50">
-                          {unknown.map(([clientName, cd]) => <ClientRow key={clientName} name={clientName} cd={cd} />)}
+                          {unknown.map(([clientName, cd]) => {
+                            const cExpKey = `${fKey}__${clientName}`;
+                            return (
+                              <ClientRow 
+                                key={clientName} 
+                                name={clientName} 
+                                cd={cd} 
+                                isExpanded={expandedClients.has(cExpKey)} 
+                                onToggle={() => toggleClient(cExpKey)} 
+                              />
+                            );
+                          })}
                         </div>
                       </>
                     )}
