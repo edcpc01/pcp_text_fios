@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, ChevronLeft, ChevronRight, X, Save, Trash2, CalendarDays, Package, Cpu, Activity, AlertTriangle, Clock } from 'lucide-react';
-import { useAppStore, usePlanningStore, useAdminStore, useAuthStore, CELL_TYPES, makeEntryId, FACTORIES, parseCabos, spindlesForProduct, isTwistSplit, hasTwistMark, isSplitMachine, pnpFactor, adjustedPlannedTotal } from '../hooks/useStore';
+import { useAppStore, usePlanningStore, useAdminStore, useAuthStore, CELL_TYPES, makeEntryId, FACTORIES, parseCabos, spindlesForProduct, isTwistSplit, hasTwistMark, isSplitMachine, pnpFactor, adjustedPlannedTotal, getTwistMark } from '../hooks/useStore';
 import { subscribePlanningEntries, savePlanningEntry, deletePlanningEntry } from '../services/firebase';
 import { getDaysInMonth, getWeekday, formatDate, getMonthLabel, isToday } from '../utils/dates';
 
@@ -144,11 +144,7 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
   const cabos = parseCabos(currentProduct?.nome) || parseCabos(form.productName) || 1;
 
   // Torção do produto primário: "S" ou "Z" extraídos do nome, se houver.
-  const primaryTwist = (() => {
-    const name = currentProduct?.nome || form.productName || '';
-    const m = name.match(/"\s*([SZ])\s*"/i);
-    return m ? m[1].toUpperCase() : null;
-  })();
+  const primaryTwist = getTwistMark(currentProduct?.nome || form.productName);
   const splitMode = isTwistSplit(currentMachine, cabos, currentProduct?.nome || form.productName);
   const secondaryTwist = primaryTwist === 'S' ? 'Z' : 'S';
 
@@ -227,8 +223,8 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full sm:max-w-md bg-brand-card border border-brand-border rounded-t-2xl sm:rounded-2xl shadow-2xl animate-slide-up">
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-brand-border">
+      <div className="relative w-full sm:max-w-md bg-brand-card border border-brand-border rounded-t-2xl sm:rounded-2xl shadow-2xl animate-slide-up flex flex-col max-h-[92dvh] sm:max-h-[88vh]">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-brand-border shrink-0">
           <div>
             <h3 className="text-sm font-semibold text-white">{isEdit ? 'Editar' : 'Novo'} Planejamento</h3>
             {form.date && <p className="text-xs text-brand-muted mt-0.5">{formatDate(form.date)} · {form.machineName}</p>}
@@ -236,7 +232,7 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
           <button onClick={onClose} className="text-brand-muted hover:text-white p-1 rounded-lg"><X size={15} /></button>
         </div>
 
-        <div className="px-5 py-4 space-y-4">
+        <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1 min-h-0">
           <div>
             <label className="block text-xs font-bold text-brand-muted mb-2 uppercase tracking-wider">Tipo de dia</label>
             <div className="grid grid-cols-2 gap-2">
@@ -488,7 +484,7 @@ function EntryModal({ entries, machine, date, factory, products, machines, onSav
           )}
         </div>
 
-        <div className="flex items-center gap-2 px-5 pb-5 pt-1">
+        <div className="flex items-center gap-2 px-5 pb-5 pt-3 border-t border-brand-border shrink-0">
           {isEdit && (
             <button onClick={handleDelete} disabled={deleting}
               className="flex items-center gap-1.5 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 rounded-xl transition-all disabled:opacity-40">

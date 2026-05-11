@@ -100,8 +100,22 @@ export function spindlesForProduct(machine, cabos) {
   return total; // 1 cabo (ou desconhecido) → máquina inteira
 }
 
+// Extrai a torção (S ou Z) do nome do produto.
+// Suporta os dois padrões usados na fábrica:
+//   • RHODIA: marca entre aspas — ex.: PA TEXT. SO 1X85/68 "S" NYLONSTAB CRU
+//   • NILIT : letra solta no fim — ex.: FIO PA TEXT. ENTR. 1X44/34-SD CRU S
+export function getTwistMark(productName) {
+  if (!productName) return null;
+  const str = String(productName);
+  const quoted = str.match(/"\s*([SZ])\s*"/i);
+  if (quoted) return quoted[1].toUpperCase();
+  const trailing = str.match(/[\s\-]([SZ])\s*$/i);
+  if (trailing) return trailing[1].toUpperCase();
+  return null;
+}
+
 export function hasTwistMark(productName) {
-  return !!productName && /"\s*[SZ]\s*"/i.test(String(productName));
+  return getTwistMark(productName) !== null;
 }
 
 export function isTwistSplit(machine, cabos, productName) {
