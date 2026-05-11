@@ -542,7 +542,7 @@ function MatrixCell({ entries, date, machine, isCurrentDay, onClick, onDragStart
       onClick={() => onClick && onClick(entries || [], machine, date)}
       title={tooltipText}
       draggable={!!primary && !!onDragStart}
-      onDragStart={(e) => onDragStart && onDragStart(e, primary)}
+      onDragStart={(e) => onDragStart && onDragStart(e, entries || [])}
       onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
       onDrop={(e) => onDrop && onDrop(e, machine, date)}
       className={`border border-brand-border/40 min-w-[40px] md:min-w-[50px] w-[40px] md:w-[50px] transition-all duration-100 ${onClick ? 'cursor-pointer hover:brightness-125' : ''}`}
@@ -689,8 +689,9 @@ export default function Planning() {
     catch (err) { console.error('Delete failed:', err); }
   }, [deleteEntry]);
 
-  const handleDragStart = useCallback((e, entry) => {
-    e.dataTransfer.setData('application/json', JSON.stringify(entry));
+  const handleDragStart = useCallback((e, sourceEntries) => {
+    const payload = Array.isArray(sourceEntries) ? sourceEntries : [sourceEntries];
+    e.dataTransfer.setData('application/json', JSON.stringify(payload));
   }, []);
 
   const handleDrop = useCallback(async (event, destMachine, destDate) => {
@@ -698,18 +699,33 @@ export default function Planning() {
     const dataStr = event.dataTransfer.getData('application/json');
     if (!dataStr) return;
     try {
-      const sourceEntry = JSON.parse(dataStr);
-      const s = sourceEntry.date < destDate ? sourceEntry.date : destDate;
-      const e = sourceEntry.date > destDate ? sourceEntry.date : destDate;
+      const parsed = JSON.parse(dataStr);
+      // Compat: aceita payload antigo (objeto único) e novo (array com S/Z).
+      const sourceEntries = Array.isArray(parsed) ? parsed : [parsed];
+      if (sourceEntries.length === 0) return;
+      const first = sourceEntries[0];
+      const sourceHasTwist = sourceEntries.some((e) => e.twist);
+      const s = first.date < destDate ? first.date : destDate;
+      const e = first.date > destDate ? first.date : destDate;
       let curr = new Date(s + 'T12:00:00Z');
       const end = new Date(e + 'T12:00:00Z');
       while (curr <= end) {
         const d = curr.toISOString().split('T')[0];
-        await handleSave({ ...sourceEntry, machine: destMachine.id, machineName: destMachine.name, date: d, _factory: destMachine._factory });
+        // Remove entries de formato incompatível no destino (flat ↔ split).
+        const destEntries = getEntries(destMachine, d);
+        for (const destE of destEntries) {
+          const destHasTwist = !!destE.twist;
+          if (destHasTwist !== sourceHasTwist) await handleDelete(destE.id);
+        }
+        // Salva todas as entries do origem (S, Z ou única) no dia destino.
+        for (const src of sourceEntries) {
+          const { id: _oldId, ...rest } = src;
+          await handleSave({ ...rest, machine: destMachine.id, machineName: destMachine.name, date: d, _factory: destMachine._factory });
+        }
         curr.setUTCDate(curr.getUTCDate() + 1);
       }
     } catch (err) { console.error('Drop error:', err); }
-  }, [handleSave]);
+  }, [handleSave, handleDelete, entriesMap]);
 
   // For modal — pass the machine's actual factory. `entries` = array (0, 1 ou 2 itens)
   const openModal = (entries, machine, date) => {
