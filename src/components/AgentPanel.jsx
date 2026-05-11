@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { X, Send, Bot, User, AlertCircle, Mic, MicOff, Camera } from 'lucide-react';
+import { X, Send, Bot, User, AlertCircle, Mic, MicOff, Image as ImageIcon, Paperclip } from 'lucide-react';
 import {
   useAppStore, usePlanningStore, useProductionStore, useAdminStore, useCsvStore,
 } from '../hooks/useStore';
@@ -91,6 +91,7 @@ function buildSystemPrompt(ctx) {
   lines.push(`Você é um especialista em PCP de fios texturizados das empresas Corradi e Doptex.`);
   lines.push(`\nAnalise os dados reais abaixo e dê respostas objetivas, orientadas a decisão e ações práticas de PCP.`);
   lines.push(`\nREGRAS: Responda em português | Use apenas dados do contexto | Aponte riscos e ações | Formate com seções e listas | Se receber imagem, descreva e analise os dados visíveis.`);
+  lines.push(`Quando o usuário perguntar sobre um CLIENTE (ex: NILIT, RHODIA, INVISTA, DOPTEX, CORRADI etc.), procure na seção "Qualidade por CLIENTE" e responda com os dados específicos daquele cliente (volume total, %1ª, %2ª, %refugo e produtos mais relevantes). Não diga que faltam dados se a seção existir.`);
   lines.push(`\n${'─'.repeat(60)}`);
   lines.push(`UNIDADE: ${factoryLabel} | MÊS: ${ctx.yearMonth} | HOJE: ${new Date().toLocaleDateString('pt-BR')}`);
 
@@ -154,6 +155,28 @@ function buildSystemPrompt(ctx) {
           lines.push(`  • ${mName}: ${fmtKg(md.total)} | 1ª ${mp1}% | 2ª ${mp2}% | Refugo ${mRef}%`);
         });
     });
+
+    // Quebra por cliente (NILIT, RHODIA, etc.) — produto cruzado com cadastro
+    const byCli = Object.entries(ctx.qualData.byCliente || {})
+      .sort((a, b) => b[1].total - a[1].total);
+    if (byCli.length > 0) {
+      lines.push(`\n--- Qualidade por CLIENTE ---`);
+      byCli.forEach(([cliente, cd]) => {
+        const cp1 = cd.total > 0 ? (cd.primeira / cd.total * 100).toFixed(1) : '0.0';
+        const cp2 = cd.total > 0 ? (cd.segunda / cd.total * 100).toFixed(1) : '0.0';
+        const cRef = cd.total > 0 ? (cd.refugo / cd.total * 100).toFixed(1) : '0.0';
+        lines.push(`\n${cliente}: ${fmtKg(cd.total)} | 1ª ${cp1}% (${fmtKg(cd.primeira)}) | 2ª ${cp2}% (${fmtKg(cd.segunda)}) | Refugo ${cRef}% (${fmtKg(cd.refugo)})`);
+        Object.entries(cd.products || {})
+          .sort((a, b) => b[1].total - a[1].total)
+          .slice(0, 8)
+          .forEach(([pName, pd]) => {
+            const pp1 = pd.total > 0 ? (pd.primeira / pd.total * 100).toFixed(1) : '0';
+            const pp2 = pd.total > 0 ? (pd.segunda / pd.total * 100).toFixed(1) : '0';
+            const pRef = pd.total > 0 ? (pd.refugo / pd.total * 100).toFixed(1) : '0';
+            lines.push(`  • ${pName}: ${fmtKg(pd.total)} | 1ª ${pp1}% | 2ª ${pp2}% | Refugo ${pRef}%`);
+          });
+      });
+    }
   } else {
     lines.push('Dados de qualidade indisponíveis — sincronize o CSV na página Realizado.');
   }
@@ -214,7 +237,7 @@ function Message({ msg }) {
           : 'bg-brand-surface/60 text-white rounded-tl-sm border border-brand-border'}`}>
         {msg.hasImage && (
           <p className="text-[10px] text-brand-cyan/70 mb-1.5 flex items-center gap-1">
-            <Camera size={9} /> print da tela anexado
+            <ImageIcon size={9} /> imagem anexada
           </p>
         )}
         {msg.content.split('\n').map((line, i) => {
@@ -324,7 +347,25 @@ export default function AgentPanel({ mobileFullscreen = false }) {
 
     // ── Qualidade do CSV ──────────────────────────────────────────────────
     const FACTORY_LABELS = { matriz: 'Corradi Matriz', filial: 'Corradi Filial', outra: 'Outras' };
-    const qualData = { total: { primeira: 0, segunda: 0, refugo: 0, total: 0 }, byFactory: {} };
+    // Lookup productCode → cliente (vem do cadastro)
+    const clienteByCode = {};
+    const clienteByName = {};
+    products.forEach((p) => {
+      const c = (p.cliente || '').trim() || 'Sem Cliente';
+      if (p.codigoMicrodata) clienteByCode[String(p.codigoMicrodata)] = c;
+      if (p.id)              clienteByCode[String(p.id)] = c;
+      if (p.nome)            clienteByName[p.nome] = c;
+    });
+    const lookupCliente = (code, name) =>
+      clienteByCode[String(code || '').trim()] ||
+      clienteByName[name || ''] ||
+      'Sem Cliente';
+
+    const qualData = {
+      total:     { primeira: 0, segunda: 0, refugo: 0, total: 0 },
+      byFactory: {},
+      byCliente: {}, // { cliente: { primeira, segunda, refugo, total, products: { nome: tiers } } }
+    };
     csvRows
       .filter((r) => r.date && r.date.startsWith(yearMonth) && (factory === 'all' || csvEmpresaToFactory(r.empresa) === factory))
       .forEach((r) => {
@@ -343,6 +384,19 @@ export default function AgentPanel({ mobileFullscreen = false }) {
           qualData.byFactory[fKey].machines[mName] = { primeira: 0, segunda: 0, refugo: 0, total: 0 };
         qualData.byFactory[fKey].machines[mName][tier] += kg;
         qualData.byFactory[fKey].machines[mName].total += kg;
+
+        // Agregação por cliente
+        const cliente = lookupCliente(r.productCode, r.productName);
+        if (!qualData.byCliente[cliente]) {
+          qualData.byCliente[cliente] = { primeira: 0, segunda: 0, refugo: 0, total: 0, products: {} };
+        }
+        qualData.byCliente[cliente][tier] += kg;
+        qualData.byCliente[cliente].total += kg;
+        const pName = r.productName || r.productCode || '(sem produto)';
+        if (!qualData.byCliente[cliente].products[pName])
+          qualData.byCliente[cliente].products[pName] = { primeira: 0, segunda: 0, refugo: 0, total: 0 };
+        qualData.byCliente[cliente].products[pName][tier] += kg;
+        qualData.byCliente[cliente].products[pName].total += kg;
       });
 
     // ── Necessidade de MP (mesma lógica do Materiais.jsx) ─────────────────
@@ -426,17 +480,18 @@ export default function AgentPanel({ mobileFullscreen = false }) {
 
   const [messages, setMessages] = useState([{
     id: 1, role: 'assistant', time: nowTime(),
-    content: `Olá! Sou o especialista de PCP da Corradi/Doptex.\n\nTenho acesso completo a:\n• Planejamento e produção realizada\n• OEE (Disponibilidade, Performance, Qualidade)\n• Qualidade do CSV (1ª, 2ª, Refugo por máquina)\n• Estoque de MP e PA, Forecast\n\nPosso responder por texto ou voz 🎤. Use 📷 para enviar o print da tela. Como posso ajudar?`,
+    content: `Olá! Sou o especialista de PCP da Corradi/Doptex.\n\nTenho acesso completo a:\n• Planejamento e produção realizada\n• OEE (Disponibilidade, Performance, Qualidade)\n• Qualidade do CSV (1ª, 2ª, Refugo por máquina e por cliente — NILIT, RHODIA etc.)\n• Estoque de MP e PA, Forecast\n\nPosso responder por texto ou voz 🎤. Use 📎 para anexar uma imagem para análise. Como posso ajudar?`,
   }]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [listening, setListening] = useState(false);
-  const [pendingImage, setPendingImage] = useState(null);
-  const [captureLoading, setCaptureLoading] = useState(false);
+  const [pendingImage, setPendingImage] = useState(null);   // base64 (sem prefixo)
+  const [pendingMime, setPendingMime] = useState('image/jpeg');
   const bottomRef = useRef(null);
   const historyRef = useRef([]);
   const recognRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -464,19 +519,35 @@ export default function AgentPanel({ mobileFullscreen = false }) {
     setListening(true);
   }, [SR, listening]);
 
-  // ── Screenshot ─────────────────────────────────────────────────────────────
-  const captureScreen = useCallback(async () => {
-    setCaptureLoading(true);
-    try {
-      const html2canvas = (await import('html2canvas')).default;
-      const root = document.getElementById('root') || document.body;
-      const canvas = await html2canvas(root, { useCORS: true, allowTaint: true, scale: 0.55, logging: false });
-      setPendingImage(canvas.toDataURL('image/jpeg', 0.75).split(',')[1]);
-    } catch (e) {
-      setError('Não foi possível capturar a tela: ' + e.message);
-    } finally {
-      setCaptureLoading(false);
+  // ── Upload de imagem ───────────────────────────────────────────────────────
+  const MAX_IMG_BYTES = 4 * 1024 * 1024; // 4 MB
+
+  const handleFileChange = useCallback((e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // permite reescolher o mesmo arquivo
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Arquivo inválido — selecione uma imagem.');
+      return;
     }
+    if (file.size > MAX_IMG_BYTES) {
+      setError(`Imagem muito grande (${(file.size / 1024 / 1024).toFixed(1)} MB) — máx 4 MB.`);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result || '';
+      const base64 = String(dataUrl).split(',')[1] || '';
+      setPendingImage(base64);
+      setPendingMime(file.type || 'image/jpeg');
+      setError(null);
+    };
+    reader.onerror = () => setError('Falha ao ler imagem.');
+    reader.readAsDataURL(file);
+  }, []);
+
+  const openFilePicker = useCallback(() => {
+    fileInputRef.current?.click();
   }, []);
 
   // ── Send ────────────────────────────────────────────────────────────────────
@@ -494,8 +565,8 @@ export default function AgentPanel({ mobileFullscreen = false }) {
     setLoading(true);
 
     const parts = [];
-    if (imgToSend) parts.push({ inlineData: { mimeType: 'image/jpeg', data: imgToSend } });
-    parts.push({ text: q || 'Analise o que está visível na aplicação PCP e forneça insights relevantes sobre os dados mostrados.' });
+    if (imgToSend) parts.push({ inlineData: { mimeType: pendingMime || 'image/jpeg', data: imgToSend } });
+    parts.push({ text: q || 'Analise a imagem anexada no contexto dos dados de PCP fornecidos e traga conclusões/ações relevantes.' });
     historyRef.current.push({ role: 'user', parts });
 
     try {
@@ -610,8 +681,8 @@ export default function AgentPanel({ mobileFullscreen = false }) {
         <div className="px-3 pb-1 pt-2 shrink-0">
           <div className="relative inline-block">
             <img
-              src={`data:image/jpeg;base64,${pendingImage}`}
-              alt="screenshot"
+              src={`data:${pendingMime};base64,${pendingImage}`}
+              alt="anexo"
               className="h-16 rounded-lg border border-brand-cyan/30 object-cover"
             />
             <button
@@ -620,7 +691,7 @@ export default function AgentPanel({ mobileFullscreen = false }) {
               <X size={9} />
             </button>
           </div>
-          <p className="text-[9px] text-brand-cyan/60 mt-0.5">Print anexado — será enviado com a próxima mensagem</p>
+          <p className="text-[9px] text-brand-cyan/60 mt-0.5">Imagem anexada — será enviada com a próxima mensagem</p>
         </div>
       )}
 
@@ -644,17 +715,23 @@ export default function AgentPanel({ mobileFullscreen = false }) {
             {listening ? <MicOff size={14} /> : <Mic size={14} />}
           </button>
 
-          {/* Screenshot */}
+          {/* Upload de imagem */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
           <button
-            onClick={captureScreen}
-            disabled={captureLoading || loading || !API_KEY}
-            title="Capturar tela atual e enviar ao agente"
+            onClick={openFilePicker}
+            disabled={loading || !API_KEY}
+            title="Anexar imagem para análise"
             className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all disabled:opacity-30 shrink-0
               ${pendingImage
                 ? 'bg-brand-cyan/20 border border-brand-cyan/40 text-brand-cyan'
-                : 'bg-brand-surface/60 border border-brand-border text-brand-muted hover:text-white hover:border-purple-500/40'}
-              ${captureLoading ? 'animate-pulse' : ''}`}>
-            <Camera size={14} />
+                : 'bg-brand-surface/60 border border-brand-border text-brand-muted hover:text-white hover:border-purple-500/40'}`}>
+            <Paperclip size={14} />
           </button>
 
           <input
