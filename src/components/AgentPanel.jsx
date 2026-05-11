@@ -12,26 +12,27 @@ import { computeOEE } from '../pages/OEE';
 // ─── Gemini API ───────────────────────────────────────────────────────────────
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_URL = API_KEY
-  ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`
+  ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`
+
   : null;
 
 // ─── Quick actions ────────────────────────────────────────────────────────────
 const QUICK_ACTIONS = [
   { label: 'Resumo do mês', query: 'Faça um resumo executivo da produção e planejamento do mês atual, destacando os pontos críticos.' },
-  { label: 'Aderência',     query: 'Analise a aderência ao planejamento por produto. Quais estão abaixo da meta e qual a causa provável?' },
-  { label: 'OEE do mês',   query: 'Analise o OEE de produção do mês. Quais máquinas têm pior desempenho? Quais as principais causas e ações recomendadas?' },
-  { label: 'Qualidade',     query: 'Analise os dados de qualidade do mês. Quais máquinas e produtos têm maior índice de 2ª qualidade e refugo? O que priorizar?' },
-  { label: 'Estoque MP',    query: 'Como está o estoque de matéria-prima em relação à necessidade atual? Há risco de ruptura?' },
-  { label: 'Forecast',      query: 'Compare o forecast de vendas com o estoque de produto acabado. Há déficits? Quais produtos precisam de atenção?' },
+  { label: 'Aderência', query: 'Analise a aderência ao planejamento por produto. Quais estão abaixo da meta e qual a causa provável?' },
+  { label: 'OEE do mês', query: 'Analise o OEE de produção do mês. Quais máquinas têm pior desempenho? Quais as principais causas e ações recomendadas?' },
+  { label: 'Qualidade', query: 'Analise os dados de qualidade do mês. Quais máquinas e produtos têm maior índice de 2ª qualidade e refugo? O que priorizar?' },
+  { label: 'Estoque MP', query: 'Como está o estoque de matéria-prima em relação à necessidade atual? Há risco de ruptura?' },
+  { label: 'Forecast', query: 'Compare o forecast de vendas com o estoque de produto acabado. Há déficits? Quais produtos precisam de atenção?' },
 ];
 
 // ─── Quality tier helpers (mesma lógica da página Qualidade) ─────────────────
 const SEGUNDA_SET = new Set(['A3', 'DV', '38']);
-const REFUGO_SET  = new Set(['AS', 'EJ', 'EI', 'EM', 'EP']);
+const REFUGO_SET = new Set(['AS', 'EJ', 'EI', 'EM', 'EP']);
 
 function getQualTier(classif, lote) {
   const c = (classif || '').toUpperCase().trim();
-  if (REFUGO_SET.has(c))  return 'refugo';
+  if (REFUGO_SET.has(c)) return 'refugo';
   if (SEGUNDA_SET.has(c) || (lote || '').toUpperCase().endsWith('A')) return 'segunda';
   return 'primeira';
 }
@@ -83,8 +84,8 @@ function mpStatus(stock, need) {
 // ─── System prompt ────────────────────────────────────────────────────────────
 function buildSystemPrompt(ctx) {
   const factoryLabel =
-    ctx.factory === 'all'    ? 'Todas as Unidades (Corradi Matriz + Corradi Filial)' :
-    ctx.factory === 'matriz' ? 'Corradi Matriz (empresa 09)' : 'Corradi Filial (empresa 07)';
+    ctx.factory === 'all' ? 'Todas as Unidades (Corradi Matriz + Corradi Filial)' :
+      ctx.factory === 'matriz' ? 'Corradi Matriz (empresa 09)' : 'Corradi Filial (empresa 07)';
 
   const lines = [];
   lines.push(`Você é um especialista em PCP de fios texturizados das empresas Corradi e Doptex.`);
@@ -134,22 +135,22 @@ function buildSystemPrompt(ctx) {
   lines.push(`\n=== QUALIDADE DO MÊS (CSV) ===`);
   const qt = ctx.qualData?.total;
   if (qt && qt.total > 0) {
-    const p1  = (qt.primeira / qt.total * 100).toFixed(1);
-    const p2  = (qt.segunda  / qt.total * 100).toFixed(1);
-    const pRef = (qt.refugo   / qt.total * 100).toFixed(1);
+    const p1 = (qt.primeira / qt.total * 100).toFixed(1);
+    const p2 = (qt.segunda / qt.total * 100).toFixed(1);
+    const pRef = (qt.refugo / qt.total * 100).toFixed(1);
     lines.push(`Total: ${fmtKg(qt.total)} | 1ª: ${fmtKg(qt.primeira)} (${p1}%) | 2ª: ${fmtKg(qt.segunda)} (${p2}%) | Refugo: ${fmtKg(qt.refugo)} (${pRef}%)`);
     Object.entries(ctx.qualData.byFactory || {}).forEach(([, fac]) => {
-      const fp1  = fac.total > 0 ? (fac.primeira / fac.total * 100).toFixed(1) : '0.0';
-      const fp2  = fac.total > 0 ? (fac.segunda  / fac.total * 100).toFixed(1) : '0.0';
-      const fRef = fac.total > 0 ? (fac.refugo   / fac.total * 100).toFixed(1) : '0.0';
+      const fp1 = fac.total > 0 ? (fac.primeira / fac.total * 100).toFixed(1) : '0.0';
+      const fp2 = fac.total > 0 ? (fac.segunda / fac.total * 100).toFixed(1) : '0.0';
+      const fRef = fac.total > 0 ? (fac.refugo / fac.total * 100).toFixed(1) : '0.0';
       lines.push(`\n${fac.label}: ${fmtKg(fac.total)} | 1ª ${fp1}% | 2ª ${fp2}% | Refugo ${fRef}%`);
       Object.entries(fac.machines || {})
         .sort((a, b) => b[1].total - a[1].total)
         .slice(0, 10)
         .forEach(([mName, md]) => {
-          const mp1  = md.total > 0 ? (md.primeira / md.total * 100).toFixed(1) : '0';
-          const mp2  = md.total > 0 ? (md.segunda  / md.total * 100).toFixed(1) : '0';
-          const mRef = md.total > 0 ? (md.refugo   / md.total * 100).toFixed(1) : '0';
+          const mp1 = md.total > 0 ? (md.primeira / md.total * 100).toFixed(1) : '0';
+          const mp2 = md.total > 0 ? (md.segunda / md.total * 100).toFixed(1) : '0';
+          const mRef = md.total > 0 ? (md.refugo / md.total * 100).toFixed(1) : '0';
           lines.push(`  • ${mName}: ${fmtKg(md.total)} | 1ª ${mp1}% | 2ª ${mp2}% | Refugo ${mRef}%`);
         });
     });
@@ -161,7 +162,7 @@ function buildSystemPrompt(ctx) {
   lines.push(`\n=== ESTOQUE DE MATÉRIA-PRIMA vs NECESSIDADE ===`);
   if (ctx.mpItems.length > 0) {
     const criticas = ctx.mpItems.filter((m) => m.status === 'CRÍTICO');
-    const atencao  = ctx.mpItems.filter((m) => m.status === 'ATENÇÃO');
+    const atencao = ctx.mpItems.filter((m) => m.status === 'ATENÇÃO');
     lines.push(`Estoque total: ${fmtKg(ctx.totalMpKg)} | Necessidade: ${fmtKg(ctx.totalMpNeed)} | Críticas: ${criticas.length} | Atenção: ${atencao.length}`);
     ctx.mpItems.forEach((m) => {
       lines.push(`• ${m.desc} [${m.code || '—'}]: est ${fmtKg(m.stock)} | nec ${fmtKg(m.need)} | atual ${fmtKg(m.needNow)} | ${m.status}`);
@@ -233,17 +234,17 @@ function Message({ msg }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function AgentPanel({ mobileFullscreen = false }) {
   const { closeAgent, factory, getYearMonth } = useAppStore();
-  const { entriesMap }                        = usePlanningStore();
-  const { records }                           = useProductionStore();
+  const { entriesMap } = usePlanningStore();
+  const { records } = useProductionStore();
   const { machines: adminMachines, products } = useAdminStore();
-  const { rows: csvRows }                     = useCsvStore();
+  const { rows: csvRows } = useCsvStore();
 
   const yearMonth = getYearMonth();
 
   // ── Firebase subscriptions ───────────────────────────────────────────────
-  const [mpStock,         setMpStock]         = useState({});
-  const [paStock,         setPaStock]         = useState({});
-  const [forecastList,    setForecastList]    = useState([]);
+  const [mpStock, setMpStock] = useState({});
+  const [paStock, setPaStock] = useState({});
+  const [forecastList, setForecastList] = useState([]);
   const [planningEntries, setPlanningEntries] = useState([]);
 
   useEffect(() => {
@@ -260,13 +261,13 @@ export default function AgentPanel({ mobileFullscreen = false }) {
 
   // ── Contexto calculado para o prompt ────────────────────────────────────
   const ctx = useMemo(() => {
-    const today     = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
     // Entries filtradas pela fábrica e mês
     const allEntries = Object.values(entriesMap).filter(
       (e) => (e.cellType === 'producao' || !e.cellType) &&
-             (factory === 'all' || e.factory === factory),
+        (factory === 'all' || e.factory === factory),
     );
 
     // Par (produto, fábrica) com planejamento — evita dupla-contagem
@@ -278,7 +279,7 @@ export default function AgentPanel({ mobileFullscreen = false }) {
     );
 
     const totalPlanned = Math.round(allEntries.reduce((s, e) => s + (e.planned || 0), 0));
-    const plannedD1    = Math.round(
+    const plannedD1 = Math.round(
       allEntries
         .filter((e) => e.date && e.date.startsWith(yearMonth) && e.date <= yesterday)
         .reduce((s, e) => s + (e.planned || 0), 0),
@@ -327,21 +328,21 @@ export default function AgentPanel({ mobileFullscreen = false }) {
     csvRows
       .filter((r) => r.date && r.date.startsWith(yearMonth) && (factory === 'all' || csvEmpresaToFactory(r.empresa) === factory))
       .forEach((r) => {
-        const tier  = getQualTier(r.classif, r.lote);
-        const kg    = r.quantity || 0;
-        qualData.total[tier]  += kg;
-        qualData.total.total  += kg;
+        const tier = getQualTier(r.classif, r.lote);
+        const kg = r.quantity || 0;
+        qualData.total[tier] += kg;
+        qualData.total.total += kg;
         const fKey = csvEmpresaToFactory(r.empresa);
         if (!qualData.byFactory[fKey]) {
           qualData.byFactory[fKey] = { label: FACTORY_LABELS[fKey] || fKey, primeira: 0, segunda: 0, refugo: 0, total: 0, machines: {} };
         }
-        qualData.byFactory[fKey][tier]  += kg;
-        qualData.byFactory[fKey].total  += kg;
+        qualData.byFactory[fKey][tier] += kg;
+        qualData.byFactory[fKey].total += kg;
         const mName = r.machine || '(sem máquina)';
         if (!qualData.byFactory[fKey].machines[mName])
           qualData.byFactory[fKey].machines[mName] = { primeira: 0, segunda: 0, refugo: 0, total: 0 };
-        qualData.byFactory[fKey].machines[mName][tier]  += kg;
-        qualData.byFactory[fKey].machines[mName].total  += kg;
+        qualData.byFactory[fKey].machines[mName][tier] += kg;
+        qualData.byFactory[fKey].machines[mName].total += kg;
       });
 
     // ── Necessidade de MP (mesma lógica do Materiais.jsx) ─────────────────
@@ -359,7 +360,7 @@ export default function AgentPanel({ mobileFullscreen = false }) {
         if (!mpMap[code]) {
           mpMap[code] = { code: mp.codigoMicrodata || '', desc: mp.descricao || code, need: 0, needNow: 0, produtos: new Set() };
         }
-        mpMap[code].need    += kg * (pct / 100);
+        mpMap[code].need += kg * (pct / 100);
         if (isFromToday) mpMap[code].needNow += kg * (pct / 100);
         mpMap[code].produtos.add(product.nome || product.id);
       };
@@ -368,8 +369,8 @@ export default function AgentPanel({ mobileFullscreen = false }) {
       if (useNew) {
         ['mp1', 'mp2', 'mp3'].forEach((k) => { if (product[k]?.descricao) accumulate(product[k], product[k].composicaoPct); });
       } else {
-        if (product.alma?.composicaoPct > 0)   accumulate(product.alma,   product.alma.composicaoPct);
-        if (product.efeito?.composicaoPct > 0)  accumulate(product.efeito, product.efeito.composicaoPct);
+        if (product.alma?.composicaoPct > 0) accumulate(product.alma, product.alma.composicaoPct);
+        if (product.efeito?.composicaoPct > 0) accumulate(product.efeito, product.efeito.composicaoPct);
       }
     });
 
@@ -380,14 +381,14 @@ export default function AgentPanel({ mobileFullscreen = false }) {
         code: m.code,
         desc: m.desc,
         stock,
-        need:    Math.round(m.need),
+        need: Math.round(m.need),
         needNow: Math.round(m.needNow),
-        status:  mpStatus(stock, m.need),
+        status: mpStatus(stock, m.need),
         produtos: [...m.produtos],
       };
     }).sort((a, b) => b.need - a.need);
 
-    const totalMpKg   = mpItems.reduce((s, m) => s + m.stock, 0);
+    const totalMpKg = mpItems.reduce((s, m) => s + m.stock, 0);
     const totalMpNeed = mpItems.reduce((s, m) => s + m.need, 0);
 
     // Estoque PA
@@ -406,8 +407,8 @@ export default function AgentPanel({ mobileFullscreen = false }) {
       .map((f) => {
         const forecastKg = f.months?.[yearMonth] || 0;
         if (!forecastKg) return null;
-        const paEntry    = paStockByCode[f.code] || {};
-        const stock      = paEntry.stock || 0;
+        const paEntry = paStockByCode[f.code] || {};
+        const stock = paEntry.stock || 0;
         return { code: f.code, name: paEntry.name || f.code, forecast: forecastKg, stock, delta: stock - forecastKg };
       })
       .filter(Boolean)
@@ -421,21 +422,21 @@ export default function AgentPanel({ mobileFullscreen = false }) {
       forecastItems,
     };
   }, [entriesMap, records, products, adminMachines, factory, yearMonth,
-      mpStock, paStock, forecastList, planningEntries, csvRows]);
+    mpStock, paStock, forecastList, planningEntries, csvRows]);
 
   const [messages, setMessages] = useState([{
     id: 1, role: 'assistant', time: nowTime(),
     content: `Olá! Sou o especialista de PCP da Corradi/Doptex.\n\nTenho acesso completo a:\n• Planejamento e produção realizada\n• OEE (Disponibilidade, Performance, Qualidade)\n• Qualidade do CSV (1ª, 2ª, Refugo por máquina)\n• Estoque de MP e PA, Forecast\n\nPosso responder por texto ou voz 🎤. Use 📷 para enviar o print da tela. Como posso ajudar?`,
   }]);
-  const [input,          setInput]          = useState('');
-  const [loading,        setLoading]        = useState(false);
-  const [error,          setError]          = useState(null);
-  const [listening,      setListening]      = useState(false);
-  const [pendingImage,   setPendingImage]   = useState(null);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [listening, setListening] = useState(false);
+  const [pendingImage, setPendingImage] = useState(null);
   const [captureLoading, setCaptureLoading] = useState(false);
-  const bottomRef  = useRef(null);
+  const bottomRef = useRef(null);
   const historyRef = useRef([]);
-  const recognRef  = useRef(null);
+  const recognRef = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -456,7 +457,7 @@ export default function AgentPanel({ mobileFullscreen = false }) {
       const t = e.results[0]?.[0]?.transcript || '';
       setInput((prev) => (prev ? `${prev} ${t}` : t));
     };
-    recog.onend  = () => setListening(false);
+    recog.onend = () => setListening(false);
     recog.onerror = () => setListening(false);
     recognRef.current = recog;
     recog.start();
@@ -502,7 +503,7 @@ export default function AgentPanel({ mobileFullscreen = false }) {
 
       const body = {
         contents: [
-          { role: 'user',  parts: [{ text: buildSystemPrompt(ctx) }] },
+          { role: 'user', parts: [{ text: buildSystemPrompt(ctx) }] },
           { role: 'model', parts: [{ text: 'Entendido. Tenho o contexto completo de PCP (produção, OEE, qualidade, estoques, forecast) e estou pronto para analisar.' }] },
           ...historyRef.current,
         ],
