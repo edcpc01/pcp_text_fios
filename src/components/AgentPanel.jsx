@@ -90,8 +90,9 @@ function buildSystemPrompt(ctx) {
   const lines = [];
   lines.push(`Você é um especialista em PCP de fios texturizados das empresas Corradi e Doptex.`);
   lines.push(`\nAnalise os dados reais abaixo e dê respostas objetivas, orientadas a decisão e ações práticas de PCP.`);
-  lines.push(`\nREGRAS: Responda em português | Use apenas dados do contexto | Aponte riscos e ações | Formate com seções e listas | Se receber imagem, descreva e analise os dados visíveis.`);
-  lines.push(`Quando o usuário perguntar sobre um CLIENTE (ex: NILIT, RHODIA, INVISTA, DOPTEX, CORRADI etc.), procure na seção "Qualidade por CLIENTE" e responda com os dados específicos daquele cliente (volume total, %1ª, %2ª, %refugo e produtos mais relevantes). Não diga que faltam dados se a seção existir.`);
+  lines.push(`\nREGRAS: Responda em português | Use apenas dados do contexto | Aponte riscos e ações | Se receber imagem, descreva e analise os dados visíveis.`);
+  lines.push(`FORMATO (OBRIGATÓRIO): Respostas curtas — no máximo 8 linhas. Sem introduções ("Com base nos dados fornecidos...", "Apresento a análise..."). Vá direto ao ponto. Use bullets enxutos (• item: número). Negrito apenas para destacar números-chave. Não repita a pergunta nem resuma o que vai responder antes de responder.`);
+  lines.push(`Quando o usuário perguntar sobre um CLIENTE (ex: NILIT, RHODIA, INVISTA, DOPTEX, CORRADI etc.), procure na seção "Qualidade por CLIENTE" e responda com os dados daquele cliente (volume total, %1ª, %2ª, %refugo e top 3 produtos). Não diga que faltam dados se a seção existir.`);
   lines.push(`\n${'─'.repeat(60)}`);
   lines.push(`UNIDADE: ${factoryLabel} | MÊS: ${ctx.yearMonth} | HOJE: ${new Date().toLocaleDateString('pt-BR')}`);
 
@@ -224,14 +225,14 @@ function buildSystemPrompt(ctx) {
 function Message({ msg }) {
   const isUser = msg.role === 'user';
   return (
-    <div className={`flex gap-2.5 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+    <div className={`flex gap-2.5 min-w-0 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
       <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5
         ${isUser ? 'bg-brand-cyan/20' : 'bg-purple-500/20'}`}>
         {isUser
           ? <User size={13} className="text-brand-cyan" />
           : <Bot size={13} className="text-purple-400" />}
       </div>
-      <div className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed
+      <div className={`max-w-[82%] min-w-0 rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed break-words [overflow-wrap:anywhere]
         ${isUser
           ? 'bg-brand-cyan/20 text-white rounded-tr-sm'
           : 'bg-brand-surface/60 text-white rounded-tl-sm border border-brand-border'}`}>
@@ -578,7 +579,7 @@ export default function AgentPanel({ mobileFullscreen = false }) {
           { role: 'model', parts: [{ text: 'Entendido. Tenho o contexto completo de PCP (produção, OEE, qualidade, estoques, forecast) e estou pronto para analisar.' }] },
           ...historyRef.current,
         ],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1500 },
+        generationConfig: { temperature: 0.3, maxOutputTokens: 800 },
       };
 
       const res = await fetch(GEMINI_URL, {
@@ -612,7 +613,7 @@ export default function AgentPanel({ mobileFullscreen = false }) {
     <aside className={`flex flex-col shrink-0 z-20 animate-slide-right
       ${mobileFullscreen
         ? 'w-full h-full'
-        : 'w-80 border-l border-brand-border glass fixed inset-y-0 right-0 md:relative'}`}>
+        : 'w-80 lg:w-96 xl:w-[420px] border-l border-brand-border glass fixed inset-y-0 right-0 md:relative'}`}>
 
       {/* Header */}
       <div className={`flex items-center gap-2.5 px-4 h-16 border-b border-brand-border shrink-0 ${mobileFullscreen ? 'hidden' : ''}`}>
