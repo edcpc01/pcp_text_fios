@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import ExportPptButton from '../components/ExportPptButton';
 import {
   Gauge, ChevronDown, ChevronRight, ChevronLeft,
   Activity, TrendingUp, Award, Users, Factory, Clock,
@@ -461,12 +462,12 @@ function PieLabel({ cx, cy, midAngle, outerRadius, fill, motivo, pct }) {
   const anchor = x > cx ? 'start' : 'end';
   return (
     <g>
-      <text x={x} y={y - 7} fill={fill} textAnchor={anchor} dominantBaseline="central"
-        fontSize={9} fontWeight="bold" fontFamily="monospace">
+      <text x={x} y={y - 8} fill={fill} textAnchor={anchor} dominantBaseline="central"
+        fontSize={11} fontWeight="bold" fontFamily="monospace">
         {motivo.toUpperCase()}
       </text>
-      <text x={x} y={y + 8} fill="#e2e8f0" textAnchor={anchor} dominantBaseline="central"
-        fontSize={12} fontWeight="bold" fontFamily="monospace">
+      <text x={x} y={y + 10} fill="#e2e8f0" textAnchor={anchor} dominantBaseline="central"
+        fontSize={14} fontWeight="bold" fontFamily="monospace">
         {pct.toFixed(1)}%
       </text>
     </g>
@@ -491,11 +492,12 @@ function PieTooltipContent({ active, payload }) {
   );
 }
 
-function DowntimePieChart({ data, title, accentColor }) {
+function DowntimePieChart({ data, title, accentColor, exportSubtitle }) {
   const [expandedMachines, setExpandedMachines] = useState(new Set());
   const toggleMachine = (name) => setExpandedMachines((prev) => {
     const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n;
   });
+  const cardRef = useRef(null);
 
   const isEmpty   = !data || data.length === 0;
   const totalMin  = isEmpty ? 0 : data.reduce((s, d) => s + d.minutes, 0);
@@ -516,15 +518,18 @@ function DowntimePieChart({ data, title, accentColor }) {
   const colorByMotivo = Object.fromEntries(pieData.map((d) => [d.motivo, d.fill]));
 
   return (
-    <div className="bg-brand-card sm:rounded-2xl border-y sm:border border-brand-border overflow-hidden flex flex-col">
+    <div ref={cardRef} className="bg-brand-card sm:rounded-2xl border-y sm:border border-brand-border overflow-hidden flex flex-col">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-brand-border/40">
         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: accentColor }} />
         <span className="text-xs font-bold text-white">{title}</span>
         {!isEmpty && (
-          <span className="ml-auto text-[10px] text-brand-muted">
+          <span className="ml-auto text-xs text-brand-muted">
             {(totalMin / 60).toFixed(1)}h · {totalOccs} ocorr.
           </span>
+        )}
+        {!isEmpty && (
+          <ExportPptButton targetRef={cardRef} title={title} subtitle={exportSubtitle} className={isEmpty ? '' : ''} />
         )}
       </div>
 
@@ -555,7 +560,7 @@ function DowntimePieChart({ data, title, accentColor }) {
               <thead>
                 <tr className="border-b border-brand-border/30">
                   {['Máquina / Motivo', 'Horas', '% Tempo', 'Vol. Perdido', 'Ocorr.'].map((h, i) => (
-                    <th key={h} className={`px-3 py-1.5 text-[9px] font-bold text-brand-muted uppercase tracking-wider ${i === 0 ? 'text-left' : 'text-right'} ${i >= 3 ? 'hidden sm:table-cell' : ''}`}>{h}</th>
+                    <th key={h} className={`px-3 py-1.5 text-[11px] font-bold text-brand-muted uppercase tracking-wider ${i === 0 ? 'text-left' : 'text-right'} ${i >= 3 ? 'hidden sm:table-cell' : ''}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -571,7 +576,7 @@ function DowntimePieChart({ data, title, accentColor }) {
                           {expanded
                             ? <ChevronDown size={11} className="text-brand-muted shrink-0" />
                             : <ChevronRight size={11} className="text-brand-muted shrink-0" />}
-                          <span className="text-white font-semibold text-[11px] truncate">{mac.csvName}</span>
+                          <span className="text-white font-semibold text-[13px] truncate">{mac.csvName}</span>
                         </div>
                       </td>
                       <td className="px-3 py-2 text-right font-mono font-bold text-white tabular-nums">{(mac.minutes / 60).toFixed(1)}h</td>
@@ -605,7 +610,7 @@ function DowntimePieChart({ data, title, accentColor }) {
               </tbody>
               <tfoot>
                 <tr className="border-t border-brand-border/30 bg-brand-surface/20">
-                  <td className="px-3 py-1.5 text-[9px] font-bold text-brand-muted uppercase">Total</td>
+                  <td className="px-3 py-1.5 text-[11px] font-bold text-brand-muted uppercase">Total</td>
                   <td className="px-3 py-1.5 text-right font-mono font-bold text-white tabular-nums">{(totalMin / 60).toFixed(1)}h</td>
                   <td className="px-3 py-1.5 text-right font-mono font-bold text-white tabular-nums">100,00%</td>
                   <td className="px-3 py-1.5 text-right font-mono font-bold text-brand-muted tabular-nums hidden sm:table-cell">
@@ -632,7 +637,7 @@ function GaugeBar({ pct, width = 72 }) {
       <div className="relative rounded-full overflow-hidden bg-white/10" style={{ width, height: 5 }}>
         <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${fill}%`, backgroundColor: c }} />
       </div>
-      <span className="text-[10px] font-mono font-bold tabular-nums" style={{ color: c }}>
+      <span className="text-xs font-mono font-bold tabular-nums" style={{ color: c }}>
         {real.toFixed(1)}%
       </span>
     </div>
@@ -642,10 +647,164 @@ function GaugeBar({ pct, width = 72 }) {
 function MetricPill({ label, value, color }) {
   return (
     <div className="flex flex-col items-end sm:items-center">
-      <span className="text-[8px] text-brand-muted uppercase font-bold tracking-wider leading-none mb-0.5">{label}</span>
-      <span className="text-[11px] font-mono font-bold tabular-nums" style={{ color: value === null ? '#475569' : color }}>
+      <span className="text-[10px] text-brand-muted uppercase font-bold tracking-wider leading-none mb-0.5">{label}</span>
+      <span className="text-[13px] font-mono font-bold tabular-nums" style={{ color: value === null ? '#475569' : color }}>
         {value === null ? '—' : `${value.toFixed(1)}%`}
       </span>
+    </div>
+  );
+}
+
+// ─── Factory OEE Card (breakdown por máquina/produto) ────────────────────────
+function FactoryOeeCard({ facId, facData, monthLabel, expandedFactories, expandedMachines, toggleFactory, toggleMachine, csvRows }) {
+  const cardRef = useRef(null);
+  const isOpen = expandedFactories.has(facId);
+  return (
+    <div ref={cardRef} className="bg-brand-card sm:rounded-2xl border-y sm:border border-brand-border overflow-hidden">
+
+      {/* Factory row — toggle por clique no header (sem <button> aninhado) */}
+      <div
+        role="button" tabIndex={0}
+        onClick={() => toggleFactory(facId)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleFactory(facId); } }}
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left cursor-pointer">
+        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: facData.color }} />
+        <span className="text-sm font-bold text-white flex-1 truncate">{facData.label}</span>
+
+        <div className="hidden sm:flex items-center gap-5 mr-3 shrink-0">
+          <MetricPill label="Disp."  value={facData.disponibilidade} color="#22d3ee" />
+          <MetricPill label="Perf."  value={facData.performance}     color="#a78bfa" />
+          <MetricPill label="Qual."  value={facData.qualidade}        color="#34d399" />
+        </div>
+        <div className="hidden sm:flex items-center gap-1.5 mr-2">
+          <span className="text-[11px] font-bold text-brand-muted uppercase">OEE</span>
+          <GaugeBar pct={facData.oee} width={72} />
+        </div>
+        <div className="sm:hidden mr-2">
+          <GaugeBar pct={facData.oee} width={52} />
+        </div>
+        <ExportPptButton
+          targetRef={cardRef}
+          title={`${facData.label} — OEE`}
+          subtitle={`${monthLabel} · OEE ${(facData.oee ?? 0).toFixed(1)}%`}
+          className="mr-1" />
+        <div className="text-brand-muted shrink-0">
+          {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        </div>
+      </div>
+
+      {/* Machine rows */}
+      {isOpen && (
+        <div className="border-t border-brand-border/40">
+          {Object.values(facData.machines).map((mach) => {
+            const machKey = `${facId}__${mach.csvName}`;
+            const expanded = expandedMachines.has(machKey);
+            return (
+              <div key={mach.csvName} className="border-b border-brand-border/20 last:border-b-0">
+
+                {/* Machine row */}
+                <button onClick={() => toggleMachine(machKey)}
+                  className="w-full flex items-center gap-3 px-4 sm:px-6 py-2.5 hover:bg-white/[0.02] transition-colors text-left">
+                  <div className="w-4 shrink-0 flex justify-center">
+                    {expanded
+                      ? <ChevronDown  size={11} className="text-brand-muted" />
+                      : <ChevronRight size={11} className="text-brand-muted" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-medium text-white truncate block leading-tight">{mach.csvName}</span>
+                    <span className="text-[11px] text-brand-muted/50 font-mono hidden sm:block leading-tight">
+                      {mach.machineIds.join(' · ')} · {mach.workingDays}d
+                    </span>
+                  </div>
+                  <div className="hidden sm:flex items-center gap-5 mr-3 shrink-0">
+                    <MetricPill label="Disp."  value={mach.disponibilidade} color="#22d3ee" />
+                    <MetricPill label="Perf."  value={mach.performance}     color="#a78bfa" />
+                    <MetricPill label="Qual."  value={mach.qualidade}        color="#34d399" />
+                  </div>
+                  <div className="flex items-center gap-1.5 mr-1 shrink-0">
+                    <span className="hidden sm:block text-[11px] font-bold text-brand-muted uppercase">OEE</span>
+                    <GaugeBar pct={mach.oee} width={60} />
+                  </div>
+                </button>
+
+                {/* Product rows */}
+                {expanded && (
+                  <div className="bg-brand-bg/40 border-t border-brand-border/20">
+
+                    {/* Column header */}
+                    <div className="hidden sm:grid grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 sm:px-12 py-1.5 border-b border-brand-border/10">
+                      {['Produto', 'Realizado', 'Teórico', 'Disp.', 'Perf.', 'Qual.', 'OEE'].map((h) => (
+                        <span key={h} className="text-[10px] font-bold text-brand-muted uppercase tracking-wider text-right first:text-left">{h}</span>
+                      ))}
+                    </div>
+
+                    {Object.values(mach.products).length === 0 ? (
+                      <p className="px-6 sm:px-12 py-3 text-xs text-brand-muted/40 italic">
+                        {csvRows.length === 0
+                          ? 'Carregue o CSV para ver dados por produto.'
+                          : 'Sem produção realizada neste período.'}
+                      </p>
+                    ) : (
+                      Object.values(mach.products).map((prod) => (
+                        <div key={prod.productId}
+                          className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 sm:px-12 py-2 border-b border-brand-border/10 last:border-b-0 hover:bg-white/[0.015] items-center">
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-medium text-white truncate leading-tight">{prod.productName}</p>
+                            <p className="text-[11px] text-brand-muted font-mono leading-tight">{prod.codigoMicrodata || prod.productId}</p>
+                          </div>
+                          <span className="hidden sm:block text-xs font-mono text-white text-right">
+                            {prod.actualKg > 0 ? `${(prod.actualKg / 1000).toFixed(2)}t` : '—'}
+                          </span>
+                          <span className="hidden sm:block text-xs font-mono text-brand-muted text-right">
+                            {prod.theoreticalKg > 0 ? `${(prod.theoreticalKg / 1000).toFixed(2)}t` : '—'}
+                          </span>
+                          <span className="hidden sm:block text-xs font-mono text-right tabular-nums" style={{ color: '#22d3ee' }}>
+                            {mach.disponibilidade.toFixed(1)}%
+                          </span>
+                          <span className="hidden sm:block text-xs font-mono text-right tabular-nums" style={{ color: '#a78bfa' }}>
+                            {prod.performance.toFixed(1)}%
+                          </span>
+                          <span className="hidden sm:block text-xs font-mono text-right tabular-nums" style={{ color: prod.qualidade != null ? '#34d399' : '#475569' }}>
+                            {prod.qualidade != null ? `${prod.qualidade.toFixed(1)}%` : '—'}
+                          </span>
+                          <div className="flex justify-end">
+                            <GaugeBar pct={prod.oee} width={52} />
+                          </div>
+                        </div>
+                      ))
+                    )}
+
+                    {/* Machine summary */}
+                    <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 sm:px-12 py-2 bg-brand-surface/40 border-t border-brand-border/20 items-center">
+                      <span className="text-[11px] font-bold text-brand-muted uppercase tracking-wider truncate">
+                        Total
+                      </span>
+                      <span className="hidden sm:block text-xs font-mono font-bold text-white text-right">
+                        {(mach.actualKg / 1000).toFixed(2)}t
+                      </span>
+                      <span className="hidden sm:block text-xs font-mono text-brand-muted text-right">
+                        {(mach.theoreticalKg / 1000).toFixed(2)}t
+                      </span>
+                      <span className="hidden sm:block text-xs font-mono font-bold text-right tabular-nums" style={{ color: '#22d3ee' }}>
+                        {mach.disponibilidade.toFixed(1)}%
+                      </span>
+                      <span className="hidden sm:block text-xs font-mono font-bold text-right tabular-nums" style={{ color: '#a78bfa' }}>
+                        {mach.performance.toFixed(1)}%
+                      </span>
+                      <span className="hidden sm:block text-xs font-mono font-bold text-right tabular-nums" style={{ color: mach.qualidade != null ? '#34d399' : '#475569' }}>
+                        {mach.qualidade != null ? `${mach.qualidade.toFixed(1)}%` : '—'}
+                      </span>
+                      <div className="flex justify-end">
+                        <GaugeBar pct={mach.oee} width={60} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -736,7 +895,7 @@ export default function OEEPage() {
             <Gauge size={18} className="text-brand-cyan shrink-0" />
             OEE de Produção
           </h1>
-          <p className="text-[10px] text-brand-muted mt-0.5 uppercase tracking-widest font-black">
+          <p className="text-xs text-brand-muted mt-0.5 uppercase tracking-widest font-black">
             {monthLabel} · Acumulado até {isCurrentMonth
               ? today.split('-').reverse().join('/')
               : `${String(lastDayOfMonth).padStart(2, '0')}/${String(month.month + 1).padStart(2, '0')}/${month.year}`}
@@ -804,18 +963,18 @@ export default function OEEPage() {
                 <kpi.icon size={13} className="text-brand-muted" />
               </div>
               <div>
-                <p className="text-[8px] text-brand-muted uppercase font-bold tracking-tighter leading-none mb-1">{kpi.label}</p>
+                <p className="text-[10px] text-brand-muted uppercase font-bold tracking-tighter leading-none mb-1">{kpi.label}</p>
                 <GaugeBar pct={kpi.value} width={56} />
               </div>
             </div>
           ))}
           <div className="hidden sm:flex items-center gap-5 ml-auto">
             <div>
-              <p className="text-[8px] text-brand-muted uppercase font-bold tracking-tighter leading-none mb-1">Realizado</p>
+              <p className="text-[10px] text-brand-muted uppercase font-bold tracking-tighter leading-none mb-1">Realizado</p>
               <span className="text-xs font-mono font-bold text-white">{(global.actual / 1000).toFixed(2)} t</span>
             </div>
             <div>
-              <p className="text-[8px] text-brand-muted uppercase font-bold tracking-tighter leading-none mb-1">Teórico</p>
+              <p className="text-[10px] text-brand-muted uppercase font-bold tracking-tighter leading-none mb-1">Teórico</p>
               <span className="text-xs font-mono font-bold text-brand-muted">{(global.theo / 1000).toFixed(2)} t</span>
             </div>
           </div>
@@ -865,7 +1024,7 @@ export default function OEEPage() {
                       <MetricPill label="Qual."  value={clientData.qualidade}        color="#34d399" />
                     </div>
                     <div className="hidden sm:flex items-center gap-1.5 mr-2">
-                      <span className="text-[9px] font-bold text-brand-muted uppercase">OEE</span>
+                      <span className="text-[11px] font-bold text-brand-muted uppercase">OEE</span>
                       <GaugeBar pct={clientData.oee} width={72} />
                     </div>
                     <div className="sm:hidden mr-2">
@@ -887,7 +1046,7 @@ export default function OEEPage() {
                             {/* Factory sub-header */}
                             <div className="flex items-center gap-3 px-4 sm:px-6 py-2 bg-brand-surface/30">
                               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: facInfo?.color || '#64748b' }} />
-                              <span className="text-[10px] font-black uppercase tracking-widest flex-1" style={{ color: facInfo?.color || '#64748b' }}>
+                              <span className="text-xs font-black uppercase tracking-widest flex-1" style={{ color: facInfo?.color || '#64748b' }}>
                                 {facInfo?.name || facId}
                               </span>
                               <div className="hidden sm:flex items-center gap-5 shrink-0">
@@ -896,7 +1055,7 @@ export default function OEEPage() {
                                 <MetricPill label="Qual."  value={facGroup.qualidade}        color="#34d399" />
                               </div>
                               <div className="flex items-center gap-1.5 shrink-0">
-                                <span className="hidden sm:block text-[9px] font-bold text-brand-muted uppercase">OEE</span>
+                                <span className="hidden sm:block text-[11px] font-bold text-brand-muted uppercase">OEE</span>
                                 <GaugeBar pct={facGroup.oee} width={60} />
                               </div>
                             </div>
@@ -904,7 +1063,7 @@ export default function OEEPage() {
                             {/* Column header */}
                             <div className="hidden sm:grid grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 sm:px-10 py-1.5 border-b border-brand-border/10 bg-brand-bg/20">
                               {['Produto / Máquina', 'Realizado', 'Teórico', 'Disp.', 'Perf.', 'Qual.', 'OEE'].map((h) => (
-                                <span key={h} className="text-[8px] font-bold text-brand-muted uppercase tracking-wider text-right first:text-left">{h}</span>
+                                <span key={h} className="text-[10px] font-bold text-brand-muted uppercase tracking-wider text-right first:text-left">{h}</span>
                               ))}
                             </div>
 
@@ -913,26 +1072,26 @@ export default function OEEPage() {
                               <div key={`${prod.productId}-${prod.machineName}-${idx}`}
                                 className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 sm:px-10 py-2 border-b border-brand-border/10 last:border-b-0 hover:bg-white/[0.015] items-center">
                                 <div className="min-w-0">
-                                  <p className="text-[11px] font-medium text-white truncate leading-tight">{prod.productName}</p>
-                                  <p className="text-[9px] text-brand-muted/70 font-mono leading-tight">
+                                  <p className="text-[13px] font-medium text-white truncate leading-tight">{prod.productName}</p>
+                                  <p className="text-[11px] text-brand-muted/70 font-mono leading-tight">
                                     {prod.codigoMicrodata || prod.productId}
                                     <span className="ml-2 text-brand-muted/40">·</span>
                                     <span className="ml-2">{prod.machineName}</span>
                                   </p>
                                 </div>
-                                <span className="hidden sm:block text-[10px] font-mono text-white text-right">
+                                <span className="hidden sm:block text-xs font-mono text-white text-right">
                                   {prod.actualKg > 0 ? `${(prod.actualKg / 1000).toFixed(2)}t` : '—'}
                                 </span>
-                                <span className="hidden sm:block text-[10px] font-mono text-brand-muted text-right">
+                                <span className="hidden sm:block text-xs font-mono text-brand-muted text-right">
                                   {prod.theoreticalKg > 0 ? `${(prod.theoreticalKg / 1000).toFixed(2)}t` : '—'}
                                 </span>
-                                <span className="hidden sm:block text-[10px] font-mono text-right tabular-nums" style={{ color: '#22d3ee' }}>
+                                <span className="hidden sm:block text-xs font-mono text-right tabular-nums" style={{ color: '#22d3ee' }}>
                                   {(prod.dFactor * 100).toFixed(1)}%
                                 </span>
-                                <span className="hidden sm:block text-[10px] font-mono text-right tabular-nums" style={{ color: '#a78bfa' }}>
+                                <span className="hidden sm:block text-xs font-mono text-right tabular-nums" style={{ color: '#a78bfa' }}>
                                   {prod.performance.toFixed(1)}%
                                 </span>
-                                <span className="hidden sm:block text-[10px] font-mono text-right tabular-nums" style={{ color: prod.qualidade != null ? '#34d399' : '#475569' }}>
+                                <span className="hidden sm:block text-xs font-mono text-right tabular-nums" style={{ color: prod.qualidade != null ? '#34d399' : '#475569' }}>
                                   {prod.qualidade != null ? `${prod.qualidade.toFixed(1)}%` : '—'}
                                 </span>
                                 <div className="flex justify-end">
@@ -943,20 +1102,20 @@ export default function OEEPage() {
 
                             {/* Factory subtotal */}
                              <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 sm:px-10 py-2 bg-brand-surface/20 border-t border-brand-border/10 items-center">
-                              <span className="text-[9px] font-bold text-brand-muted uppercase tracking-wider">Subtotal</span>
-                              <span className="hidden sm:block text-[10px] font-mono font-bold text-white text-right">
+                              <span className="text-[11px] font-bold text-brand-muted uppercase tracking-wider">Subtotal</span>
+                              <span className="hidden sm:block text-xs font-mono font-bold text-white text-right">
                                 {(facGroup.actualKg / 1000).toFixed(2)}t
                               </span>
-                              <span className="hidden sm:block text-[10px] font-mono text-brand-muted text-right">
+                              <span className="hidden sm:block text-xs font-mono text-brand-muted text-right">
                                 {(facGroup.theoreticalKg / 1000).toFixed(2)}t
                               </span>
-                              <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: '#22d3ee' }}>
+                              <span className="hidden sm:block text-xs font-mono font-bold text-right tabular-nums" style={{ color: '#22d3ee' }}>
                                 {facGroup.disponibilidade.toFixed(1)}%
                               </span>
-                              <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: '#a78bfa' }}>
+                              <span className="hidden sm:block text-xs font-mono font-bold text-right tabular-nums" style={{ color: '#a78bfa' }}>
                                 {facGroup.performance.toFixed(1)}%
                               </span>
-                              <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: facGroup.qualidade != null ? '#34d399' : '#475569' }}>
+                              <span className="hidden sm:block text-xs font-mono font-bold text-right tabular-nums" style={{ color: facGroup.qualidade != null ? '#34d399' : '#475569' }}>
                                 {facGroup.qualidade != null ? `${facGroup.qualidade.toFixed(1)}%` : '—'}
                               </span>
                               <div className="flex justify-end">
@@ -970,20 +1129,20 @@ export default function OEEPage() {
                       {/* Client total (only when multiple factories) */}
                       {Object.keys(clientData.byFactory).length > 1 && (
                         <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 py-2 bg-brand-surface/40 border-t border-brand-border/30 items-center">
-                          <span className="text-[9px] font-bold text-white uppercase tracking-wider">Total Cliente</span>
-                          <span className="hidden sm:block text-[10px] font-mono font-bold text-white text-right">
+                          <span className="text-[11px] font-bold text-white uppercase tracking-wider">Total Cliente</span>
+                          <span className="hidden sm:block text-xs font-mono font-bold text-white text-right">
                             {(clientData.actualKg / 1000).toFixed(2)}t
                           </span>
-                          <span className="hidden sm:block text-[10px] font-mono text-brand-muted text-right">
+                          <span className="hidden sm:block text-xs font-mono text-brand-muted text-right">
                             {(clientData.theoreticalKg / 1000).toFixed(2)}t
                           </span>
-                          <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: '#22d3ee' }}>
+                          <span className="hidden sm:block text-xs font-mono font-bold text-right tabular-nums" style={{ color: '#22d3ee' }}>
                             {clientData.disponibilidade.toFixed(1)}%
                           </span>
-                          <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: '#a78bfa' }}>
+                          <span className="hidden sm:block text-xs font-mono font-bold text-right tabular-nums" style={{ color: '#a78bfa' }}>
                             {clientData.performance.toFixed(1)}%
                           </span>
-                          <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: clientData.qualidade != null ? '#34d399' : '#475569' }}>
+                          <span className="hidden sm:block text-xs font-mono font-bold text-right tabular-nums" style={{ color: clientData.qualidade != null ? '#34d399' : '#475569' }}>
                             {clientData.qualidade != null ? `${clientData.qualidade.toFixed(1)}%` : '—'}
                           </span>
                           <div className="flex justify-end">
@@ -1001,145 +1160,11 @@ export default function OEEPage() {
         ) : (
           /* ── Machine view (original) ── */
           Object.entries(oeeTree).map(([facId, facData]) => (
-            <div key={facId} className="bg-brand-card sm:rounded-2xl border-y sm:border border-brand-border overflow-hidden">
-
-              {/* Factory row */}
-              <button onClick={() => toggleFactory(facId)}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: facData.color }} />
-                <span className="text-sm font-bold text-white flex-1 truncate">{facData.label}</span>
-
-                {/* Desktop metrics */}
-                <div className="hidden sm:flex items-center gap-5 mr-3 shrink-0">
-                  <MetricPill label="Disp."  value={facData.disponibilidade} color="#22d3ee" />
-                  <MetricPill label="Perf."  value={facData.performance}     color="#a78bfa" />
-                  <MetricPill label="Qual."  value={facData.qualidade}        color="#34d399" />
-                </div>
-                <div className="hidden sm:flex items-center gap-1.5 mr-2">
-                  <span className="text-[9px] font-bold text-brand-muted uppercase">OEE</span>
-                  <GaugeBar pct={facData.oee} width={72} />
-                </div>
-                <div className="sm:hidden mr-2">
-                  <GaugeBar pct={facData.oee} width={52} />
-                </div>
-                <div className="text-brand-muted shrink-0">
-                  {expandedFactories.has(facId) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                </div>
-              </button>
-
-              {/* Machine rows */}
-              {expandedFactories.has(facId) && (
-                <div className="border-t border-brand-border/40">
-                  {Object.values(facData.machines).map((mach) => {
-                    const machKey = `${facId}__${mach.csvName}`;
-                    const expanded = expandedMachines.has(machKey);
-                    return (
-                      <div key={mach.csvName} className="border-b border-brand-border/20 last:border-b-0">
-
-                        {/* Machine row */}
-                        <button onClick={() => toggleMachine(machKey)}
-                          className="w-full flex items-center gap-3 px-4 sm:px-6 py-2.5 hover:bg-white/[0.02] transition-colors text-left">
-                          <div className="w-4 shrink-0 flex justify-center">
-                            {expanded
-                              ? <ChevronDown  size={11} className="text-brand-muted" />
-                              : <ChevronRight size={11} className="text-brand-muted" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <span className="text-xs font-medium text-white truncate block leading-tight">{mach.csvName}</span>
-                            <span className="text-[9px] text-brand-muted/50 font-mono hidden sm:block leading-tight">
-                              {mach.machineIds.join(' · ')} · {mach.workingDays}d
-                            </span>
-                          </div>
-                          <div className="hidden sm:flex items-center gap-5 mr-3 shrink-0">
-                            <MetricPill label="Disp."  value={mach.disponibilidade} color="#22d3ee" />
-                            <MetricPill label="Perf."  value={mach.performance}     color="#a78bfa" />
-                            <MetricPill label="Qual."  value={mach.qualidade}        color="#34d399" />
-                          </div>
-                          <div className="flex items-center gap-1.5 mr-1 shrink-0">
-                            <span className="hidden sm:block text-[9px] font-bold text-brand-muted uppercase">OEE</span>
-                            <GaugeBar pct={mach.oee} width={60} />
-                          </div>
-                        </button>
-
-                        {/* Product rows */}
-                        {expanded && (
-                          <div className="bg-brand-bg/40 border-t border-brand-border/20">
-
-                            {/* Column header */}
-                            <div className="hidden sm:grid grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 sm:px-12 py-1.5 border-b border-brand-border/10">
-                              {['Produto', 'Realizado', 'Teórico', 'Disp.', 'Perf.', 'Qual.', 'OEE'].map((h) => (
-                                <span key={h} className="text-[8px] font-bold text-brand-muted uppercase tracking-wider text-right first:text-left">{h}</span>
-                              ))}
-                            </div>
-
-                            {Object.values(mach.products).length === 0 ? (
-                              <p className="px-6 sm:px-12 py-3 text-[10px] text-brand-muted/40 italic">
-                                {csvRows.length === 0
-                                  ? 'Carregue o CSV para ver dados por produto.'
-                                  : 'Sem produção realizada neste período.'}
-                              </p>
-                            ) : (
-                              Object.values(mach.products).map((prod) => (
-                                <div key={prod.productId}
-                                  className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 sm:px-12 py-2 border-b border-brand-border/10 last:border-b-0 hover:bg-white/[0.015] items-center">
-                                  <div className="min-w-0">
-                                    <p className="text-[11px] font-medium text-white truncate leading-tight">{prod.productName}</p>
-                                    <p className="text-[9px] text-brand-muted font-mono leading-tight">{prod.codigoMicrodata || prod.productId}</p>
-                                  </div>
-                                  <span className="hidden sm:block text-[10px] font-mono text-white text-right">
-                                    {prod.actualKg > 0 ? `${(prod.actualKg / 1000).toFixed(2)}t` : '—'}
-                                  </span>
-                                  <span className="hidden sm:block text-[10px] font-mono text-brand-muted text-right">
-                                    {prod.theoreticalKg > 0 ? `${(prod.theoreticalKg / 1000).toFixed(2)}t` : '—'}
-                                  </span>
-                                  <span className="hidden sm:block text-[10px] font-mono text-right tabular-nums" style={{ color: '#22d3ee' }}>
-                                    {mach.disponibilidade.toFixed(1)}%
-                                  </span>
-                                  <span className="hidden sm:block text-[10px] font-mono text-right tabular-nums" style={{ color: '#a78bfa' }}>
-                                    {prod.performance.toFixed(1)}%
-                                  </span>
-                                  <span className="hidden sm:block text-[10px] font-mono text-right tabular-nums" style={{ color: prod.qualidade != null ? '#34d399' : '#475569' }}>
-                                    {prod.qualidade != null ? `${prod.qualidade.toFixed(1)}%` : '—'}
-                                  </span>
-                                  <div className="flex justify-end">
-                                    <GaugeBar pct={prod.oee} width={52} />
-                                  </div>
-                                </div>
-                              ))
-                            )}
-
-                            {/* Machine summary */}
-                            <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_80px_56px_56px_56px_90px] gap-x-3 px-6 sm:px-12 py-2 bg-brand-surface/40 border-t border-brand-border/20 items-center">
-                              <span className="text-[9px] font-bold text-brand-muted uppercase tracking-wider truncate">
-                                Total
-                              </span>
-                              <span className="hidden sm:block text-[10px] font-mono font-bold text-white text-right">
-                                {(mach.actualKg / 1000).toFixed(2)}t
-                              </span>
-                              <span className="hidden sm:block text-[10px] font-mono text-brand-muted text-right">
-                                {(mach.theoreticalKg / 1000).toFixed(2)}t
-                              </span>
-                              <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: '#22d3ee' }}>
-                                {mach.disponibilidade.toFixed(1)}%
-                              </span>
-                              <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: '#a78bfa' }}>
-                                {mach.performance.toFixed(1)}%
-                              </span>
-                              <span className="hidden sm:block text-[10px] font-mono font-bold text-right tabular-nums" style={{ color: mach.qualidade != null ? '#34d399' : '#475569' }}>
-                                {mach.qualidade != null ? `${mach.qualidade.toFixed(1)}%` : '—'}
-                              </span>
-                              <div className="flex justify-end">
-                                <GaugeBar pct={mach.oee} width={60} />
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            <FactoryOeeCard key={facId} facId={facId} facData={facData} monthLabel={monthLabel}
+              expandedFactories={expandedFactories} expandedMachines={expandedMachines}
+              toggleFactory={toggleFactory} toggleMachine={toggleMachine}
+              csvRows={csvRows}
+            />
           ))
         )}
 
@@ -1155,6 +1180,7 @@ export default function OEEPage() {
                   data={facDowntime}
                   title={`${facData.label} — Motivos de Parada`}
                   accentColor={facData.color}
+                  exportSubtitle={`${monthLabel} · OEE ${(facData.oee ?? 0).toFixed(1)}%`}
                 />
               );
             })}
@@ -1170,10 +1196,10 @@ export default function OEEPage() {
           ].map((l) => (
             <div key={l.label} className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: l.color }} />
-              <span className="text-[10px] text-brand-muted">{l.label}</span>
+              <span className="text-xs text-brand-muted">{l.label}</span>
             </div>
           ))}
-          <span className="text-[10px] text-brand-muted/40 ml-auto hidden sm:block">
+          <span className="text-xs text-brand-muted/40 ml-auto hidden sm:block">
             Disponibilidade: PNP / Parada NP · Performance: Realizado ÷ Teórico × D · OEE = D × P × Q
           </span>
         </div>

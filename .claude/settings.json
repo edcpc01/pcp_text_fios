@@ -7,7 +7,8 @@
       "Bash(cmd.exe //c \"npm run build 2>&1\")",
       "Bash(where.exe node:*)",
       "Bash(where.exe npm:*)",
-      "Read(//c/Program Files/**)"
+      "Read(//c/Program Files/**)",
+      "Bash(npm install *)"
     ]
   }
 }

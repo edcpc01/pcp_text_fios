@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
+import ExportPptButton from '../components/ExportPptButton';
 import {
   Award, ChevronLeft, ChevronRight, ChevronDown,
   AlertTriangle, Building2, Activity, Users,
@@ -53,16 +54,16 @@ function MetricCols({ primeira, segunda, refugo, total }) {
     <>
       <td className="px-3 py-2.5 text-right whitespace-nowrap">
         <span className="text-sm font-mono font-semibold text-emerald-400">{fmtKg(primeira)}</span>
-        <span className="text-[10px] text-brand-muted/60 ml-1">kg</span>
-        <span className="text-[10px] text-emerald-400/70 ml-1.5">({p1.toFixed(1)}%)</span>
+        <span className="text-xs text-brand-muted/60 ml-1">kg</span>
+        <span className="text-xs text-emerald-400/70 ml-1.5">({p1.toFixed(1)}%)</span>
       </td>
 
       <td className="px-3 py-2.5 text-right whitespace-nowrap">
         {segunda > 0 ? (
           <>
             <span className="text-sm font-mono font-semibold text-amber-400">{fmtKg(segunda)}</span>
-            <span className="text-[10px] text-brand-muted/60 ml-1">kg</span>
-            <span className="text-[10px] text-amber-400/70 ml-1.5">({p2.toFixed(1)}%)</span>
+            <span className="text-xs text-brand-muted/60 ml-1">kg</span>
+            <span className="text-xs text-amber-400/70 ml-1.5">({p2.toFixed(1)}%)</span>
           </>
         ) : <span className="text-xs text-brand-muted/25">—</span>}
       </td>
@@ -71,15 +72,15 @@ function MetricCols({ primeira, segunda, refugo, total }) {
         {refugo > 0 ? (
           <>
             <span className="text-sm font-mono font-semibold text-red-400">{fmtKg(refugo)}</span>
-            <span className="text-[10px] text-brand-muted/60 ml-1">kg</span>
-            <span className="text-[10px] text-red-400/70 ml-1.5">({pRef.toFixed(1)}%)</span>
+            <span className="text-xs text-brand-muted/60 ml-1">kg</span>
+            <span className="text-xs text-red-400/70 ml-1.5">({pRef.toFixed(1)}%)</span>
           </>
         ) : <span className="text-xs text-brand-muted/25">—</span>}
       </td>
 
       <td className="px-3 py-2.5 pr-4 text-right whitespace-nowrap">
         <span className="text-sm font-mono font-semibold text-white">{fmtKg(total)}</span>
-        <span className="text-[10px] text-brand-muted/60 ml-1">kg</span>
+        <span className="text-xs text-brand-muted/60 ml-1">kg</span>
       </td>
 
       <td className="px-3 py-2.5 pr-5 w-32">
@@ -90,7 +91,7 @@ function MetricCols({ primeira, segunda, refugo, total }) {
               style={{ width: `${Math.min(p1, 100)}%` }}
             />
           </div>
-          <span className="text-[10px] font-mono text-emerald-400 w-10 text-right shrink-0">
+          <span className="text-xs font-mono text-emerald-400 w-10 text-right shrink-0">
             {p1.toFixed(1)}%
           </span>
         </div>
@@ -123,7 +124,7 @@ function ClientRow({ name, cd, isExpanded, onToggle }) {
             )}
             <span className="text-xs font-semibold text-white/90 truncate">{name}</span>
           </div>
-          <div className="flex items-center gap-2.5 text-[10px] font-mono shrink-0">
+          <div className="flex items-center gap-2.5 text-xs font-mono shrink-0">
             <span className="text-brand-muted">{fmtKg(cd.total)}</span>
             <span className="text-emerald-400">{p1Pct.toFixed(1)}%</span>
             {cd.segunda > 0 && <span className="text-amber-400">{p2Pct.toFixed(1)}%</span>}
@@ -150,10 +151,10 @@ function ClientRow({ name, cd, isExpanded, onToggle }) {
                 <div key={prod.code} className="flex flex-col">
                   <div className="flex items-center justify-between mb-1 gap-2">
                     <div className="flex flex-col min-w-0">
-                      <span className="text-[11px] font-medium text-brand-muted/90 truncate">{prod.name}</span>
-                      <span className="text-[9px] text-brand-muted/40">{prod.code}</span>
+                      <span className="text-[13px] font-medium text-brand-muted/90 truncate">{prod.name}</span>
+                      <span className="text-[11px] text-brand-muted/40">{prod.code}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-[9px] font-mono shrink-0">
+                    <div className="flex items-center gap-2 text-[11px] font-mono shrink-0">
                       <span className="text-brand-muted">{fmtKg(prod.total)}</span>
                       <span className="text-emerald-400/80">{pp1Pct.toFixed(1)}%</span>
                       {prod.segunda > 0 && <span className="text-amber-400/80">{pp2Pct.toFixed(1)}%</span>}
@@ -185,6 +186,9 @@ export default function Qualidade() {
   const [expandedFactories, setExpandedFactories] = useState(new Set(['matriz', 'filial']));
   const [expandedMachines,  setExpandedMachines]  = useState(new Set());
   const [expandedClients,   setExpandedClients]   = useState(new Set());
+
+  const treeRef   = useRef(null);
+  const clientRef = useRef(null);
 
   const yearMonth  = getYearMonth();
   const monthLabel = getMonthLabel(month.year, month.month);
@@ -304,7 +308,7 @@ export default function Qualidade() {
             <Award size={18} className="text-brand-cyan shrink-0" />
             Qualidade
           </h1>
-          <p className="text-[10px] text-brand-muted mt-0.5 uppercase tracking-widest font-black">
+          <p className="text-xs text-brand-muted mt-0.5 uppercase tracking-widest font-black">
             {monthLabel} · {factoryLabel}
           </p>
         </div>
@@ -343,36 +347,36 @@ export default function Qualidade() {
       {/* KPI Cards */}
       <div className="px-4 sm:px-6 py-3 grid grid-cols-2 lg:grid-cols-4 gap-3 border-b border-brand-border shrink-0">
         <div className="rounded-xl p-3.5 border border-brand-border bg-white/[0.02]">
-          <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-1">Total Produzido</p>
+          <p className="text-xs text-brand-muted uppercase tracking-wider mb-1">Total Produzido</p>
           <p className="text-xl font-mono font-bold text-white">{fmtKg(totalKg)}<span className="text-xs font-normal text-brand-muted ml-1">kg</span></p>
-          <p className="text-[10px] text-brand-muted/60 mt-1">{monthLabel}</p>
+          <p className="text-xs text-brand-muted/60 mt-1">{monthLabel}</p>
         </div>
 
         <div className="rounded-xl p-3.5 border border-emerald-500/20 bg-emerald-500/[0.05]">
-          <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-1">1ª Qualidade</p>
+          <p className="text-xs text-brand-muted uppercase tracking-wider mb-1">1ª Qualidade</p>
           <p className="text-xl font-mono font-bold text-emerald-400">{fmtKg(primeiraKg)}<span className="text-xs font-normal text-brand-muted ml-1">kg</span></p>
           <div className="flex items-center gap-1.5 mt-1.5">
             <div className="flex-1 h-1 bg-brand-bg/40 rounded-full overflow-hidden">
               <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pctN(primeiraKg, totalKg)}%` }} />
             </div>
-            <span className="text-[10px] font-mono text-emerald-400">{pctN(primeiraKg, totalKg).toFixed(1)}%</span>
+            <span className="text-xs font-mono text-emerald-400">{pctN(primeiraKg, totalKg).toFixed(1)}%</span>
           </div>
         </div>
 
         <div className="rounded-xl p-3.5 border border-amber-500/20 bg-amber-500/[0.05]">
-          <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-1">2ª Qualidade</p>
+          <p className="text-xs text-brand-muted uppercase tracking-wider mb-1">2ª Qualidade</p>
           <p className="text-xl font-mono font-bold text-amber-400">{fmtKg(segundaKg)}<span className="text-xs font-normal text-brand-muted ml-1">kg</span></p>
           <div className="flex items-center gap-1.5 mt-1.5">
             <div className="flex-1 h-1 bg-brand-bg/40 rounded-full overflow-hidden">
               <div className="h-full bg-amber-500 rounded-full" style={{ width: `${pctN(segundaKg, totalKg)}%` }} />
             </div>
-            <span className="text-[10px] font-mono text-amber-400">{pctN(segundaKg, totalKg).toFixed(1)}%</span>
+            <span className="text-xs font-mono text-amber-400">{pctN(segundaKg, totalKg).toFixed(1)}%</span>
           </div>
-          <p className="text-[9px] text-brand-muted/50 mt-1">A3, DV</p>
+          <p className="text-[11px] text-brand-muted/50 mt-1">A3, DV</p>
         </div>
 
         <div className={`rounded-xl p-3.5 border ${refugoKg > 0 ? 'border-red-500/20 bg-red-500/[0.05]' : 'border-brand-border bg-white/[0.02]'}`}>
-          <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-1">Refugo / Sucata</p>
+          <p className="text-xs text-brand-muted uppercase tracking-wider mb-1">Refugo / Sucata</p>
           <div className="flex items-center gap-1.5">
             {refugoKg > 0 && <AlertTriangle size={13} className="text-red-400 shrink-0" />}
             <p className={`text-xl font-mono font-bold ${refugoKg > 0 ? 'text-red-400' : 'text-brand-muted'}`}>
@@ -383,9 +387,9 @@ export default function Qualidade() {
             <div className="flex-1 h-1 bg-brand-bg/40 rounded-full overflow-hidden">
               <div className="h-full bg-red-500 rounded-full" style={{ width: `${pctN(refugoKg, totalKg)}%` }} />
             </div>
-            <span className="text-[10px] font-mono text-red-400">{pctN(refugoKg, totalKg).toFixed(1)}%</span>
+            <span className="text-xs font-mono text-red-400">{pctN(refugoKg, totalKg).toFixed(1)}%</span>
           </div>
-          <p className="text-[9px] text-brand-muted/50 mt-1">AS, EJ, EI, EM, EP</p>
+          <p className="text-[11px] text-brand-muted/50 mt-1">AS, EJ, EI, EM, EP</p>
         </div>
       </div>
 
@@ -400,17 +404,24 @@ export default function Qualidade() {
             <p className="text-xs text-brand-muted/60 mt-1">Sincronize o CSV na página Realizado para carregar os dados</p>
           </div>
         ) : (
+        <div ref={treeRef}>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-2 border-b border-brand-border/40 bg-brand-surface/20">
+          <span className="text-xs font-bold text-brand-muted uppercase tracking-wider flex items-center gap-1.5">
+            <Building2 size={11} /> Empresa · Máquina · Produto
+          </span>
+          <ExportPptButton targetRef={treeRef} title="Qualidade — Empresa / Máquina / Produto" subtitle={`${monthLabel} · ${factoryLabel}`} />
+        </div>
           <table className="w-full border-collapse" style={{ minWidth: 780 }}>
             <thead>
               <tr className="sticky top-0 z-10 bg-brand-bg/95 backdrop-blur-sm border-b border-brand-border">
-                <th className="pl-5 pr-3 py-3 text-left text-[10px] font-semibold text-brand-muted uppercase tracking-wider">
+                <th className="pl-5 pr-3 py-3 text-left text-xs font-semibold text-brand-muted uppercase tracking-wider">
                   Empresa / Máquina / Produto
                 </th>
-                <th className="px-3 py-3 text-right text-[10px] font-semibold text-emerald-400/80 uppercase tracking-wider">1ª Qualidade</th>
-                <th className="px-3 py-3 text-right text-[10px] font-semibold text-amber-400/80 uppercase tracking-wider">2ª Qualidade</th>
-                <th className="px-3 py-3 text-right text-[10px] font-semibold text-red-400/80 uppercase tracking-wider">Refugo / Sucata</th>
-                <th className="px-3 py-3 pr-4 text-right text-[10px] font-semibold text-brand-muted uppercase tracking-wider">Total</th>
-                <th className="px-3 py-3 pr-5 text-left text-[10px] font-semibold text-brand-muted uppercase tracking-wider w-36">1ª %</th>
+                <th className="px-3 py-3 text-right text-xs font-semibold text-emerald-400/80 uppercase tracking-wider">1ª Qualidade</th>
+                <th className="px-3 py-3 text-right text-xs font-semibold text-amber-400/80 uppercase tracking-wider">2ª Qualidade</th>
+                <th className="px-3 py-3 text-right text-xs font-semibold text-red-400/80 uppercase tracking-wider">Refugo / Sucata</th>
+                <th className="px-3 py-3 pr-4 text-right text-xs font-semibold text-brand-muted uppercase tracking-wider">Total</th>
+                <th className="px-3 py-3 pr-5 text-left text-xs font-semibold text-brand-muted uppercase tracking-wider w-36">1ª %</th>
               </tr>
             </thead>
             <tbody>
@@ -461,7 +472,7 @@ export default function Qualidade() {
                               className="hover:bg-white/[0.015] transition-colors border-b border-brand-border/25">
                               <td className="pr-3 py-2" style={{ paddingLeft: 68 }}>
                                 <span className="text-xs text-brand-muted/80">{prod.name}</span>
-                                <span className="text-[10px] text-brand-muted/40 ml-2">{prod.code}</span>
+                                <span className="text-xs text-brand-muted/40 ml-2">{prod.code}</span>
                               </td>
                               <MetricCols primeira={prod.primeira} segunda={prod.segunda} refugo={prod.refugo} total={prod.total} />
                             </tr>
@@ -474,15 +485,19 @@ export default function Qualidade() {
               })}
             </tbody>
           </table>
+        </div>
         )}
 
         {/* KPI por Cliente — abaixo da árvore por empresa */}
         {Object.keys(clientTree).length > 0 && (
-          <div className="px-4 sm:px-6 py-4 border-t border-brand-border">
-            <p className="text-[10px] text-brand-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <Users size={10} />
-              Qualidade por Cliente
-            </p>
+          <div ref={clientRef} className="px-4 sm:px-6 py-4 border-t border-brand-border">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-brand-muted uppercase tracking-wider flex items-center gap-1.5">
+                <Users size={10} />
+                Qualidade por Cliente
+              </p>
+              <ExportPptButton targetRef={clientRef} title="Qualidade por Cliente" subtitle={`${monthLabel} · ${factoryLabel}`} />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {Object.entries(clientTree).map(([fKey, fData]) => {
                 const known   = Object.entries(fData.clients).filter(([n]) => n !== '(sem cadastro)').sort((a, b) => b[1].total - a[1].total);
@@ -514,7 +529,7 @@ export default function Qualidade() {
                     {unknown.length > 0 && (
                       <>
                         <div className="px-3 py-1.5 border-t border-dashed border-brand-border/40 bg-white/[0.01]">
-                          <span className="text-[9px] text-brand-muted/50 uppercase tracking-wider">Sem cadastro no sistema</span>
+                          <span className="text-[11px] text-brand-muted/50 uppercase tracking-wider">Sem cadastro no sistema</span>
                         </div>
                         <div className="divide-y divide-brand-border/20 opacity-50">
                           {unknown.map(([clientName, cd]) => {
