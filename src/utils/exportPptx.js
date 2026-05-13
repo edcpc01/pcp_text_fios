@@ -99,9 +99,37 @@ function addFooter(slide, pageInfo, stamp) {
 
 // ── Renderers ────────────────────────────────────────────────────────────
 
+// Card "label + valor" como UM objeto (shape com texto dentro) — agrupa no PPT.
+function renderCard(slide, opts) {
+  const {
+    x, y, w, h,
+    label, value, hint,
+    valueColor,
+    labelSize = 10, valueSize = 20,
+    radius = 0.08,
+  } = opts;
+  const blocks = [
+    { text: String(label || ''), options: { fontSize: labelSize, color: C.textMuted, bold: true, breakLine: true } },
+    { text: String(value || '—'), options: { fontSize: valueSize, bold: true, color: valueColor || C.textHi, breakLine: !!hint } },
+  ];
+  if (hint) {
+    blocks.push({ text: String(hint), options: { fontSize: Math.max(8, labelSize - 1), italic: true, color: C.textMuted } });
+  }
+  slide.addText(blocks, {
+    shape: 'roundRect',
+    x, y, w, h,
+    fill: { color: C.surface },
+    line: { color: C.border, width: 0.75 },
+    rectRadius: radius,
+    valign: 'top',
+    margin: 0.12,
+    align: 'left',
+    fontFace: 'Calibri',
+  });
+}
+
 function renderChart(pptx, slide, data) {
   const { chartType = 'doughnut', data: chartData, stats } = data;
-  // chartData = { labels: [...], values: [...], colors?: [...] }
   const colors = chartData.colors && chartData.colors.length
     ? chartData.colors
     : CHART_PALETTE.slice(0, chartData.labels.length);
@@ -139,19 +167,10 @@ function renderChart(pptx, slide, data) {
     const cardH = 0.85;
     const gap = 0.18;
     stats.forEach((stat, i) => {
-      const y = chartY + i * (cardH + gap);
-      slide.addShape('rect', {
-        x: sx, y, w: sw, h: cardH,
-        fill: { color: C.surface }, line: { color: C.border, width: 0.5 },
-        rectRadius: 0.08,
-      });
-      slide.addText(stat.label || '', {
-        x: sx + 0.15, y: y + 0.08, w: sw - 0.3, h: 0.28,
-        fontFace: 'Calibri', fontSize: 10, color: C.textMuted, bold: true,
-      });
-      slide.addText(String(stat.value || '—'), {
-        x: sx + 0.15, y: y + 0.36, w: sw - 0.3, h: 0.42,
-        fontFace: 'Calibri', fontSize: 20, bold: true, color: stat.color || C.textHi,
+      renderCard(slide, {
+        x: sx, y: chartY + i * (cardH + gap), w: sw, h: cardH,
+        label: stat.label, value: stat.value, valueColor: stat.color,
+        labelSize: 10, valueSize: 20, radius: 0.08,
       });
     });
   }
@@ -272,19 +291,10 @@ function renderChartAndTable(pptx, slide, data) {
     const cardH = 0.70;
     const gap = 0.14;
     stats.forEach((stat, i) => {
-      const y = chartY + i * (cardH + gap);
-      slide.addShape('rect', {
-        x: sx, y, w: sw, h: cardH,
-        fill: { color: C.surface }, line: { color: C.border, width: 0.5 },
-        rectRadius: 0.08,
-      });
-      slide.addText(stat.label || '', {
-        x: sx + 0.12, y: y + 0.06, w: sw - 0.24, h: 0.24,
-        fontFace: 'Calibri', fontSize: 9, color: C.textMuted, bold: true,
-      });
-      slide.addText(String(stat.value || '—'), {
-        x: sx + 0.12, y: y + 0.30, w: sw - 0.24, h: 0.36,
-        fontFace: 'Calibri', fontSize: 17, bold: true, color: stat.color || C.textHi,
+      renderCard(slide, {
+        x: sx, y: chartY + i * (cardH + gap), w: sw, h: cardH,
+        label: stat.label, value: stat.value, valueColor: stat.color,
+        labelSize: 9, valueSize: 17, radius: 0.08,
       });
     });
   }
@@ -300,27 +310,15 @@ function renderKpi(slide, data) {
   const n = cards.length || 1;
   const gap = 0.25;
   const cardW = (CONTENT_W - gap * (n - 1)) / n;
+  const cardH = 2.0;
   cards.forEach((card, i) => {
-    const x = MARGIN_X + i * (cardW + gap);
-    slide.addShape('rect', {
-      x, y: CONTENT_TOP, w: cardW, h: 2.0,
-      fill: { color: C.surface }, line: { color: C.border, width: 0.5 },
-      rectRadius: 0.12,
+    renderCard(slide, {
+      x: MARGIN_X + i * (cardW + gap),
+      y: CONTENT_TOP,
+      w: cardW, h: cardH,
+      label: card.label, value: card.value, valueColor: card.color, hint: card.hint,
+      labelSize: 12, valueSize: 36, radius: 0.12,
     });
-    slide.addText(card.label || '', {
-      x: x + 0.2, y: CONTENT_TOP + 0.18, w: cardW - 0.4, h: 0.35,
-      fontFace: 'Calibri', fontSize: 12, color: C.textMuted, bold: true,
-    });
-    slide.addText(String(card.value || '—'), {
-      x: x + 0.2, y: CONTENT_TOP + 0.55, w: cardW - 0.4, h: 0.85,
-      fontFace: 'Calibri', fontSize: 36, bold: true, color: card.color || C.textHi,
-    });
-    if (card.hint) {
-      slide.addText(card.hint, {
-        x: x + 0.2, y: CONTENT_TOP + 1.42, w: cardW - 0.4, h: 0.3,
-        fontFace: 'Calibri', fontSize: 10, color: C.textMuted, italic: true,
-      });
-    }
   });
 }
 
