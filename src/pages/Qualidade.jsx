@@ -409,7 +409,44 @@ export default function Qualidade() {
           <span className="text-xs font-bold text-brand-muted uppercase tracking-wider flex items-center gap-1.5">
             <Building2 size={11} /> Empresa · Máquina · Produto
           </span>
-          <ExportPptButton targetRef={treeRef} title="Qualidade — Empresa / Máquina / Produto" subtitle={`${monthLabel} · ${factoryLabel}`} />
+          <ExportPptButton
+            title="Qualidade — Empresa / Máquina / Produto"
+            subtitle={`${monthLabel} · ${factoryLabel}`}
+            report={() => {
+              const fmt = (v) => v >= 1000 ? `${(v / 1000).toFixed(2)} t` : `${Math.round(v).toLocaleString('pt-BR')} kg`;
+              const pct = (part, total) => total > 0 ? `${(part / total * 100).toFixed(1)}%` : '—';
+              const rows = [];
+              Object.entries(tree).forEach(([, f]) => {
+                rows.push({
+                  level: 0, bold: true,
+                  cells: [f.label, fmt(f.primeira), pct(f.primeira, f.total), fmt(f.segunda), pct(f.segunda, f.total), fmt(f.refugo), pct(f.refugo, f.total), fmt(f.total)],
+                });
+                const machines = Object.entries(f.machines).sort((a, b) => b[1].total - a[1].total);
+                machines.forEach(([mKey, m]) => {
+                  rows.push({
+                    level: 1,
+                    cells: [mKey, fmt(m.primeira), pct(m.primeira, m.total), fmt(m.segunda), pct(m.segunda, m.total), fmt(m.refugo), pct(m.refugo, m.total), fmt(m.total)],
+                  });
+                  Object.values(m.products).sort((a, b) => b.total - a.total).forEach((p) => {
+                    rows.push({
+                      level: 2,
+                      cells: [`${p.name} (${p.code})`, fmt(p.primeira), pct(p.primeira, p.total), fmt(p.segunda), pct(p.segunda, p.total), fmt(p.refugo), pct(p.refugo, p.total), fmt(p.total)],
+                    });
+                  });
+                });
+              });
+              return {
+                title: 'Qualidade — Empresa / Máquina / Produto',
+                subtitle: `${monthLabel} · ${factoryLabel}`,
+                slides: [{
+                  kind: 'table',
+                  headers: ['Empresa / Máquina / Produto', '1ª', '%', '2ª', '%', 'Refugo', '%', 'Total'],
+                  colWidths: [4.5, 1, 0.7, 1, 0.7, 1, 0.7, 1],
+                  rows,
+                }],
+              };
+            }}
+          />
         </div>
           <table className="w-full border-collapse" style={{ minWidth: 780 }}>
             <thead>
@@ -496,7 +533,50 @@ export default function Qualidade() {
                 <Users size={10} />
                 Qualidade por Cliente
               </p>
-              <ExportPptButton targetRef={clientRef} title="Qualidade por Cliente" subtitle={`${monthLabel} · ${factoryLabel}`} />
+              <ExportPptButton
+                title="Qualidade por Cliente"
+                subtitle={`${monthLabel} · ${factoryLabel}`}
+                report={() => {
+                  const fmt = (v) => v >= 1000 ? `${(v / 1000).toFixed(2)} t` : `${Math.round(v).toLocaleString('pt-BR')} kg`;
+                  const pctS = (part, total) => total > 0 ? `${(part / total * 100).toFixed(1)}%` : '—';
+                  const slides = [];
+                  Object.entries(clientTree).forEach(([, fData]) => {
+                    const known = Object.entries(fData.clients)
+                      .filter(([n]) => n !== '(sem cadastro)')
+                      .sort((a, b) => b[1].total - a[1].total);
+                    if (known.length === 0) return;
+
+                    const rows = [];
+                    known.forEach(([cName, cd]) => {
+                      rows.push({
+                        level: 0, bold: true,
+                        cells: [cName, fmt(cd.primeira), pctS(cd.primeira, cd.total), fmt(cd.segunda), pctS(cd.segunda, cd.total), fmt(cd.refugo), pctS(cd.refugo, cd.total), fmt(cd.total)],
+                      });
+                      Object.values(cd.products).sort((a, b) => b.total - a.total).slice(0, 30).forEach((p) => {
+                        rows.push({
+                          level: 1,
+                          cells: [`${p.name} (${p.code})`, fmt(p.primeira), pctS(p.primeira, p.total), fmt(p.segunda), pctS(p.segunda, p.total), fmt(p.refugo), pctS(p.refugo, p.total), fmt(p.total)],
+                        });
+                      });
+                    });
+
+                    slides.push({
+                      kind: 'table',
+                      title: `Qualidade por Cliente — ${fData.label}`,
+                      subtitle: monthLabel,
+                      headers: ['Cliente / Produto', '1ª', '%', '2ª', '%', 'Refugo', '%', 'Total'],
+                      colWidths: [4.5, 1, 0.7, 1, 0.7, 1, 0.7, 1],
+                      rows,
+                    });
+                  });
+                  if (slides.length === 0) throw new Error('Sem clientes cadastrados para exportar.');
+                  return {
+                    title: 'Qualidade por Cliente',
+                    subtitle: `${monthLabel} · ${factoryLabel}`,
+                    slides,
+                  };
+                }}
+              />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {Object.entries(clientTree).map(([fKey, fData]) => {

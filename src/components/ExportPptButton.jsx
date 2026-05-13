@@ -1,31 +1,50 @@
 import { useState, useCallback } from 'react';
 import { Download, Loader2 } from 'lucide-react';
-import { exportElementToPptx } from '../utils/exportPptx';
+import { exportReport, exportElementToPptx } from '../utils/exportPptx';
 
-// Botão "PPT" para exportar um elemento DOM como slide PPTX.
-//   targetRef  — ref para o nó que será capturado
-//   title      — título do slide
-//   subtitle   — linha secundária (mês, unidade, etc.)
-//   fileName   — opcional; default = <title>.pptx
-export default function ExportPptButton({ targetRef, title, subtitle, fileName, className = '' }) {
+// Botão "PPT" para exportar slides nativos (gráfico + tabela editáveis).
+//
+// Modo nativo (preferido):
+//   <ExportPptButton report={() => ({ title, subtitle, slides: [...] })} />
+//
+// Modo imagem (fallback — captura DOM):
+//   <ExportPptButton targetRef={ref} title="..." subtitle="..." />
+export default function ExportPptButton({
+  report,           // () => { title, subtitle, fileName, slides }
+  targetRef,        // ref para captura DOM (modo fallback)
+  title, subtitle, fileName,
+  className = '',
+}) {
   const [busy, setBusy] = useState(false);
   const [err, setErr]   = useState(null);
 
   const onClick = useCallback(async (e) => {
     e.stopPropagation();
     if (busy) return;
-    if (!targetRef?.current) { setErr('Conteúdo indisponível.'); return; }
     setBusy(true); setErr(null);
     try {
-      await exportElementToPptx(targetRef.current, { title, subtitle, fileName });
+      if (typeof report === 'function') {
+        const built = await report();
+        if (!built || !built.slides?.length) throw new Error('Sem dados para exportar.');
+        await exportReport({
+          title:    built.title    ?? title,
+          subtitle: built.subtitle ?? subtitle,
+          fileName: built.fileName ?? fileName,
+          slides:   built.slides,
+        });
+      } else if (targetRef?.current) {
+        await exportElementToPptx(targetRef.current, { title, subtitle, fileName });
+      } else {
+        throw new Error('Conteúdo indisponível.');
+      }
     } catch (ex) {
       console.error('Export PPTX falhou:', ex);
-      setErr('Falha ao exportar.');
+      setErr(ex.message || 'Falha ao exportar.');
     } finally {
       setBusy(false);
-      setTimeout(() => setErr(null), 3000);
+      setTimeout(() => setErr(null), 4000);
     }
-  }, [busy, targetRef, title, subtitle, fileName]);
+  }, [busy, report, targetRef, title, subtitle, fileName]);
 
   return (
     <button

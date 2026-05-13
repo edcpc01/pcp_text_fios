@@ -529,7 +529,77 @@ function DowntimePieChart({ data, title, accentColor, exportSubtitle }) {
           </span>
         )}
         {!isEmpty && (
-          <ExportPptButton targetRef={cardRef} title={title} subtitle={exportSubtitle} className={isEmpty ? '' : ''} />
+          <ExportPptButton
+            title={title}
+            subtitle={exportSubtitle}
+            report={() => {
+              // Linhas hierárquicas: máquina (level 0) → motivos (level 1)
+              const tableRows = [];
+              data.forEach((mac) => {
+                tableRows.push({
+                  level: 0,
+                  cells: [
+                    mac.csvName,
+                    `${(mac.minutes / 60).toFixed(1)}h`,
+                    `${mac.pct.toFixed(1)}%`,
+                    mac.volumePerdido > 0 ? `${(mac.volumePerdido / 1000).toFixed(3)} t` : '—',
+                    String(mac.occurrences),
+                  ],
+                });
+                mac.motivos.forEach((mv) => {
+                  tableRows.push({
+                    level: 1,
+                    cells: [
+                      mv.motivo,
+                      `${(mv.minutes / 60).toFixed(1)}h`,
+                      `${mv.pct.toFixed(1)}%`,
+                      mv.volumePerdido > 0 ? `${(mv.volumePerdido / 1000).toFixed(3)} t` : '—',
+                      String(mv.occurrences),
+                    ],
+                  });
+                });
+              });
+              tableRows.push({
+                level: 0, bold: true,
+                cells: [
+                  'TOTAL',
+                  `${(totalMin / 60).toFixed(1)}h`,
+                  '100,0%',
+                  totalVol > 0 ? `${(totalVol / 1000).toFixed(3)} t` : '—',
+                  String(totalOccs),
+                ],
+              });
+
+              return {
+                title, subtitle: exportSubtitle,
+                slides: [
+                  {
+                    kind: 'chart',
+                    title, subtitle: exportSubtitle,
+                    chartType: 'doughnut',
+                    data: {
+                      labels: pieData.map((d) => d.motivo),
+                      values: pieData.map((d) => +(d.pct).toFixed(2)),
+                      colors: pieData.map((d) => String(d.fill).replace('#', '').toUpperCase()),
+                    },
+                    stats: [
+                      { label: 'Total horas paradas', value: `${(totalMin / 60).toFixed(1)} h` },
+                      { label: 'Ocorrências',         value: String(totalOccs) },
+                      { label: 'Volume perdido',      value: totalVol > 0 ? `${(totalVol / 1000).toFixed(2)} t` : '—' },
+                      { label: 'Motivo principal',    value: pieData[0]?.motivo || '—', color: pieData[0]?.fill?.replace('#', '').toUpperCase() },
+                    ],
+                  },
+                  {
+                    kind: 'table',
+                    title: `${title} — Detalhamento`,
+                    subtitle: exportSubtitle,
+                    headers: ['Máquina / Motivo', 'Horas', '% Tempo', 'Vol. Perdido', 'Ocorr.'],
+                    colWidths: [4.5, 1, 1, 1.3, 1],
+                    rows: tableRows,
+                  },
+                ],
+              };
+            }} />
         )}
       </div>
 
@@ -684,10 +754,71 @@ function FactoryOeeCard({ facId, facData, monthLabel, expandedFactories, expande
           <GaugeBar pct={facData.oee} width={52} />
         </div>
         <ExportPptButton
-          targetRef={cardRef}
           title={`${facData.label} — OEE`}
           subtitle={`${monthLabel} · OEE ${(facData.oee ?? 0).toFixed(1)}%`}
-          className="mr-1" />
+          className="mr-1"
+          report={() => {
+            const machines = Object.values(facData.machines || {});
+            const fmtPct = (v) => (v == null ? '—' : `${v.toFixed(1)}%`);
+            const fmtT   = (v) => (v && v > 0 ? `${(v / 1000).toFixed(2)} t` : '—');
+
+            // Linhas: máquina (nível 0) → produtos (nível 1)
+            const rows = [];
+            machines.forEach((m) => {
+              rows.push({
+                level: 0,
+                cells: [
+                  m.csvName,
+                  fmtT(m.actualKg),
+                  fmtT(m.theoreticalKg),
+                  fmtPct(m.disponibilidade),
+                  fmtPct(m.performance),
+                  fmtPct(m.qualidade),
+                  fmtPct(m.oee),
+                ],
+              });
+              Object.values(m.products || {}).forEach((p) => {
+                rows.push({
+                  level: 1,
+                  cells: [
+                    p.productName || p.codigoMicrodata || p.productId,
+                    fmtT(p.actualKg),
+                    fmtT(p.theoreticalKg),
+                    fmtPct(m.disponibilidade),
+                    fmtPct(p.performance),
+                    fmtPct(p.qualidade),
+                    fmtPct(p.oee),
+                  ],
+                });
+              });
+            });
+
+            return {
+              title: `${facData.label} — OEE`,
+              subtitle: `${monthLabel} · OEE ${(facData.oee ?? 0).toFixed(1)}%`,
+              slides: [
+                {
+                  kind: 'kpi',
+                  title: `${facData.label} — Indicadores`,
+                  subtitle: monthLabel,
+                  cards: [
+                    { label: 'OEE',             value: fmtPct(facData.oee),             color: '22D3EE' },
+                    { label: 'Disponibilidade', value: fmtPct(facData.disponibilidade), color: '67E8F9' },
+                    { label: 'Performance',     value: fmtPct(facData.performance),     color: 'C4B5FD' },
+                    { label: 'Qualidade',       value: fmtPct(facData.qualidade),       color: '6EE7B7' },
+                  ],
+                },
+                {
+                  kind: 'table',
+                  title: `${facData.label} — OEE por Máquina`,
+                  subtitle: monthLabel,
+                  headers: ['Máquina / Produto', 'Realizado', 'Teórico', 'Disp.', 'Perf.', 'Qual.', 'OEE'],
+                  colWidths: [4.0, 1.1, 1.1, 0.9, 0.9, 0.9, 0.9],
+                  rows,
+                },
+              ],
+            };
+          }} />
         <div className="text-brand-muted shrink-0">
           {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </div>
