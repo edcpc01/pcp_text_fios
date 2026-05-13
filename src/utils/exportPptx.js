@@ -29,25 +29,25 @@ const CONTENT_H      = CONTENT_BOTTOM - CONTENT_TOP;
 
 const ROWS_PER_PAGE = 17; // linhas de dados por slide (header repete)
 
-// ── Tema ─────────────────────────────────────────────────────────────────
+// ── Tema (light — fundo branco para edição fácil em PowerPoint) ──────────
 const C = {
-  bg:        '0A1224',
-  header:    '111B33',
-  accent:    '22D3EE',
-  surface:   '0F1A2E',
-  border:    '1E293B',
-  text:      'E2E8F0',
-  textMuted: '94A3B8',
-  textHi:    'FFFFFF',
-  tierHeader: '111B33',
-  zebra:     '111B33',
-  level0:    '1E293B',
-  level1:    '152033',
-  good:      '10B981',
-  warn:      'F59E0B',
-  bad:       'EF4444',
-  cyan:      '22D3EE',
-  violet:    'A78BFA',
+  bg:         'FFFFFF',   // slide
+  header:     'F8FAFC',   // banda do cabeçalho (cinza muito claro)
+  accent:     '0891B2',   // filete da marca (cyan mais escuro p/ contraste em fundo claro)
+  surface:    'F1F5F9',   // cards e linhas zebra
+  border:     'CBD5E1',   // bordas
+  text:       '0F172A',   // texto principal (slate-900)
+  textMuted:  '64748B',   // texto secundário (slate-500)
+  textHi:     '0F172A',   // títulos
+  tierHeader: 'E2E8F0',   // header da tabela
+  zebra:      'F8FAFC',   // linha alternada
+  level0:     'F1F5F9',   // grupo principal
+  level1:     'FFFFFF',   // sub-linha
+  good:       '047857',
+  warn:       'B45309',
+  bad:        'B91C1C',
+  cyan:       '0891B2',
+  violet:     '7C3AED',
 };
 
 const CHART_PALETTE = ['8B5CF6', 'F97316', '3B82F6', 'EC4899', '10B981', 'F59E0B', '06B6D4', 'A78BFA'];
@@ -175,10 +175,10 @@ function buildTableRows(headers, rows) {
   const bodyRows = rows.map((row, idx) => {
     const lvl = row.level ?? 0;
     const fill = lvl === 0
-      ? (idx % 2 === 0 ? { color: C.surface } : { color: C.bg })
+      ? { color: C.surface }
       : lvl === 1
         ? { color: C.bg }
-        : { color: '050B17' };
+        : { color: C.zebra };
     const bold = row.bold ?? (lvl === 0);
     const color = row.color || C.text;
     const fontSize = lvl === 0 ? 11 : lvl === 1 ? 10 : 10;
@@ -328,7 +328,7 @@ async function renderImage(slide, data) {
   if (!data.el) return;
   const html2canvas = (await import('html2canvas')).default;
   const canvas = await html2canvas(data.el, {
-    backgroundColor: '#0A1224', useCORS: true, allowTaint: true, scale: 2, logging: false,
+    backgroundColor: '#FFFFFF', useCORS: true, allowTaint: true, scale: 2, logging: false,
     windowWidth: data.el.scrollWidth, windowHeight: data.el.scrollHeight,
   });
   const dataUrl = canvas.toDataURL('image/png');
