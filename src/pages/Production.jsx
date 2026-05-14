@@ -478,11 +478,6 @@ export default function Production() {
       g.products[pKey].actual += r.actual || 0;
     });
 
-    // DEBUG: lista grupos descartados
-    const dropped = Object.values(groups).filter((g) => g.machineIds.length === 0);
-    if (dropped.length > 0) {
-      console.warn('[Realizado/byMachine] Grupos sem machineId:', dropped.map((g) => g.name));
-    }
     // Defesa: só grupos com pelo menos 1 machineId admin registrado entram na lista
     return Object.values(groups)
       .filter((g) => g.machineIds.length > 0)
@@ -524,12 +519,6 @@ export default function Production() {
     });
 
     const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-    // DEBUG: identifica chaves que NÃO são datas válidas (para diagnóstico)
-    const invalidKeys = Object.keys(map).filter((k) => !DATE_RE.test(k));
-    if (invalidKeys.length > 0) {
-      console.warn('[Realizado/byDay] Chaves inválidas filtradas:', invalidKeys);
-      invalidKeys.forEach((k) => console.warn('  ↳', k, map[k]));
-    }
     return Object.values(map)
       .filter((item) => DATE_RE.test(item.name))
       .map((item) => ({
@@ -565,11 +554,6 @@ export default function Production() {
     if (viewMode === 'daily') return a.name.localeCompare(b.name);
     return b.planned - a.planned;
   });
-
-  // DEBUG: linhas finais sendo renderizadas
-  if (typeof window !== 'undefined') {
-    console.log(`[Realizado/${viewMode}] ${sortedData.length} linhas:`, sortedData.map((r) => r.name));
-  }
 
   // KPIs globais — apenas produtos programados (planned > 0) entram no cálculo de aderência
   const scheduledProducts = byProduct.filter(p => p.planned > 0);
@@ -777,7 +761,7 @@ export default function Production() {
         ) : (<>
 
           {/* ── Mobile: Cards ─────────────────────────────────────────── */}
-          <div className="sm:hidden divide-y divide-brand-border/40">
+          <div key={`m-${viewMode}`} className="sm:hidden divide-y divide-brand-border/40">
             {sortedData.map((item, i) => {
               const pct = item.planned > 0 ? Math.round((item.actual / item.planned) * 100) : 0;
               const colors = getAdherenceColor(pct);
@@ -878,7 +862,7 @@ export default function Production() {
           </div>
 
           {/* ── Desktop: Tabela ────────────────────────────────────────── */}
-          <table className="hidden sm:table w-full border-collapse min-w-full">
+          <table key={`t-${viewMode}`} className="hidden sm:table w-full border-collapse min-w-full">
             <thead>
               <tr className="sticky top-0 z-10 bg-brand-bg/95 backdrop-blur-sm border-b border-brand-border">
                 <th className="pl-3 sm:pl-6 pr-2 py-3 text-left w-6 sm:w-8">
@@ -910,7 +894,6 @@ export default function Production() {
               </tr>
             </thead>
             <tbody>
-              {(() => { if (typeof window !== 'undefined') console.log('[Realizado/render] tbody pintando', sortedData.length, 'linhas:', sortedData.map((r) => r.name)); return null; })()}
               {sortedData.flatMap((item, i) => {
                 const expandable = (viewMode === 'machine' || viewMode === 'daily') && Array.isArray(item.products) && item.products.length > 0;
                 const expanded = expandable && expandedRows.has(rowKey(item.name));
