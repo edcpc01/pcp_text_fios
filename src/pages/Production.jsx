@@ -180,6 +180,7 @@ export default function Production() {
   const [sortBy, setSortBy] = useState('planned'); // 'planned' | 'actual' | 'pct' | 'name'
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'critical' | 'attention' | 'good'
   const [clientFilter, setClientFilter] = useState('all'); // 'all' | <nome do cliente>
+  const [productFilter, setProductFilter] = useState('all'); // 'all' | <productId>
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null); // { imported, skipped, noProduct }
   const [lastAutoSync, setLastAutoSync] = useState(null);
@@ -325,6 +326,30 @@ export default function Production() {
   const clientList = [...new Set(products.map((p) => (p.cliente || '').trim() || 'Sem Cliente'))]
     .sort((a, b) => a.localeCompare(b, 'pt-BR'));
   const matchesClient = (productKey) => clientFilter === 'all' || clientOf(productKey) === clientFilter;
+
+  // Chaves equivalentes (id + codigoMicrodata) para casar produto selecionado vs entries/records.
+  const productAliases = (() => {
+    const map = {};
+    products.forEach((p) => {
+      const id = String(p.id || '').trim();
+      const cm = String(p.codigoMicrodata || '').trim();
+      const keys = [id, cm].filter(Boolean);
+      keys.forEach((k) => { map[k] = keys; });
+    });
+    return map;
+  })();
+  const matchesProduct = (productKey) => {
+    if (productFilter === 'all') return true;
+    const k = String(productKey || '').trim();
+    const aliases = productAliases[productFilter] || [productFilter];
+    return aliases.includes(k);
+  };
+
+  // Lista de produtos para o dropdown — em cascata com o filtro de cliente.
+  const productOptions = products
+    .filter((p) => clientFilter === 'all' || ((p.cliente || '').trim() || 'Sem Cliente') === clientFilter)
+    .map((p) => ({ id: p.id, label: p.nome || p.name || p.id, cliente: p.cliente || 'Sem Cliente' }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
   const machines = factory === 'all'
     ? [
         ...(machinesByFac.matriz || []).map((m) => ({ ...m, _factory: 'matriz' })),
@@ -409,7 +434,7 @@ export default function Production() {
       if (isCurrentMonth && entryDate && entryDate > yesterday) return;
       const key = e.product;
       if (!key) return;
-      if (!matchesClient(key)) return;
+      if (!matchesClient(key) || !matchesProduct(key)) return;
       if (!map[key]) map[key] = { name: e.productName || e.product, planned: 0, actual: 0 };
       map[key].planned += e.planned || 0;
       if (!plannedFactories[key]) plannedFactories[key] = new Set();
@@ -423,7 +448,7 @@ export default function Production() {
       const key = r.product;
       if (!key) return;
       if (!map[key]) return; // ignora produtos sem planejamento
-      if (!matchesClient(key)) return;
+      if (!matchesClient(key) || !matchesProduct(key)) return;
       const rFactory = r.factory || 'matriz';
       if (factory !== 'all' && rFactory !== factory) return;
       if (factory === 'all' && plannedFactories[key] && !plannedFactories[key].has(rFactory)) return;
@@ -479,7 +504,7 @@ export default function Production() {
       if (isCurrentMonth && entryDate && entryDate > yesterday) return;
       const csvName = idToCsv[e.machine];
       if (!csvName) return;
-      if (!matchesClient(e.product)) return;
+      if (!matchesClient(e.product) || !matchesProduct(e.product)) return;
       const g = groups[csvName];
       g.planned += e.planned || 0;
       const pKey = e.product || '_sem';
@@ -490,7 +515,7 @@ export default function Production() {
     // Realizado: r.machine é o csvName diretamente (ERP já exporta agrupado)
     records.forEach((r) => {
       if (factory !== 'all' && (r.factory || 'matriz') !== factory) return;
-      if (!matchesClient(r.product)) return;
+      if (!matchesClient(r.product) || !matchesProduct(r.product)) return;
       const g = groups[r.machine];
       if (!g) return;
       g.actual += r.actual || 0;
@@ -521,7 +546,7 @@ export default function Production() {
       const d = resolveEntryDate(e);
       if (!d || !d.startsWith(yearMonth)) return;
       if (factory !== 'all' && (e.factory || 'matriz') !== factory) return;
-      if (!matchesClient(e.product)) return;
+      if (!matchesClient(e.product) || !matchesProduct(e.product)) return;
       if (!map[d]) map[d] = { name: d, planned: 0, actual: 0, products: {} };
       map[d].planned += e.planned || 0;
       const pKey = e.product || '_sem';
@@ -531,7 +556,7 @@ export default function Production() {
 
     records.forEach((r) => {
       if (factory !== 'all' && (r.factory || 'matriz') !== factory) return;
-      if (!matchesClient(r.product)) return;
+      if (!matchesClient(r.product) || !matchesProduct(r.product)) return;
       const date = typeof r.date === 'string' ? r.date : r.date?.toISOString?.()?.split('T')[0];
       if (!date || !date.startsWith(yearMonth)) return;
       if (!map[date]) map[date] = { name: date, planned: 0, actual: 0, products: {} };
@@ -760,12 +785,24 @@ export default function Production() {
           {/* Filtro por cliente */}
           <select
             value={clientFilter}
-            onChange={(e) => setClientFilter(e.target.value)}
+            onChange={(e) => { setClientFilter(e.target.value); setProductFilter('all'); }}
             className="bg-brand-surface/40 border border-brand-border rounded-xl px-3 py-1.5 text-xs text-brand-muted focus:outline-none focus:border-brand-cyan/40 transition-all max-w-[180px]"
           >
             <option value="all">Cliente: Todos</option>
             {clientList.map((c) => (
               <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+
+          {/* Filtro por produto (cascateia com cliente) */}
+          <select
+            value={productFilter}
+            onChange={(e) => setProductFilter(e.target.value)}
+            className="bg-brand-surface/40 border border-brand-border rounded-xl px-3 py-1.5 text-xs text-brand-muted focus:outline-none focus:border-brand-cyan/40 transition-all max-w-[220px]"
+          >
+            <option value="all">Produto: Todos</option>
+            {productOptions.map((p) => (
+              <option key={p.id} value={p.id}>{p.label}</option>
             ))}
           </select>
 
