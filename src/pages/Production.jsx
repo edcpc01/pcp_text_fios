@@ -910,6 +910,7 @@ export default function Production() {
               </tr>
             </thead>
             <tbody>
+              {(() => { if (typeof window !== 'undefined') console.log('[Realizado/render] tbody pintando', sortedData.length, 'linhas:', sortedData.map((r) => r.name)); return null; })()}
               {sortedData.flatMap((item, i) => {
                 const expandable = (viewMode === 'machine' || viewMode === 'daily') && Array.isArray(item.products) && item.products.length > 0;
                 const expanded = expandable && expandedRows.has(rowKey(item.name));
