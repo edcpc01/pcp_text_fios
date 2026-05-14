@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Minus, Download, RefreshCw, AlertTriangle, FolderOpen, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, TrendingUp, TrendingDown, Minus, Download, RefreshCw, AlertTriangle, FolderOpen, X } from 'lucide-react';
 import { useAppStore, useProductionStore, usePlanningStore, useAdminStore, useAuthStore, useCsvStore, MACHINES } from '../hooks/useStore';
 import { subscribeProductionRecords, subscribePlanningEntries, saveProductionRecord, uploadCsvSync } from '../services/firebase';
 import { getMonthLabel, getDaysInMonth, isSunday } from '../utils/dates';
 import { seedDemoData } from '../utils/seedData';
-import { pickOrReuseFile, clearFileHandle, readSavedFile, parseProducaoCSV, parseQualidadeCSV, findProductByCode, readFileText } from '../utils/csvSync';
+import { pickOrReuseFile, clearFileHandle, readSavedFile, parseProducaoCSV, parseQualidadeCSV, findProductByCode, readFileText, getCsvMachineName } from '../utils/csvSync';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -30,26 +30,38 @@ function AdherenceIcon({ pct }) {
 
 // ─── Row de produto ───────────────────────────────────────────────────────────
 
-function ProductRow({ item, rank }) {
+function ProductRow({ item, rank, expandable, expanded, onToggle }) {
   const pct = item.planned > 0 ? Math.round((item.actual / item.planned) * 100) : 0;
   const colors = getAdherenceColor(pct);
   const badge = getStatusBadge(pct);
   const barWidth = Math.min(pct, 120); // cap visual em 120%
 
   return (
-    <tr className="group hover:bg-white/[0.025] transition-colors border-b border-brand-border">
+    <tr
+      onClick={expandable ? onToggle : undefined}
+      className={`group transition-colors border-b border-brand-border ${expandable ? 'cursor-pointer hover:bg-white/[0.04]' : 'hover:bg-white/[0.025]'}`}>
       {/* Rank */}
       <td className="pl-3 sm:pl-6 pr-1 sm:pr-2 py-2 sm:py-4 w-6 sm:w-8">
         <span className="text-[8px] sm:text-xs font-mono text-brand-muted/60">{rank}</span>
       </td>
 
-      {/* Produto */}
+      {/* Produto / Máquina / Data */}
       <td className="px-2 sm:px-4 py-2 sm:py-4 min-w-[90px] sm:min-w-fit">
-        <div>
-          <span className="text-xs sm:text-sm font-semibold text-white block truncate">{item.name}</span>
-          {item.machine && (
-            <span className="text-[8px] sm:text-[10px] text-brand-muted/60">{item.machine}</span>
+        <div className="flex items-center gap-1.5">
+          {expandable && (
+            expanded
+              ? <ChevronDown size={12} className="text-brand-muted shrink-0" />
+              : <ChevronRight size={12} className="text-brand-muted shrink-0" />
           )}
+          <div className="min-w-0">
+            <span className="text-xs sm:text-sm font-semibold text-white block truncate">{item.name}</span>
+            {item.label && item.label !== item.name && (
+              <span className="text-[8px] sm:text-[10px] text-brand-muted/60 block truncate">{item.label}</span>
+            )}
+            {item.machineIds && item.machineIds.length > 0 && (
+              <span className="text-[8px] sm:text-[10px] text-brand-muted/60 font-mono">{item.machineIds.join(' · ')}</span>
+            )}
+          </div>
         </div>
       </td>
 
@@ -103,6 +115,46 @@ function ProductRow({ item, rank }) {
   );
 }
 
+// ─── Linha filha (produto dentro de máquina / dia) ───────────────────────────
+
+function ProductChildRow({ item }) {
+  const pct = item.planned > 0 ? Math.round((item.actual / item.planned) * 100) : 0;
+  const colors = getAdherenceColor(pct);
+  const dev = item.actual - item.planned;
+  return (
+    <tr className="border-b border-brand-border/30 bg-brand-bg/40">
+      <td className="pl-3 sm:pl-6 pr-1 sm:pr-2 py-1.5 w-6 sm:w-8" />
+      <td className="px-2 sm:px-4 py-1.5 pl-8 sm:pl-12 min-w-[90px] sm:min-w-fit">
+        <div className="min-w-0">
+          <span className="text-xs text-brand-muted truncate block">{item.name}</span>
+          {item.code && <span className="text-[9px] text-brand-muted/50 font-mono">{item.code}</span>}
+        </div>
+      </td>
+      <td className="px-2 sm:px-4 py-1.5 text-right min-w-[60px] sm:min-w-fit">
+        <span className="text-xs font-mono text-brand-muted">{item.planned.toLocaleString('pt-BR')}</span>
+        <span className="text-[9px] text-brand-muted/60 ml-0.5">kg</span>
+      </td>
+      <td className="px-2 sm:px-4 py-1.5 text-right min-w-[60px] sm:min-w-fit">
+        <span className={`text-xs font-mono font-semibold ${colors.text}`}>{item.actual.toLocaleString('pt-BR')}</span>
+        <span className="text-[9px] text-brand-muted/60 ml-0.5">kg</span>
+      </td>
+      <td className="px-2 sm:px-4 py-1.5 min-w-[70px] sm:min-w-[140px]">
+        <div className="flex items-center gap-1">
+          <AdherenceIcon pct={pct} />
+          <span className={`text-[10px] font-mono font-bold ${colors.text}`}>{pct}%</span>
+        </div>
+      </td>
+      <td className="hidden sm:table-cell px-2 sm:px-4 py-1.5 text-right pr-3 sm:pr-6">
+        {item.planned > 0 && (
+          <span className={`text-[10px] font-mono ${dev >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            {dev >= 0 ? '+' : ''}{dev.toLocaleString('pt-BR')} kg
+          </span>
+        )}
+      </td>
+    </tr>
+  );
+}
+
 // ─── Production Page ──────────────────────────────────────────────────────────
 
 const CSV_HANDLE_KEY = 'producao-csv';
@@ -117,6 +169,14 @@ export default function Production() {
   const isSupervisor = user?.role === 'supervisor';
 
   const [viewMode, setViewMode] = useState('product'); // 'product' | 'machine' | 'daily'
+  const [expandedRows, setExpandedRows] = useState(new Set()); // chaves "<viewMode>__<rowName>"
+  const rowKey = (name) => `${viewMode}__${name}`;
+  const toggleRow = (name) => setExpandedRows((prev) => {
+    const k = rowKey(name);
+    const n = new Set(prev);
+    n.has(k) ? n.delete(k) : n.add(k);
+    return n;
+  });
   const [sortBy, setSortBy] = useState('planned'); // 'planned' | 'actual' | 'pct' | 'name'
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'critical' | 'attention' | 'good'
   const [syncing, setSyncing] = useState(false);
@@ -246,8 +306,11 @@ export default function Production() {
   // ────────────────────────────────────────────────────────────────────────────
 
   const machines = factory === 'all'
-    ? [...MACHINES.matriz, ...MACHINES.filial]
-    : MACHINES[factory] || [];
+    ? [
+        ...MACHINES.matriz.map((m) => ({ ...m, _factory: 'matriz' })),
+        ...MACHINES.filial.map((m) => ({ ...m, _factory: 'filial' })),
+      ]
+    : (MACHINES[factory] || []).map((m) => ({ ...m, _factory: factory }));
   const yearMonth = getYearMonth();
   const monthLabel = getMonthLabel(month.year, month.month);
 
@@ -351,42 +414,95 @@ export default function Production() {
     }));
   })();
 
-  // Por máquina — planejado vem de entries, realizado vem de records (CSV)
+  // Por máquina — agrupado pelo "csvName" do CSV (ex: "RPR SINGLE TEXT - AUTOMATICA"),
+  // que é como o ERP exporta. Cada grupo soma vários machineIds (M01, M02, ...).
+  // Cada linha traz a árvore de produtos com planejado × realizado.
   const byMachine = (() => {
-    const map = {};
+    const groups = {}; // csvName → { name, label, machineIds, planned, actual, products }
+    const idToCsv = {}; // machineId → csvName
+
     machines.forEach((m) => {
-      map[m.id] = { name: m.id, label: m.name, planned: 0, actual: 0 };
+      const fac = m._factory || factory;
+      const csvName = getCsvMachineName(m.name, fac) || m.id;
+      if (!groups[csvName]) {
+        groups[csvName] = { name: csvName, label: csvName, machineIds: [], planned: 0, actual: 0, products: {} };
+      }
+      groups[csvName].machineIds.push(m.id);
+      idToCsv[m.id] = csvName;
     });
+
+    // Planejado: via machineId da entry → csvName
     entries.forEach((e) => {
       if (e.cellType !== 'producao' && e.cellType) return;
       const entryDate = resolveEntryDate(e);
       if (entryDate && !entryDate.startsWith(yearMonth)) return;
       if (isCurrentMonth && entryDate && entryDate > yesterday) return;
-      if (map[e.machine]) map[e.machine].planned += e.planned || 0;
+      const csvName = idToCsv[e.machine];
+      if (!csvName) return;
+      const g = groups[csvName];
+      g.planned += e.planned || 0;
+      const pKey = e.product || '_sem';
+      if (!g.products[pKey]) g.products[pKey] = { name: e.productName || pKey, code: e.product || '', planned: 0, actual: 0 };
+      g.products[pKey].planned += e.planned || 0;
     });
+
+    // Realizado: r.machine é o csvName diretamente (ERP já exporta agrupado)
     records.forEach((r) => {
-      if (map[r.machine]) map[r.machine].actual += r.actual || 0;
+      if (factory !== 'all' && (r.factory || 'matriz') !== factory) return;
+      const g = groups[r.machine];
+      if (!g) return;
+      g.actual += r.actual || 0;
+      const pKey = r.product || '_sem';
+      if (!g.products[pKey]) g.products[pKey] = { name: r.productName || pKey, code: r.product || '', planned: 0, actual: 0 };
+      g.products[pKey].actual += r.actual || 0;
     });
-    return Object.values(map).map((item) => ({
-      ...item,
-      pct: item.planned > 0 ? Math.round((item.actual / item.planned) * 100) : 0,
+
+    return Object.values(groups).map((g) => ({
+      ...g,
+      pct: g.planned > 0 ? Math.round((g.actual / g.planned) * 100) : 0,
+      products: Object.values(g.products)
+        .map((p) => ({ ...p, pct: p.planned > 0 ? Math.round((p.actual / p.planned) * 100) : 0 }))
+        .sort((a, b) => b.planned - a.planned || b.actual - a.actual),
     }));
   })();
 
-  // Por dia (últimos 15 dias com dados)
+  // Por dia — planejado vem de entries (filtrado por mês), realizado de records.
+  // Cada dia carrega a árvore de produtos para a expansão.
   const byDay = (() => {
     const map = {};
-    records.forEach((r) => {
-      const date = typeof r.date === 'string' ? r.date : r.date?.toISOString?.()?.split('T')[0];
-      if (!date) return;
-      if (!map[date]) map[date] = { name: date, planned: 0, actual: 0 };
-      map[date].actual += r.actual || 0;
-      map[date].planned += r.planned || 0;
+
+    entries.forEach((e) => {
+      if (e.cellType !== 'producao' && e.cellType) return;
+      const d = resolveEntryDate(e);
+      if (!d || !d.startsWith(yearMonth)) return;
+      if (factory !== 'all' && (e.factory || 'matriz') !== factory) return;
+      if (!map[d]) map[d] = { name: d, planned: 0, actual: 0, products: {} };
+      map[d].planned += e.planned || 0;
+      const pKey = e.product || '_sem';
+      if (!map[d].products[pKey]) map[d].products[pKey] = { name: e.productName || pKey, code: e.product || '', planned: 0, actual: 0 };
+      map[d].products[pKey].planned += e.planned || 0;
     });
+
+    records.forEach((r) => {
+      if (factory !== 'all' && (r.factory || 'matriz') !== factory) return;
+      const date = typeof r.date === 'string' ? r.date : r.date?.toISOString?.()?.split('T')[0];
+      if (!date || !date.startsWith(yearMonth)) return;
+      if (!map[date]) map[date] = { name: date, planned: 0, actual: 0, products: {} };
+      map[date].actual += r.actual || 0;
+      const pKey = r.product || '_sem';
+      if (!map[date].products[pKey]) map[date].products[pKey] = { name: r.productName || pKey, code: r.product || '', planned: 0, actual: 0 };
+      map[date].products[pKey].actual += r.actual || 0;
+    });
+
     return Object.values(map)
-      .map((item) => ({ ...item, pct: item.planned > 0 ? Math.round((item.actual / item.planned) * 100) : 0 }))
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .slice(-20);
+      .map((item) => ({
+        ...item,
+        pct: item.planned > 0 ? Math.round((item.actual / item.planned) * 100) : 0,
+        products: Object.values(item.products)
+          .map((p) => ({ ...p, pct: p.planned > 0 ? Math.round((p.actual / p.planned) * 100) : 0 }))
+          .sort((a, b) => b.planned - a.planned || b.actual - a.actual),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   })();
 
   // Dataset ativo
@@ -620,11 +736,18 @@ export default function Production() {
               const colors = getAdherenceColor(pct);
               const badge  = getStatusBadge(pct);
               const dev    = item.actual - item.planned;
+              const expandable = (viewMode === 'machine' || viewMode === 'daily') && Array.isArray(item.products) && item.products.length > 0;
+              const expanded = expandable && expandedRows.has(rowKey(item.name));
               return (
-                <div key={item.name} className="px-4 py-3.5">
+                <div key={item.name} className="px-4 py-3.5" onClick={expandable ? () => toggleRow(item.name) : undefined}>
                   <div className="flex items-start justify-between gap-2 mb-2.5">
                     <div className="flex items-start gap-2 min-w-0">
                       <span className="text-[10px] font-mono text-brand-muted/50 mt-0.5 shrink-0">{i + 1}</span>
+                      {expandable && (
+                        expanded
+                          ? <ChevronDown size={12} className="text-brand-muted shrink-0 mt-0.5" />
+                          : <ChevronRight size={12} className="text-brand-muted shrink-0 mt-0.5" />
+                      )}
                       <span className="text-sm font-semibold text-white leading-tight">{item.name}</span>
                     </div>
                     <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border shrink-0 ${badge.cls}`}>{badge.label}</span>
@@ -654,6 +777,31 @@ export default function Production() {
                       <div className={`h-full rounded-full ${colors.bar}`} style={{ width: `${Math.min(pct, 120)}%` }} />
                     </div>
                   </div>
+
+                  {expanded && (
+                    <div className="mt-3 pl-4 border-l-2 border-brand-border/40 space-y-2">
+                      {item.products.map((p) => {
+                        const pPct = p.planned > 0 ? Math.round((p.actual / p.planned) * 100) : 0;
+                        const pColors = getAdherenceColor(pPct);
+                        return (
+                          <div key={p.code || p.name} className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-xs text-brand-muted truncate">{p.name}</p>
+                              {p.code && <p className="text-[9px] text-brand-muted/50 font-mono">{p.code}</p>}
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className={`text-xs font-mono font-bold ${pColors.text}`}>
+                                {p.actual.toLocaleString('pt-BR')}<span className="text-[9px] text-brand-muted ml-0.5">kg</span>
+                              </p>
+                              <p className="text-[9px] text-brand-muted/60 font-mono">
+                                de {p.planned.toLocaleString('pt-BR')} kg · {pPct}%
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -715,9 +863,26 @@ export default function Production() {
               </tr>
             </thead>
             <tbody>
-              {sortedData.map((item, i) => (
-                <ProductRow key={item.name} item={item} rank={i + 1} />
-              ))}
+              {sortedData.flatMap((item, i) => {
+                const expandable = (viewMode === 'machine' || viewMode === 'daily') && Array.isArray(item.products) && item.products.length > 0;
+                const expanded = expandable && expandedRows.has(rowKey(item.name));
+                const rows = [
+                  <ProductRow
+                    key={item.name}
+                    item={item}
+                    rank={i + 1}
+                    expandable={expandable}
+                    expanded={expanded}
+                    onToggle={expandable ? () => toggleRow(item.name) : undefined}
+                  />,
+                ];
+                if (expanded) {
+                  item.products.forEach((p) => {
+                    rows.push(<ProductChildRow key={`${item.name}__${p.code || p.name}`} item={p} />);
+                  });
+                }
+                return rows;
+              })}
             </tbody>
 
             {/* Footer de totais */}
