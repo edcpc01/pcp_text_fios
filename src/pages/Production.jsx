@@ -421,10 +421,28 @@ export default function Production() {
   // que é como o ERP exporta. Cada grupo soma vários machineIds (M01, M02, ...).
   // Cada linha traz a árvore de produtos com planejado × realizado.
   const byMachine = (() => {
+    // Defensivo: alguns Firebases têm "máquinas" registradas por engano com nome/id
+    // de produto. Cruza com o catálogo de produtos para detectar e filtrar essas
+    // entradas espúrias.
+    const productKeys = new Set();
+    products.forEach((p) => {
+      const norm = (v) => (v == null ? '' : String(v)).toUpperCase().trim();
+      if (p.id)              productKeys.add(norm(p.id));
+      if (p.codigoMicrodata) productKeys.add(norm(p.codigoMicrodata));
+      if (p.nome)            productKeys.add(norm(p.nome));
+      if (p.name)            productKeys.add(norm(p.name));
+    });
+    const looksLikeProduct = (s) => {
+      const k = (s == null ? '' : String(s)).toUpperCase().trim();
+      return k.length > 0 && productKeys.has(k);
+    };
+
     const groups = {}; // csvName → { name, label, machineIds, planned, actual, products }
     const idToCsv = {}; // machineId → csvName
 
     machines.forEach((m) => {
+      // Pula máquinas que na verdade são produtos cadastrados por engano
+      if (looksLikeProduct(m.id) || looksLikeProduct(m.name)) return;
       const fac = m._factory || factory;
       const csvName = getCsvMachineName(m.name, fac) || m.id;
       if (!groups[csvName]) {
