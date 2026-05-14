@@ -12,6 +12,11 @@ export function isWeekend(dateStr) { return new Date(dateStr + 'T12:00:00').getD
 export function isSunday(dateStr) { return new Date(dateStr + 'T12:00:00').getDay() === 0; }
 export function getWeekday(dateStr) { return new Date(dateStr + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''); }
 export function formatDate(dateStr) { return new Date(dateStr + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }); }
+export function formatDateBR(dateStr) {
+  // YYYY-MM-DD → DD/MM/YYYY (sem criar Date, evita timezone drift)
+  const m = String(dateStr || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : dateStr;
+}
 export function formatDateFull(dateStr) { return new Date(dateStr + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }); }
 export function getMonthLabel(year, month) { return new Date(year, month).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }); }
 export function getYearMonthStr(year, month) { return `${year}-${String(month + 1).padStart(2, '0')}`; }

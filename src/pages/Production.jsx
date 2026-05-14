@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, ChevronDown, TrendingUp, TrendingDown, Minus, Download, RefreshCw, AlertTriangle, FolderOpen, X } from 'lucide-react';
 import { useAppStore, useProductionStore, usePlanningStore, useAdminStore, useAuthStore, useCsvStore, MACHINES } from '../hooks/useStore';
 import { subscribeProductionRecords, subscribePlanningEntries, saveProductionRecord, uploadCsvSync } from '../services/firebase';
-import { getMonthLabel, getDaysInMonth, isSunday } from '../utils/dates';
+import { getMonthLabel, getDaysInMonth, isSunday, formatDateBR } from '../utils/dates';
 import { seedDemoData } from '../utils/seedData';
 import { pickOrReuseFile, clearFileHandle, readSavedFile, parseProducaoCSV, parseQualidadeCSV, findProductByCode, readFileText, getCsvMachineName } from '../utils/csvSync';
 
@@ -54,7 +54,7 @@ function ProductRow({ item, rank, expandable, expanded, onToggle }) {
               : <ChevronRight size={12} className="text-brand-muted shrink-0" />
           )}
           <div className="min-w-0">
-            <span className="text-xs sm:text-sm font-semibold text-white block truncate">{item.name}</span>
+            <span className="text-xs sm:text-sm font-semibold text-white block truncate">{formatDateBR(item.name)}</span>
             {item.label && item.label !== item.name && (
               <span className="text-[8px] sm:text-[10px] text-brand-muted/60 block truncate">{item.label}</span>
             )}
@@ -179,6 +179,7 @@ export default function Production() {
   });
   const [sortBy, setSortBy] = useState('planned'); // 'planned' | 'actual' | 'pct' | 'name'
   const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'critical' | 'attention' | 'good'
+  const [clientFilter, setClientFilter] = useState('all'); // 'all' | <nome do cliente>
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null); // { imported, skipped, noProduct }
   const [lastAutoSync, setLastAutoSync] = useState(null);
@@ -308,6 +309,22 @@ export default function Production() {
   // Máquinas reais vêm do Firebase via useAdminStore (mesmo source que OEE/Planejamento).
   // Fallback para a constante MACHINES caso o admin ainda não tenha carregado.
   const machinesByFac = adminMachines && Object.keys(adminMachines).length > 0 ? adminMachines : MACHINES;
+
+  // productId (e variações) → cliente, usado para filtrar planejamento e records.
+  const productToClient = (() => {
+    const map = {};
+    const norm = (v) => (v == null ? '' : String(v)).trim();
+    products.forEach((p) => {
+      const cli = norm(p.cliente) || 'Sem Cliente';
+      if (p.id)              map[norm(p.id)]              = cli;
+      if (p.codigoMicrodata) map[norm(p.codigoMicrodata)] = cli;
+    });
+    return map;
+  })();
+  const clientOf = (productKey) => productToClient[String(productKey || '').trim()] || 'Sem Cliente';
+  const clientList = [...new Set(products.map((p) => (p.cliente || '').trim() || 'Sem Cliente'))]
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const matchesClient = (productKey) => clientFilter === 'all' || clientOf(productKey) === clientFilter;
   const machines = factory === 'all'
     ? [
         ...(machinesByFac.matriz || []).map((m) => ({ ...m, _factory: 'matriz' })),
@@ -392,6 +409,7 @@ export default function Production() {
       if (isCurrentMonth && entryDate && entryDate > yesterday) return;
       const key = e.product;
       if (!key) return;
+      if (!matchesClient(key)) return;
       if (!map[key]) map[key] = { name: e.productName || e.product, planned: 0, actual: 0 };
       map[key].planned += e.planned || 0;
       if (!plannedFactories[key]) plannedFactories[key] = new Set();
@@ -405,6 +423,7 @@ export default function Production() {
       const key = r.product;
       if (!key) return;
       if (!map[key]) return; // ignora produtos sem planejamento
+      if (!matchesClient(key)) return;
       const rFactory = r.factory || 'matriz';
       if (factory !== 'all' && rFactory !== factory) return;
       if (factory === 'all' && plannedFactories[key] && !plannedFactories[key].has(rFactory)) return;
@@ -460,6 +479,7 @@ export default function Production() {
       if (isCurrentMonth && entryDate && entryDate > yesterday) return;
       const csvName = idToCsv[e.machine];
       if (!csvName) return;
+      if (!matchesClient(e.product)) return;
       const g = groups[csvName];
       g.planned += e.planned || 0;
       const pKey = e.product || '_sem';
@@ -470,6 +490,7 @@ export default function Production() {
     // Realizado: r.machine é o csvName diretamente (ERP já exporta agrupado)
     records.forEach((r) => {
       if (factory !== 'all' && (r.factory || 'matriz') !== factory) return;
+      if (!matchesClient(r.product)) return;
       const g = groups[r.machine];
       if (!g) return;
       g.actual += r.actual || 0;
@@ -500,6 +521,7 @@ export default function Production() {
       const d = resolveEntryDate(e);
       if (!d || !d.startsWith(yearMonth)) return;
       if (factory !== 'all' && (e.factory || 'matriz') !== factory) return;
+      if (!matchesClient(e.product)) return;
       if (!map[d]) map[d] = { name: d, planned: 0, actual: 0, products: {} };
       map[d].planned += e.planned || 0;
       const pKey = e.product || '_sem';
@@ -509,6 +531,7 @@ export default function Production() {
 
     records.forEach((r) => {
       if (factory !== 'all' && (r.factory || 'matriz') !== factory) return;
+      if (!matchesClient(r.product)) return;
       const date = typeof r.date === 'string' ? r.date : r.date?.toISOString?.()?.split('T')[0];
       if (!date || !date.startsWith(yearMonth)) return;
       if (!map[date]) map[date] = { name: date, planned: 0, actual: 0, products: {} };
@@ -733,7 +756,19 @@ export default function Production() {
           ))}
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2 flex-wrap">
+          {/* Filtro por cliente */}
+          <select
+            value={clientFilter}
+            onChange={(e) => setClientFilter(e.target.value)}
+            className="bg-brand-surface/40 border border-brand-border rounded-xl px-3 py-1.5 text-xs text-brand-muted focus:outline-none focus:border-brand-cyan/40 transition-all max-w-[180px]"
+          >
+            <option value="all">Cliente: Todos</option>
+            {clientList.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+
           {/* Ordenação */}
           <select
             value={sortBy}
@@ -779,7 +814,7 @@ export default function Production() {
                           ? <ChevronDown size={12} className="text-brand-muted shrink-0 mt-0.5" />
                           : <ChevronRight size={12} className="text-brand-muted shrink-0 mt-0.5" />
                       )}
-                      <span className="text-sm font-semibold text-white leading-tight">{item.name}</span>
+                      <span className="text-sm font-semibold text-white leading-tight">{formatDateBR(item.name)}</span>
                     </div>
                     <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border shrink-0 ${badge.cls}`}>{badge.label}</span>
                   </div>
