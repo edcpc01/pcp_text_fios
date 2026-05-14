@@ -164,7 +164,7 @@ export default function Production() {
   const { records, setRecords, setLoading } = useProductionStore();
   const { entriesMap, setEntriesFromArray } = usePlanningStore();
   const entries = Object.values(entriesMap);
-  const { products } = useAdminStore();
+  const { products, machines: adminMachines } = useAdminStore();
   const { user } = useAuthStore();
   const isSupervisor = user?.role === 'supervisor';
 
@@ -305,12 +305,15 @@ export default function Production() {
 
   // ────────────────────────────────────────────────────────────────────────────
 
+  // Máquinas reais vêm do Firebase via useAdminStore (mesmo source que OEE/Planejamento).
+  // Fallback para a constante MACHINES caso o admin ainda não tenha carregado.
+  const machinesByFac = adminMachines && Object.keys(adminMachines).length > 0 ? adminMachines : MACHINES;
   const machines = factory === 'all'
     ? [
-        ...MACHINES.matriz.map((m) => ({ ...m, _factory: 'matriz' })),
-        ...MACHINES.filial.map((m) => ({ ...m, _factory: 'filial' })),
+        ...(machinesByFac.matriz || []).map((m) => ({ ...m, _factory: 'matriz' })),
+        ...(machinesByFac.filial || []).map((m) => ({ ...m, _factory: 'filial' })),
       ]
-    : (MACHINES[factory] || []).map((m) => ({ ...m, _factory: factory }));
+    : (machinesByFac[factory] || []).map((m) => ({ ...m, _factory: factory }));
   const yearMonth = getYearMonth();
   const monthLabel = getMonthLabel(month.year, month.month);
 
@@ -457,13 +460,16 @@ export default function Production() {
       g.products[pKey].actual += r.actual || 0;
     });
 
-    return Object.values(groups).map((g) => ({
-      ...g,
-      pct: g.planned > 0 ? Math.round((g.actual / g.planned) * 100) : 0,
-      products: Object.values(g.products)
-        .map((p) => ({ ...p, pct: p.planned > 0 ? Math.round((p.actual / p.planned) * 100) : 0 }))
-        .sort((a, b) => b.planned - a.planned || b.actual - a.actual),
-    }));
+    // Defesa: só grupos com pelo menos 1 machineId admin registrado entram na lista
+    return Object.values(groups)
+      .filter((g) => g.machineIds.length > 0)
+      .map((g) => ({
+        ...g,
+        pct: g.planned > 0 ? Math.round((g.actual / g.planned) * 100) : 0,
+        products: Object.values(g.products)
+          .map((p) => ({ ...p, pct: p.planned > 0 ? Math.round((p.actual / p.planned) * 100) : 0 }))
+          .sort((a, b) => b.planned - a.planned || b.actual - a.actual),
+      }));
   })();
 
   // Por dia — planejado vem de entries (filtrado por mês), realizado de records.
@@ -494,7 +500,9 @@ export default function Production() {
       map[date].products[pKey].actual += r.actual || 0;
     });
 
+    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
     return Object.values(map)
+      .filter((item) => DATE_RE.test(item.name))
       .map((item) => ({
         ...item,
         pct: item.planned > 0 ? Math.round((item.actual / item.planned) * 100) : 0,
@@ -517,11 +525,16 @@ export default function Production() {
   });
 
   // Ordenar
+  // Padrão por visão:
+  //   • Por Dia    → cronológico (data ascendente)
+  //   • Por Máq.   → planejado descendente
+  //   • Por Produto→ planejado descendente
   const sortedData = [...filteredData].sort((a, b) => {
     if (sortBy === 'name') return a.name.localeCompare(b.name);
     if (sortBy === 'pct') return b.pct - a.pct;
     if (sortBy === 'actual') return b.actual - a.actual;
-    return b.planned - a.planned; // default
+    if (viewMode === 'daily') return a.name.localeCompare(b.name);
+    return b.planned - a.planned;
   });
 
   // KPIs globais — apenas produtos programados (planned > 0) entram no cálculo de aderência
