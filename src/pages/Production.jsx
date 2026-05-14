@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, TrendingUp, TrendingDown, Minus, Download, RefreshCw, AlertTriangle, FolderOpen, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, TrendingUp, TrendingDown, Minus, Download, RefreshCw, AlertTriangle, FolderOpen, X, FileSpreadsheet } from 'lucide-react';
+import { exportRealizadoXlsx } from '../utils/exportXlsx';
 import { useAppStore, useProductionStore, usePlanningStore, useAdminStore, useAuthStore, useCsvStore, MACHINES } from '../hooks/useStore';
 import { subscribeProductionRecords, subscribePlanningEntries, saveProductionRecord, uploadCsvSync } from '../services/firebase';
 import { getMonthLabel, getDaysInMonth, isSunday, formatDateBR } from '../utils/dates';
@@ -817,6 +818,32 @@ export default function Production() {
             <option value="pct">Ordenar: Aderência</option>
             <option value="name">Ordenar: Nome</option>
           </select>
+
+          {/* Exportar XLS */}
+          <button
+            onClick={() => {
+              const factoryLabel = factory === 'all' ? 'Todas as Unidades'
+                                : factory === 'matriz' ? 'Corradi Matriz' : 'Corradi Filial';
+              const productFilterLabel = productFilter === 'all'
+                ? 'Todos'
+                : (productOptions.find((p) => p.id === productFilter)?.label || productFilter);
+              exportRealizadoXlsx(viewMode, sortedData, {
+                factoryLabel, monthLabel,
+                clientFilter, productFilter, productFilterLabel,
+              }).catch((err) => {
+                console.error('Export XLSX falhou:', err);
+                alert('Falha ao exportar: ' + (err.message || err));
+              });
+            }}
+            disabled={sortedData.length === 0}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold
+              bg-emerald-500/10 border border-emerald-500/30 text-emerald-300
+              hover:bg-emerald-500/20 hover:border-emerald-400/50
+              disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            title="Exportar dados da visão atual para XLSX (Excel)">
+            <FileSpreadsheet size={12} />
+            <span>XLS</span>
+          </button>
         </div>
       </div>
 
