@@ -478,6 +478,11 @@ export default function Production() {
       g.products[pKey].actual += r.actual || 0;
     });
 
+    // DEBUG: lista grupos descartados
+    const dropped = Object.values(groups).filter((g) => g.machineIds.length === 0);
+    if (dropped.length > 0) {
+      console.warn('[Realizado/byMachine] Grupos sem machineId:', dropped.map((g) => g.name));
+    }
     // Defesa: só grupos com pelo menos 1 machineId admin registrado entram na lista
     return Object.values(groups)
       .filter((g) => g.machineIds.length > 0)
@@ -519,6 +524,12 @@ export default function Production() {
     });
 
     const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+    // DEBUG: identifica chaves que NÃO são datas válidas (para diagnóstico)
+    const invalidKeys = Object.keys(map).filter((k) => !DATE_RE.test(k));
+    if (invalidKeys.length > 0) {
+      console.warn('[Realizado/byDay] Chaves inválidas filtradas:', invalidKeys);
+      invalidKeys.forEach((k) => console.warn('  ↳', k, map[k]));
+    }
     return Object.values(map)
       .filter((item) => DATE_RE.test(item.name))
       .map((item) => ({
@@ -554,6 +565,11 @@ export default function Production() {
     if (viewMode === 'daily') return a.name.localeCompare(b.name);
     return b.planned - a.planned;
   });
+
+  // DEBUG: linhas finais sendo renderizadas
+  if (typeof window !== 'undefined') {
+    console.log(`[Realizado/${viewMode}] ${sortedData.length} linhas:`, sortedData.map((r) => r.name));
+  }
 
   // KPIs globais — apenas produtos programados (planned > 0) entram no cálculo de aderência
   const scheduledProducts = byProduct.filter(p => p.planned > 0);
