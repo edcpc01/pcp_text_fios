@@ -7,7 +7,7 @@ import {
   subscribeRawMaterialStock, subscribeFinishedGoodsStock, subscribeForecast,
   subscribePlanningEntries,
 } from '../services/firebase';
-import { computeOEE } from '../pages/OEE';
+import { computeOEE, computeDowntimeByReason } from '../pages/OEE';
 
 // ─── Gemini API ───────────────────────────────────────────────────────────────
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
@@ -21,6 +21,7 @@ const QUICK_ACTIONS = [
   { label: 'Resumo do mês', query: 'Faça um resumo executivo da produção e planejamento do mês atual, destacando os pontos críticos.' },
   { label: 'Aderência', query: 'Analise a aderência ao planejamento por produto. Quais estão abaixo da meta e qual a causa provável?' },
   { label: 'OEE do mês', query: 'Analise o OEE de produção do mês. Quais máquinas têm pior desempenho? Quais as principais causas e ações recomendadas?' },
+  { label: 'Paradas', query: 'Detalhe as paradas do mês: por motivo (compressor, mecânico, elétrico, etc.), por máquina e por fábrica. Aponte os principais ofensores e o volume perdido.' },
   { label: 'Qualidade', query: 'Analise os dados de qualidade do mês. Quais máquinas e produtos têm maior índice de 2ª qualidade e refugo? O que priorizar?' },
   { label: 'Estoque MP', query: 'Como está o estoque de matéria-prima em relação à necessidade atual? Há risco de ruptura?' },
   { label: 'Forecast', query: 'Compare o forecast de vendas com o estoque de produto acabado. Há déficits? Quais produtos precisam de atenção?' },
@@ -112,6 +113,7 @@ function buildSystemPrompt(ctx) {
   lines.push(`\n# REGRAS POR DIMENSÃO`);
   lines.push(`PLANO/ADERÊNCIA → trazer % aderência, kg ainda a produzir, máquinas que travam o atendimento, ações para destravar.`);
   lines.push(`OEE → comparar Disponibilidade × Performance × Qualidade; apontar o componente que mais derruba o OEE da máquina/unidade; sugerir foco (manutenção, setup, refugo).`);
+  lines.push(`PARADAS → use a seção "PARADAS DO MÊS". Quando perguntarem quantas paradas por motivo (Compressor, Mecânico, Elétrico, Pico de energia, Programação, Operacional), busque na quebra por fábrica/máquina/motivo. Traga ocorrências + horas + volume perdido. NUNCA diga que falta dado se a seção existe.`);
   lines.push(`QUALIDADE → distinguir 1ª/2ª/refugo; identificar máquinas e produtos com maior %2ª/refugo; correlacionar com OEE-Qualidade quando possível.`);
   lines.push(`CLIENTE (NILIT, RHODIA, INVISTA, DOPTEX, CORRADI etc.) → use a seção "Qualidade por CLIENTE". Traga volume, mix de qualidade e produtos top. NUNCA diga "faltam dados" se a seção existe.`);
   lines.push(`MP/PA/FORECAST → apontar rupturas previstas, déficits forecast vs estoque PA, MPs críticas com produtos impactados.`);
@@ -154,6 +156,52 @@ function buildSystemPrompt(ctx) {
     });
   } else {
     lines.push('Dados de OEE indisponíveis — verifique se há planejamento cadastrado para o mês.');
+  }
+
+  // Paradas (Downtime) — quantidades, horas e volume perdido por motivo e máquina
+  lines.push(`\n=== PARADAS DO MÊS (motivos detalhados) ===`);
+  const dtByFac = ctx.downtimeByFactory || {};
+  let totalDtMin = 0, totalDtOccs = 0, totalDtVol = 0;
+  const reasonGlobal = {}; // agrega por motivo no mês todo
+  Object.values(dtByFac).forEach((fac) => {
+    (fac.machines || []).forEach((mac) => {
+      totalDtMin  += mac.minutes || 0;
+      totalDtOccs += mac.occurrences || 0;
+      totalDtVol  += mac.volumePerdido || 0;
+      (mac.motivos || []).forEach((mv) => {
+        if (!reasonGlobal[mv.motivo]) reasonGlobal[mv.motivo] = { motivo: mv.motivo, minutes: 0, occurrences: 0, volumePerdido: 0 };
+        reasonGlobal[mv.motivo].minutes       += mv.minutes || 0;
+        reasonGlobal[mv.motivo].occurrences   += mv.occurrences || 0;
+        reasonGlobal[mv.motivo].volumePerdido += mv.volumePerdido || 0;
+      });
+    });
+  });
+
+  if (totalDtOccs > 0) {
+    lines.push(`Total geral: ${totalDtOccs} ocorrências | ${(totalDtMin / 60).toFixed(1)} h | ${fmtKg(totalDtVol)} perdidos`);
+
+    // Top motivos globais
+    const top = Object.values(reasonGlobal).sort((a, b) => b.minutes - a.minutes);
+    if (top.length > 0) {
+      lines.push(`\n--- Top motivos no mês (todas unidades) ---`);
+      top.forEach((r) => {
+        lines.push(`• ${r.motivo}: ${r.occurrences} ocorr. | ${(r.minutes / 60).toFixed(1)} h | ${fmtKg(r.volumePerdido)} perdidos`);
+      });
+    }
+
+    // Detalhamento por fábrica → máquina → motivo
+    Object.entries(dtByFac).forEach(([, fac]) => {
+      if (!fac.machines || fac.machines.length === 0) return;
+      lines.push(`\n--- ${fac.label} ---`);
+      fac.machines.forEach((mac) => {
+        lines.push(`${mac.csvName}: ${mac.occurrences} ocorr. | ${(mac.minutes / 60).toFixed(1)} h | ${fmtKg(mac.volumePerdido)} perdidos`);
+        (mac.motivos || []).forEach((mv) => {
+          lines.push(`  • ${mv.motivo}: ${mv.occurrences} ocorr. | ${(mv.minutes / 60).toFixed(1)} h | ${fmtKg(mv.volumePerdido)} perdidos`);
+        });
+      });
+    });
+  } else {
+    lines.push('Sem paradas registradas no período.');
   }
 
   // Qualidade
@@ -369,6 +417,20 @@ export default function AgentPanel({ mobileFullscreen = false }) {
       oeeData = computeOEE({ planningEntries, csvRows, adminMachines, adminProducts: products, factory, yearMonth, cutoff });
     } catch (_) { /* sem dados */ }
 
+    // ── Paradas (downtime) por máquina e motivo, por fábrica ────────────────
+    // Usa a mesma lógica da página OEE: pega PNPs das planning entries e
+    // converte minutos → kg perdido com a rate de cada máquina individualmente.
+    const downtimeByFactory = {};
+    try {
+      Object.entries(oeeData || {}).forEach(([facId, facData]) => {
+        const facEntries = planningEntries.filter((e) => e.factory === facId);
+        downtimeByFactory[facId] = {
+          label: facData.label,
+          machines: computeDowntimeByReason(facEntries, { [facId]: facData }),
+        };
+      });
+    } catch (_) { /* sem dados */ }
+
     // ── Qualidade do CSV ──────────────────────────────────────────────────
     const FACTORY_LABELS = { matriz: 'Corradi Matriz', filial: 'Corradi Filial', outra: 'Outras' };
     // Lookup productCode → cliente (vem do cadastro)
@@ -494,7 +556,7 @@ export default function AgentPanel({ mobileFullscreen = false }) {
 
     return {
       factory, yearMonth, totalPlanned, plannedD1, totalActual, adherence,
-      productDetails, oeeData, qualData,
+      productDetails, oeeData, qualData, downtimeByFactory,
       mpItems, totalMpKg, totalMpNeed,
       paItems, totalPaKg,
       forecastItems,
