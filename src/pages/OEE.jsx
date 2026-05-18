@@ -385,18 +385,37 @@ function getMotivoColor(motivo, index) {
 }
 
 export function computeDowntimeByReason(planningEntries, oeeTree) {
-  const rateMap      = {}; // machineId → kg/min
-  const machNameMap  = {}; // machineId → csvName
-
+  // Mapeia machineId → csvName (a partir da agregação do grupo CSV)
+  const machNameMap = {};
   Object.values(oeeTree).forEach((facData) => {
     Object.values(facData.machines).forEach((mach) => {
-      const totalMin = mach.workingDays * 1440;
-      const rate = totalMin > 0 ? mach.theoreticalKg / totalMin : 0;
-      mach.machineIds.forEach((id) => {
-        rateMap[id]     = rate;
-        machNameMap[id] = mach.csvName;
-      });
+      mach.machineIds.forEach((id) => { machNameMap[id] = mach.csvName; });
     });
+  });
+
+  // Rate INDIVIDUAL por máquina (kg/min) — a fórmula antiga usava a rate do
+  // GRUPO CSV, o que multiplicava o volume perdido pelo nº de máquinas no grupo.
+  // Agora cada máquina tem sua própria rate baseada no que ELA planejou produzir.
+  //   rate_M = theoreticalKg_M / (workingDays_M × 1440)
+  //   theoreticalKg_M = soma de planned100 nas datas de produção da máquina
+  //   workingDays_M   = nº de datas únicas com cellType='producao'
+  const machStats = {}; // machineId → { theoKg, workingDays: Set<date> }
+  planningEntries.forEach((e) => {
+    if (e.cellType !== 'producao') return;
+    if (!e.machine || !e.date) return;
+    // theoretical (sem desconto de eficiência); fallback p/ entries antigas
+    const theo = e.planned100 != null
+      ? Number(e.planned100) || 0
+      : Math.round((Number(e.planned) || 0) / 0.95);
+    if (theo === 0) return;
+    if (!machStats[e.machine]) machStats[e.machine] = { theoKg: 0, workingDays: new Set() };
+    machStats[e.machine].theoKg += theo;
+    machStats[e.machine].workingDays.add(e.date);
+  });
+  const rateMap = {};
+  Object.entries(machStats).forEach(([id, s]) => {
+    const totalMin = s.workingDays.size * 1440;
+    rateMap[id] = totalMin > 0 ? s.theoKg / totalMin : 0;
   });
 
   // byMachine: csvName → { csvName, minutes, occurrences, volumePerdido, byMotivo }
